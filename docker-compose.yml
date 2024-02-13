@@ -1,0 +1,8 @@
+version: '1.0.0'
+services:
+  app:
+    image: pp-fastapi
+    build: .
+    ports:
+      - "8000:8000"
+      

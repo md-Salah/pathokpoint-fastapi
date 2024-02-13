@@ -1,105 +1,53 @@
-import enum
-from typing import Optional, List
-from sqlmodel import SQLModel, Field, Relationship
+from app.config.database import Base
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ARRAY
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from datetime import datetime
+import uuid
 
-from .mixins import TimestampMixin
+class Book(Base):
+    __tablename__ = 'books'
 
-class Cover(enum.Enum):
-    paperback = 'paperback'
-    hardcover = 'hardcover'
+    id = Column(UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
+    sku = Column(String, unique=True)
+    name = Column(String, index=True)
+    banglish_name = Column(String, index=True)
+    short_description = Column(String)
+    regular_price = Column(Float)
+    sale_price = Column(Float)
+    manage_stock = Column(Boolean, default=True)
+    quantity = Column(Integer, default=1)
+    in_stock = Column(Boolean, default=True)
+    shipping_required = Column(Boolean, default=True)
+    edition = Column(String)
+    notes = Column(String)
+    cover = Column(String)
+    description = Column(String)
+    images = Column(ARRAY(String))
+    tags = Column(ARRAY(String))
+    language = Column(String)
+    condition = Column(String)
+    isbn = Column(String)
+    no_of_pages = Column(Integer)
+    slug = Column(String, index=True, unique=True, nullable=False)
 
-class Language(enum.Enum):
-    english = 'english'
-    bangla = 'bangla'
+    # Features
+    featured = Column(Boolean, default=False)
+    must_read = Column(Boolean, default=False)
+    is_vintage = Column(Boolean, default=False)
+    is_islamic = Column(Boolean, default=False)
+    is_translated = Column(Boolean, default=False)
+    is_recommended = Column(Boolean, default=False)
+    big_sale = Column(Boolean, default=False)
 
-class Condition(enum.Enum):
-    new = 'new'
-    old = 'old'
-    old_like_new = 'old like new'
+    # Stock
+    stock_location = Column(String)
+    shelf = Column(String)
+    row_col = Column(String)
+    bar_code = Column(String)
+    weight = Column(Float, default=0)
+    selector = Column(String)
+    cost = Column(Float, default=0)
 
-
-# class Genre(Base):
-#     __tablename__ = 'genres'
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     name = Column(String(50), unique=True, nullable=False)
-#     banglish_name = Column(String(50))
-#     description = Column(String)
-#     image_url = Column(String)
-    
-#     books = relationship('Book', back_populates='genre')
-
-
-
-# Models
-class BookBase(SQLModel):
-    sku: str = Field(unique=True)
-    name: str
-    regular_price: int
-    condition: Condition
-    slug: str = Field(unique=True, max_length=100)
-    image_url: str | None = None
-    qty: int = Field(default=1, ge=0, le=10000)
-    banglish_name: str | None = None
-    sale_price: int | None = None
-    manage_stock: bool = True
-    publisher: str | None = None
-    edition: str | None = None
-    cost: int | None = None
-    notes: str | None = None
-    cover: Cover | None = None
-    description: str | None = None
-    language: Language | None = None
-    ISBN: int | None = None
-    no_of_pages: int | None = None
-
-# SQLModel
-# Table name: book
-class Book(BookBase, table=True):
-    id: int | None = Field(primary_key=True)
-    author_id: int = Field(foreign_key="author.id")
-    translator_id: int = Field(foreign_key="author.id")
-    genre_id: int = Field(foreign_key="genre.id")
-
-    author: List["Author"] = Relationship(back_populates="books")
-    translator: List["Author"] = Relationship(back_populates="translated")
-    # images: List["BookImage"] = Relationship(back_populates="books")
-    genre: List["Genre"] = Relationship(back_populates="books")
-
-
-class AuthorBase(SQLModel):
-    name: str
-    banglish_name: str | None = None
-    bio: str | None = None
-    image_url: str | None = None
-    birth_date: str | None = None
-    death_date: str | None = None
-    slug: str | None = None
-
-class Author(AuthorBase, TimestampMixin, table=True):
-    id: Optional[int] = Field(primary_key=True)
-    books: List[Book] = Relationship(back_populates="author")
-    translated: List[Book] = Relationship(back_populates="translator")
-
-class GenreBase(SQLModel):
-    name: str
-    banglish_name: str | None = None
-    description: str | None = None
-    image_url: str | None = None
-    slug: str | None = None
-
-class Genre(GenreBase, TimestampMixin, table=True):
-    id: int = Field(default=None, primary_key=True)
-    books: List[Book] = Relationship(back_populates="genre")
-
-class BookImageBase(SQLModel):
-    url: str
-
-class BookImage(BookImageBase, table=True):
-    id: int = Field(default=None, primary_key=True)
-    book_id: int = Field(default=None, foreign_key="book.id")
-    
-    
-# Pydantic models
-class BookCreate(BookBase):
-    pass
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)

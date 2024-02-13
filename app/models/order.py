@@ -2,8 +2,8 @@ import enum
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
 
-from .db_setup import Base
-from .mixins import Timestamp
+from app.config.database import Base
+from app.models.mixins import Timestamp
 
 
 class Order(Timestamp, Base):

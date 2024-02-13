@@ -2,7 +2,7 @@ from typing import Union, List
 from app.auth.jwt_handler import create_jwt_token, decode_jwt_token, verify_password, get_hashed_password
 from fastapi import Depends, HTTPException, APIRouter, status
 
-from app.models.db_setup import get_db, Session
+from app.config.database import get_db, Session
 from app.models.user import UserCreate, User, UserReadWithToken, UserRead
 from fastapi.security import (OAuth2PasswordBearer, OAuth2PasswordRequestForm)
 from pydantic import BaseModel
