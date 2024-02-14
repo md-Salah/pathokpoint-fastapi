@@ -61,6 +61,21 @@ class CreateBook(BaseModel):
             assert self.weight >= 0, 'weight cannot be negative'
             assert self.cost >= 0, 'cost cannot be negative'
             assert self.quantity >= 0, 'quantity cannot be negative' 
+            
+            if self.name:
+                self.name = self.name.strip()
+            if self.banglish_name:
+                self.banglish_name = self.banglish_name.strip()
+            if self.short_description:
+                self.short_description = self.short_description.strip()
+            if self.edition:
+                self.edition = self.edition.strip()
+            if self.notes:
+                self.notes = self.notes.strip()
+            if self.description:
+                self.description = self.description.strip()
+            if self.slug:
+                self.slug = self.slug.strip()
 
         except AssertionError as err:
             raise HTTPException(status_code=400, detail=str(err))
@@ -77,3 +92,6 @@ class ReadBook(CreateBook):
     slug: str
     created_at: datetime
     updated_at: datetime
+    
+    class config:
+        from_attributes=True

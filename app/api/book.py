@@ -1,4 +1,5 @@
-from fastapi import APIRouter, status, Depends, Query, Response
+from fastapi import APIRouter, status, Depends, Query, Response, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -46,171 +47,25 @@ def update_book(id: UUID, payload: schema.UpdateBook, db: Session = Depends(get_
 def delete_book(id: UUID, db: Session = Depends(get_db)):
     return service.delete_book(id, db)
 
-# def create_author(author):
-#     return {
-#         'id': random.randint(1, 1000),
-#         'name': author,
-#         'description': None,
-#         'banglish_name': None,
-#         'slug': slug(author),
+# IMPORT CSV : ADMIN
+@router.post('/book/import-csv', response_class=StreamingResponse ,status_code=status.HTTP_201_CREATED)
+def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if file.filename and file.filename.endswith('.csv'):
+        csv_stream = service.import_book_by_csv(file, db)
+        response = StreamingResponse(iter([csv_stream]), media_type="text/csv")
+        response.headers["Content-Disposition"] = "attachment; filename={}".format(file.filename)
+        
+        return response
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid file format. Please upload a CSV file')
+    
+    
+# EXPORT TO CSV : ADMIN
+@router.get('/book/export-to-csv', response_class=StreamingResponse ,status_code=status.HTTP_201_CREATED)
+def export_to_csv(db: Session = Depends(get_db)):
+    csv_stream = service.export_book_to_csv(db)
+    response = StreamingResponse(iter([csv_stream]), media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=books.csv"
+    
+    return response
 
-#         'birth_date': None,
-#         'death_date': None,
-#         'book_published': None,
-#         'image': None,
-#         'banner': None,
-
-#         'created_at': datetime.now(),
-#         'updated_at': datetime.now(),
-#     }
-
-
-# def create_publisher(publisher):
-#     return {
-#         'id': random.randint(1, 1000),
-#         'name': publisher,
-#         'description': None,
-#         'banglish_name': None,
-#         'slug': slug(publisher),
-
-#         'country': None,
-#         'book_published': None,
-#         'image': None,
-#         'banner': None,
-
-#         'created_at': datetime.now(),
-#         'updated_at': datetime.now(),
-#     }
-
-
-# def create_category(category):
-#     return {
-#         'id': random.randint(1, 1000),
-#         'name': category,
-#         'description': None,
-#         'banglish_name': None,
-#         'slug': slug(category),
-
-#         'image': None,
-#         'banner': None,
-
-#         'created_at': datetime.now(),
-#         'updated_at': datetime.now(),
-#     }
-
-
-# def reorder_columns(df):
-#     columns = [
-#         "id",
-#         "sku",
-#         "name",
-#         "banglish_name",
-#         "short_description",
-#         "authors",
-#         "translators",
-#         "regular_price",
-#         "sale_price",
-#         "quantity",
-#         "in_stock",
-#         "shipping_required",
-#         "publisher",
-#         "edition",
-#         "notes",
-#         "cover",
-#         "description",
-#         "images",
-#         "categories",
-#         "variations",
-#         "tags",
-#         "language",
-#         "condition",
-#         "isbn",
-#         "page",
-#         "slug",
-#         "draft",
-#         "featured",
-#         "must_read",
-#         "stock_location",
-#         "shelf",
-#         "row_col",
-#         "bar_code",
-#         "weight",
-#         "selector",
-#         "cost",
-#         "created_at",
-#         "updated_at"
-#     ]
-
-#     return df[columns]
-
-
-# def get_books():
-#     df = pd.read_csv('dummy/seba_clean.csv', dtype={'edition': 'str'})
-#     df.dropna(subset=['regular_price'], inplace=True)
-#     df.regular_price.astype(int)
-#     df = df.fillna('')
-
-#     df['sale_price'] = 0
-#     df['edition'] = df['edition'].apply(lambda x: x.split('.')[0])
-
-#     # Type casting Regular Price
-#     df['regular_price'] = df['regular_price'].astype(int)
-
-#     # Images
-#     df['images'] = df['images'].apply(lambda x: x.split(','))
-
-#     # Create Author
-#     df['authors'] = df['author'].apply(
-#         lambda x: [create_author(name) for name in x.split('/')])
-#     df.drop(columns=['author'], inplace=True)
-
-#     # Create Publisher
-#     df['publisher'] = df['publisher'].apply(lambda x: create_publisher(x))
-
-#     # Create Category
-#     df['category'] = 'তিন গোয়েন্দা, মাসুদ রানা'
-#     df['categories'] = df['category'].apply(
-#         lambda x: [create_category(cat.strip()) for cat in x.split(',')])
-#     df.drop(columns=['category'], inplace=True)
-
-#     # Language
-#     df['language'] = df['language'].apply(
-#         lambda x: x.replace('Bn', 'বাংলা').replace('En', 'English'))
-
-#     # Notes
-#     df['notes'] = df['notes'].apply(lambda x: x.strip() if x else None)
-
-#     # Additional Info
-#     df['id'] = df.index
-#     df['translators'] = [[] for _ in range(len(df))]
-#     df['short_description'] = None
-#     df['banglish_name'] = None
-#     df['in_stock'] = df['quantity'].apply(lambda x: True if x > 0 else False)
-#     df['shipping_required'] = True
-#     df['description'] = None
-#     df['variations'] = [[] for _ in range(len(df))]
-#     df['tags'] = [[] for _ in range(len(df))]
-#     df['isbn'] = None
-#     df['page'] = None
-#     df['slug'] = df['name'].apply(lambda x: slug(x))
-#     df['draft'] = False
-
-#     df['featured'] = False
-#     df['must_read'] = False
-
-#     # Stock
-#     df['stock_location'] = 'mirpur-11'
-#     df['shelf'] = None
-#     df['row_col'] = None
-#     df['bar_code'] = None
-#     df['weight'] = None
-#     df['selector'] = None
-#     df['cost'] = None
-
-#     # Timestamp
-#     df['created_at'] = datetime.now()
-#     df['updated_at'] = datetime.now()
-
-#     df = reorder_columns(df)
-
-#     return df.to_dict(orient='records')
