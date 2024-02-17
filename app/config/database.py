@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import declarative_base
 from app.config.settings import settings
 
-engine = create_engine(settings.DATABASE_URL, echo=False)
+engine = create_engine(settings.DATABASE_URL, echo=True)
 Base = declarative_base()
 
 # Create tables
