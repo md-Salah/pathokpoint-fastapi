@@ -8,7 +8,7 @@ def book_to_csv_stream(books: list[dict]) -> str:
     
     df['images'] = df['images'].apply(lambda x: '|'.join(x) if x else None)
     stream = io.StringIO()
-    df.to_csv(stream, index=False, encoding='utf-8-sig', sep=',')
+    df.to_csv(stream, index=False, encoding='utf-8', sep=',')
     return stream.getvalue()
         
 

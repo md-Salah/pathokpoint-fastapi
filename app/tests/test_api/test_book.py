@@ -10,7 +10,7 @@ def test_get_book_by_id(client: TestClient):
     }
     response = create_book(payload, client)
     data = response.json()
-    response = client.get(f"/book/{data['id']}")
+    response = client.get(f"/book/id/{data['id']}")
     data = response.json()
     assert response.status_code == 200
     assert data["name"] == "Test Book"
@@ -41,7 +41,7 @@ def test_delete_book(client: TestClient):
     response = client.delete(f"/book/{data['id']}")
     data = response.json()
     assert response.status_code == 200
-    response = client.get(f"/book/{data['id']}")
+    response = client.get(f"/book/id/{data['id']}")
     assert response.status_code == 404
 
 def test_get_book_by_slug(client: TestClient):

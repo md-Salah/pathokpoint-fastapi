@@ -95,7 +95,7 @@ def bulk_create_n_update_books(payload: list[schema.CreateBook], db: Session) ->
     return new_books + existing_books
 
 
-def import_book_by_csv(file: UploadFile, db: Session) -> str:
+def import_book_from_csv(file: UploadFile, db: Session) -> str:
     books = csv_service.clean_csv(file.file)
     payload = [schema.CreateBook(**book) for book in books]
     new_books = bulk_create_n_update_books(payload, db)

@@ -3,14 +3,14 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 
+import app.pydantic_schema.book as schema
 from app.config.database import get_db
 import app.controller.book as service
-import app.pydantic_schema.book as schema
 
 router = APIRouter()
 
 # GET BOOK BY ID : CUSTOMER
-@router.get('/book/{id}', response_model=schema.ReadBook)  
+@router.get('/book/id/{id}', response_model=schema.ReadBook)  
 def get_book_by_id(id: UUID, db: Session = Depends(get_db)):
     return service.get_book_by_id(id, db)
 
@@ -48,10 +48,10 @@ def delete_book(id: UUID, db: Session = Depends(get_db)):
     return service.delete_book(id, db)
 
 # IMPORT CSV : ADMIN
-@router.post('/book/import-csv', response_class=StreamingResponse ,status_code=status.HTTP_201_CREATED)
+@router.post('/book/import-from-csv', response_class=StreamingResponse ,status_code=status.HTTP_201_CREATED)
 def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if file.filename and file.filename.endswith('.csv'):
-        csv_stream = service.import_book_by_csv(file, db)
+        csv_stream = service.import_book_from_csv(file, db)
         response = StreamingResponse(iter([csv_stream]), media_type="text/csv")
         response.headers["Content-Disposition"] = "attachment; filename={}".format(file.filename)
         
@@ -61,7 +61,7 @@ def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     
     
 # EXPORT TO CSV : ADMIN
-@router.get('/book/export-to-csv', response_class=StreamingResponse ,status_code=status.HTTP_201_CREATED)
+@router.get('/book/export-to-csv', response_class=StreamingResponse)
 def export_to_csv(db: Session = Depends(get_db)):
     csv_stream = service.export_book_to_csv(db)
     response = StreamingResponse(iter([csv_stream]), media_type="text/csv")

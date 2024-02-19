@@ -11,6 +11,7 @@ from app.config.settings import settings
 def session_fixture():
     engine = create_engine(settings.TEST_DATABASE_URL)
     Base.metadata.create_all(engine)
+    print('session_fixture is called')
     with Session(engine) as session:
         yield session
     Base.metadata.drop_all(engine)
@@ -22,5 +23,6 @@ def client_fixture(session: Session):
         return session
     app.dependency_overrides[get_db] = get_session_override
     client = TestClient(app)
+    print('client_fixture is called')
     yield client
     app.dependency_overrides.clear()
