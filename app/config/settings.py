@@ -1,13 +1,13 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import ValidationError
+from pydantic import ValidationError, PostgresDsn
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = 'PATHOK POINT'
     PROJECT_DESCRIPTION: str = 'Ecommerce backend for the bookshop PATHOK POINT'
     PROJECT_VERSION: str = '1.0.0'
     
-    DATABASE_URL: str
-    TEST_DATABASE_URL: str
+    DATABASE_URL: PostgresDsn
+    TEST_DATABASE_URL: PostgresDsn
     
     JWT_SECRET: str
     JWT_REFRESH_SECRET_KEY: str

@@ -1,17 +1,17 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
-from app.config.database import get_db, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+
+from app.main import app
+from app.config.database import get_db, Base
 from app.config.settings import settings
 
 
 @pytest.fixture(name="session")
 def session_fixture():
-    engine = create_engine(settings.TEST_DATABASE_URL)
+    engine = create_engine(settings.TEST_DATABASE_URL.unicode_string())
     Base.metadata.create_all(engine)
-    print('session_fixture is called')
     with Session(engine) as session:
         yield session
     Base.metadata.drop_all(engine)
@@ -23,6 +23,5 @@ def client_fixture(session: Session):
         return session
     app.dependency_overrides[get_db] = get_session_override
     client = TestClient(app)
-    print('client_fixture is called')
     yield client
     app.dependency_overrides.clear()
