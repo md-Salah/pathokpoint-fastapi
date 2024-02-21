@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, APIRouter, status
 from fastapi.security import (OAuth2PasswordBearer, OAuth2PasswordRequestForm)
 
-from app.config.database import get_db, Session
+from app.config.database import get_db, AsyncSession
 import app.pydantic_schema.user as user_schema
 import app.pydantic_schema.auth as auth_schema
 import app.controller.user as user_service

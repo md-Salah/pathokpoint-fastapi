@@ -10,7 +10,7 @@ from app.config.settings import settings
 
 @pytest.fixture(name="session")
 def session_fixture():
-    engine = create_engine(settings.TEST_DATABASE_URL.unicode_string())
+    engine = create_engine(settings.TEST_DATABASE_URL)
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
