@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String
+from sqlalchemy import String
+from sqlalchemy.orm import mapped_column, Mapped
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from app.models.mixins import TimestampMixin
@@ -6,14 +7,20 @@ from app.models.mixins import TimestampMixin
 class User(TimestampMixin):
     __tablename__ = 'users'
 
-    id = Column(UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
-    first_name = Column(String(50))
-    last_name = Column(String(50))
-    username = Column(String(50), unique=True, nullable=False)
-    email = Column(String(100), index=True, unique=True, nullable=False)
-    password = Column(String(100))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
     
-    phone_number = Column(String(15), index=True)
-    profile_picture = Column(String(255))
+    first_name: Mapped[str] = mapped_column(String(50), nullable=True)
+    last_name: Mapped[str] = mapped_column(String(50), nullable=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(100), index=True, unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String, nullable=False)
     
-    role = Column(String(20), default='customer')
+    phone_number: Mapped[str] = mapped_column(String(15), nullable=True) 
+    profile_picture: Mapped[str] = mapped_column(String(255), nullable=True)   
+    
+    role: Mapped[str] = mapped_column(String(20), default='customer')
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
+    
+    

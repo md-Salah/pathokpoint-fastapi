@@ -1,9 +1,0 @@
-version: '1.0.0'
-services:
-  app:
-    image: pp-fastapi
-    env_file: .env
-    build: .
-    ports:
-      - "8000:8000"
-      

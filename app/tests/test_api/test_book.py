@@ -1,83 +1,112 @@
-from fastapi.testclient import TestClient
+import pytest
+from httpx import AsyncClient
+from starlette import status
 
-def create_book(payload: dict, client: TestClient):
-    return client.post("/book", json=payload)
+pytestmark = pytest.mark.asyncio
 
-def test_get_book_by_id(client: TestClient):
+async def create_book(payload: dict, client: AsyncClient):
+    return await client.post("/book", json=payload)
+
+# GET /book/id/{id}
+async def test_get_book_by_id(client: AsyncClient):
     payload = {
         "name": "Test Book",
         "regular_price": 100
     }
-    response = create_book(payload, client)
-    data = response.json()
-    response = client.get(f"/book/id/{data['id']}")
+    response = await create_book(payload, client)
+    response = await client.get(f"/book/id/{response.json()['id']}")
     data = response.json()
     assert response.status_code == 200
     assert data["name"] == "Test Book"
+    
+# GET /book/slug/{slug}
+async def test_get_book_by_slug(client: AsyncClient):
+    payload = {
+        "name": "Test Book by Slug",
+        "regular_price": 100
+    }
+    response = await create_book(payload, client)
+    data = response.json()
+    response = await client.get(f"/book/slug/{data['slug']}")
+    data = response.json()
+    assert response.status_code == 200
+    assert data["name"] == "Test Book by Slug" 
 
-def test_update_book(client: TestClient):
+# GET /books
+async def test_get_all_books(client: AsyncClient):
     payload = {
         "name": "Test Book",
         "regular_price": 100
     }
-    response = create_book(payload, client)
+    await create_book(payload, client)
+    response = await client.get("/books")
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Test Book"
+    
+# GET /book/search/{q}
+async def test_search_books(client: AsyncClient):
+    payload = {
+        "name": "Test Book",
+        "regular_price": 100
+    }
+    await create_book(payload, client)
+    response = await client.get("/book/search/Test")
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Test Book"
+    
+    response = await client.get("/book/search/Book")
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Test Book"
+    
+
+# POST /book
+async def test_create_book(client: AsyncClient):
+    payload = {
+        "name": "Test Book",
+        "regular_price": 100
+    }
+    response = await client.post("/book", json=payload)
+    data = response.json()
+    assert response.status_code == 201
+    assert data["name"] == "Test Book"
+    # Test the slug is generated
+    assert data['slug'] == 'test-book'
+    
+# PATCH /book/{id}
+async def test_update_book(client: AsyncClient):
+    payload = {
+        "name": "Test Book",
+        "regular_price": 100
+    }
+    response = await create_book(payload, client)
     data = response.json()
     payload = {
         "name": "Updated Book",
     }
-    response = client.patch(f"/book/{data['id']}", json=payload)
+    response = await client.patch(f"/book/{data['id']}", json=payload)
     data = response.json()
     assert response.status_code == 200
     assert data["name"] == "Updated Book"
     assert data["regular_price"] == 100
 
-def test_delete_book(client: TestClient):
+# DELETE /book/{id}
+async def test_delete_book(client: AsyncClient):
     payload = {
         "name": "Test Delete Book",
         "regular_price": 100
     }
-    response = create_book(payload, client)
-    data = response.json()
-    response = client.delete(f"/book/{data['id']}")
-    data = response.json()
-    assert response.status_code == 200
-    response = client.get(f"/book/id/{data['id']}")
-    assert response.status_code == 404
-
-def test_get_book_by_slug(client: TestClient):
-    payload = {
-        "name": "Test Book by Slug",
-        "regular_price": 100
-    }
-    response = create_book(payload, client)
-    data = response.json()
-    response = client.get(f"/book/slug/{data['slug']}")
-    data = response.json()
-    assert response.status_code == 200
-    assert data["name"] == "Test Book by Slug"  
+    response = await create_book(payload, client)
+    id = response.json()['id']
+    
+    response = await client.delete(f"/book/{id}")
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    
+    # check if the book exists yet
+    response = await client.get(f"/book/id/{id}")
+    assert response.status_code == 404 
       
-
-def test_get_all_books(client: TestClient):
-    payload = {
-        "name": "Test Book",
-        "regular_price": 100
-    }
-    create_book(payload, client)
-    response = client.get("/books")
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["name"] == "Test Book"
     
-    
-def test_create_book(client: TestClient):
-    # Test slug is generated
-    payload = {
-        "name": "Test Book",
-        "regular_price": 100
-    }
-    response = client.post("/book", json=payload)
-    data = response.json()
-    assert response.status_code == 201
-    assert data["name"] == "Test Book"
-    assert data['slug'].startswith('test-book')
     

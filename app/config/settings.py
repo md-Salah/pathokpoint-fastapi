@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import ValidationError, PostgresDsn
+from pydantic import ValidationError
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = 'PATHOK POINT'

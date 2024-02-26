@@ -6,7 +6,7 @@ from app.config.settings import settings
 
 Base = declarative_base()
 
-engine = create_async_engine(settings.DATABASE_URL, echo=True)
+engine = create_async_engine(settings.DATABASE_URL, echo=True, future=True)
 session_factory = async_sessionmaker(engine, autoflush=False, expire_on_commit=False)
 
 async def create_tables():

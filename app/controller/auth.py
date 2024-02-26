@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
 from uuid import UUID
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from fastapi import HTTPException, status
 
 from app.config.settings import settings
@@ -13,7 +14,7 @@ def create_jwt_token(id: UUID, role: str) -> str:
     payload = {
         "id": str(id),
         'role': role,
-        "expires": (datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp()
+        "expires": (datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp()
     }
     token = jwt.encode(payload, settings.JWT_SECRET,
                        algorithm=settings.JWT_ALGORITHM)
@@ -24,7 +25,7 @@ def verify_token(token: str) -> dict:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         
         expire_time = payload.get('expires', 0)
-        current_time = datetime.utcnow().timestamp()
+        current_time = datetime.now(timezone.utc).timestamp()
         if current_time > expire_time:
             raise jwt.ExpiredSignatureError
         
@@ -59,18 +60,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         hashed_password=hashed_password.encode('utf-8')
     )
 
-def authenticate_user(db: Session, email: str, password: str) -> User:
-    user = db.query(User).filter(User.email == email).first()
+async def authenticate_user(db: AsyncSession, email: str, password: str) -> User:
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"}
         )
-    elif not verify_password(password, user.password):  # type: ignore
+    elif not verify_password(password, user.password):  
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incorrect password",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"}
         )
 

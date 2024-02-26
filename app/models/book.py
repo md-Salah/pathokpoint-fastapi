@@ -1,56 +1,53 @@
-from app.config.database import Base
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ARRAY
+from sqlalchemy import Integer, String, Float, Boolean, ARRAY
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy.orm import Mapped, mapped_column
 import uuid
 
-class Book(Base):
+from app.models.mixins import TimestampMixin
+
+class Book(TimestampMixin):
     __tablename__ = 'books'
 
-    id = Column(UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
-    sku = Column(String, unique=True)
-    name = Column(String, index=True)
-    banglish_name = Column(String, index=True)
-    short_description = Column(String)
-    regular_price = Column(Float)
-    sale_price = Column(Float)
-    manage_stock = Column(Boolean, default=True)
-    quantity = Column(Integer, default=1)
-    in_stock = Column(Boolean, default=True)
-    shipping_required = Column(Boolean, default=True)
-    edition = Column(String)
-    notes = Column(String)
-    cover = Column(String)
-    description = Column(String)
-    images = Column(ARRAY(String))
-    tags = Column(ARRAY(String))
-    language = Column(String)
-    condition = Column(String)
-    isbn = Column(String)
-    no_of_pages = Column(Integer)
-    slug = Column(String, index=True, unique=True, nullable=False)
-
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
+    sku: Mapped[str] = mapped_column(String(15), unique=True, nullable=True)
+    name: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    banglish_name: Mapped[str] = mapped_column(String, index=True, nullable=True)
+    short_description: Mapped[str] = mapped_column(String, nullable=True)
+    regular_price: Mapped[float] = mapped_column(Float)
+    sale_price: Mapped[float] = mapped_column(Float, nullable=True)
+    manage_stock: Mapped[bool] = mapped_column(Boolean, default=True)
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    in_stock: Mapped[bool] = mapped_column(Boolean, default=True)
+    shipping_required: Mapped[bool] = mapped_column(Boolean, default=True)
+    edition: Mapped[str] = mapped_column(String, nullable=True)
+    notes: Mapped[str] = mapped_column(String, nullable=True)
+    cover: Mapped[str] = mapped_column(String, nullable=True)
+    description: Mapped[str] = mapped_column(String, nullable=True)
+    images: Mapped[list[str]] = mapped_column(ARRAY(String))
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String))
+    language: Mapped[str] = mapped_column(String, nullable=True)
+    condition: Mapped[str] = mapped_column(String, nullable=True)
+    isbn: Mapped[str] = mapped_column(String, nullable=True)
+    no_of_pages: Mapped[int] = mapped_column(Integer, nullable=True)
+    slug: Mapped[str] = mapped_column(String(100), index=True, unique=True, nullable=False)
+    
     # Features
-    featured = Column(Boolean, default=False)
-    must_read = Column(Boolean, default=False)
-    is_vintage = Column(Boolean, default=False)
-    is_islamic = Column(Boolean, default=False)
-    is_translated = Column(Boolean, default=False)
-    is_recommended = Column(Boolean, default=False)
-    big_sale = Column(Boolean, default=False)
+    featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    must_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_vintage: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_islamic: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_translated: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_recommended: Mapped[bool] = mapped_column(Boolean, default=False)
+    big_sale: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Stock
-    stock_location = Column(String)
-    shelf = Column(String)
-    row_col = Column(String)
-    bar_code = Column(String)
-    weight = Column(Float, default=0)
-    selector = Column(String)
-    cost = Column(Float, default=0)
-
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    stock_location: Mapped[str] = mapped_column(String, nullable=True)
+    shelf: Mapped[str] = mapped_column(String, nullable=True)
+    row_col: Mapped[str] = mapped_column(String, nullable=True)
+    bar_code: Mapped[str] = mapped_column(String, nullable=True)
+    weight: Mapped[float] = mapped_column(Float, default=0)
+    selector: Mapped[str] = mapped_column(String, nullable=True)
+    cost: Mapped[float] = mapped_column(Float, default=0)
     
     def __repr__(self):
         return f'<Book {self.name}>'
