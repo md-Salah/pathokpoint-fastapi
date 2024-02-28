@@ -1,8 +1,9 @@
 from sqlalchemy import String
-from sqlalchemy.orm import mapped_column, Mapped
+from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from app.models.mixins import TimestampMixin
+# from app.models.order import Order
 
 class User(TimestampMixin):
     __tablename__ = 'users'
@@ -20,7 +21,9 @@ class User(TimestampMixin):
     
     role: Mapped[str] = mapped_column(String(20), default='customer')
     
+    # orders: Mapped[list["Order"]] = relationship(back_populates='user')
+    
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<User (username={self.username})>'
     
     

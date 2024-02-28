@@ -1,5 +1,18 @@
-import uuid
+from app.controller.utility import slugify
 
-generated_uuid = uuid.uuid4()
+text = [
+    'আগুনডানা মেয়ে',
+    'নিঃসঙ্গতা',
+    'কালপিয়াসী জ্যোৎস্না',
+    'অর্ধেক তুমি অর্ধেক বনলতা সেন',
+    'সুমন্ত আসলাম',
+    'অপূর্বা বড়ুয়া',
+    'আব্দুল্লাহ শুভ্র',
+    'সাহানা মওলা',
+    'সমকালীন গল্প',
+    'সাদাত হোসাইন'
+]
 
-print(generated_uuid)
+for t in text:
+    print(slugify(t))
+    

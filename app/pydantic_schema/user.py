@@ -1,7 +1,9 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from datetime import datetime
 from uuid import UUID
+
 from app.pydantic_schema.auth import TokenResponse
+from app.pydantic_schema.mixins import TimestampMixin
 
 class UserBase(BaseModel):
     first_name: str
@@ -34,16 +36,9 @@ class UpdateUser(UserBase):
     profile_picture: str | None = None
 
 
-class ReadUser(UserBase):
+class ReadUser(UserBase, TimestampMixin):
     id: UUID
     role: str
-
-    created_at: datetime
-    updated_at: datetime
-
-    class ConfigDict:
-        from_attributes = True
-
 
 class ReadUserWithToken(BaseModel):
     user: ReadUser

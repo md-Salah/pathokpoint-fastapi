@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from app.api.root import router as root_route
 from app.api.auth import router as auth_route
 from app.api.book import router as book_route
+from app.api.author import router as author_route
 # from app.api.order import router as order_route
 
 from app.config.database import create_tables, drop_tables
@@ -36,6 +37,7 @@ app = FastAPI(
 app.include_router(root_route, tags=['Root'])
 app.include_router(auth_route, tags=['Auth'])
 app.include_router(book_route, tags=['Book'])
+app.include_router(author_route, tags=['Author'])
 # app.include_router(order_route, tags=['Order'])
 
 

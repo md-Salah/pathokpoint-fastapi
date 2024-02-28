@@ -1,15 +1,13 @@
-from pydantic import BaseModel, model_validator
-from typing import Optional, List, Literal
+from pydantic import BaseModel, model_validator, ConfigDict
+from typing import Optional, Set, Literal
 from typing_extensions import Self
-from uuid import UUID
-from datetime import datetime
 from fastapi import HTTPException
 
+from app.pydantic_schema.mixins import TimestampMixin
 
-class CreateBook(BaseModel):
+class BookBase(BaseModel):
     sku: Optional[str] = None
     name: str
-    banglish_name: Optional[str] = None
     short_description: Optional[str] = None
     regular_price: float
     sale_price: Optional[float] = None
@@ -21,33 +19,37 @@ class CreateBook(BaseModel):
     notes: Optional[str] = None
     cover: Literal['hardcover', 'paperback', None] = None
     description: Optional[str] = None
-    images: List[str] = []
-    tags: List[str] = []
+    images: Set[str] = set()
+    tags: Set[str] = set()
     language: Literal['bangla', 'english', None] = None
+    is_used: bool = True
     condition: Literal['new', 'old_like_new',
                        'old_good_enough', 'old_readable', None] = None
     isbn: Optional[str] = None
     no_of_pages: Optional[int] = None
     slug: Optional[str] = None
+    is_draft: bool = True
 
     # Features
-    featured: bool = False
-    must_read: bool = False
+    is_featured: bool = False
+    is_must_read: bool = False
     is_vintage: bool = False
     is_islamic: bool = False
     is_translated: bool = False
     is_recommended: bool = False
-    big_sale: bool = False
+    is_big_sale: bool = False
 
-    # Stock
+    # Inventory
     stock_location: Literal['mirpur_11', 'on_demand', None] = None
     shelf: Optional[str] = None
     row_col: Optional[str] = None
     bar_code: Optional[str] = None
     weight: float = 0
-    selector: Optional[str] = None
     cost: float = 0
+    
+    # Relationship
 
+class CreateBook(BookBase):
     @model_validator(mode='after')
     def validate_model(self) -> Self:
         try:
@@ -64,8 +66,6 @@ class CreateBook(BaseModel):
             
             if self.name:
                 self.name = self.name.strip()
-            if self.banglish_name:
-                self.banglish_name = self.banglish_name.strip()
             if self.short_description:
                 self.short_description = self.short_description.strip()
             if self.edition:
@@ -82,16 +82,15 @@ class CreateBook(BaseModel):
         return self
 
 
-class UpdateBook(CreateBook):
+class UpdateBook(BookBase):
     name: Optional[str] = None
     regular_price: Optional[float] = None
 
 
-class ReadBook(CreateBook):
-    id: UUID
+class ReadBook(BookBase, TimestampMixin):
     slug: str
-    created_at: datetime
-    updated_at: datetime
     
-    class config:
-        from_attributes=True
+    
+    
+
+    

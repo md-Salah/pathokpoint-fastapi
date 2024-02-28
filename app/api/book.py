@@ -52,6 +52,10 @@ async def update_book(id: UUID, payload: schema.UpdateBook, db: AsyncSession = D
 async def delete_book(id: UUID, db: AsyncSession = Depends(get_db)):
     await book_service.delete_book(id, db)
 
+@router.get('/book/test')
+async def test(db: AsyncSession = Depends(get_db)):
+    return await book_service.test(db)
+
 # # IMPORT CSV : ADMIN
 # @router.post('/book/import-from-csv', response_class=StreamingResponse ,status_code=status.HTTP_201_CREATED)
 # def import_csv(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
