@@ -1,4 +1,4 @@
-from pydantic import ConfigDict
+from pydantic import ConfigDict, HttpUrl, NonNegativeInt
 
 from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
 from app.pydantic_schema.base import BaseModel
@@ -25,8 +25,8 @@ class PublisherBase(BaseModel):
     slug: str
     
     description: str | None = None
-    image: str | None = None
-    banner: str | None = None
+    image: HttpUrl | None = None
+    banner: HttpUrl | None = None
     tags: list[str] = []
     
     is_islamic: bool = False
@@ -34,7 +34,7 @@ class PublisherBase(BaseModel):
     is_popular: bool = False
     
     country: str | None = None
-    book_published: int | None = None
+    book_published: NonNegativeInt | None = None
 
     model_config = ConfigDict(json_schema_extra={"example": example_publisher})
     

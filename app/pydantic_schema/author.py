@@ -1,4 +1,4 @@
-from pydantic import ConfigDict
+from pydantic import ConfigDict, NonNegativeInt, HttpUrl
 from datetime import date
 
 from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
@@ -24,12 +24,12 @@ class AuthorBase(BaseModel):
     slug: str
     
     description: str | None = None
-    image: str | None = None
-    banner: str | None = None
+    image: HttpUrl | None = None
+    banner: HttpUrl | None = None
     
     birth_date: date | None = None
     death_date: date | None = None
-    book_published: int | None = None
+    book_published: NonNegativeInt | None = None
     
     tags: list[str] = []
 

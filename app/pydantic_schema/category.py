@@ -1,4 +1,4 @@
-from pydantic import ConfigDict
+from pydantic import ConfigDict, HttpUrl
 
 from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
 from app.pydantic_schema.base import BaseModel
@@ -24,8 +24,8 @@ class CategoryBase(BaseModel):
     slug: str
     
     description: str | None = None
-    image: str | None = None
-    banner: str | None = None
+    image: HttpUrl | None = None
+    banner: HttpUrl | None = None
     tags: list[str] = []
     
     is_islamic: bool = False

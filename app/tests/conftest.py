@@ -10,7 +10,7 @@ from app.config.settings import settings
 
 @pytest_asyncio.fixture(name="session")
 async def session_fixture():
-    engine = create_async_engine(settings.TEST_DATABASE_URL, future=True)
+    engine = create_async_engine(settings.TEST_DATABASE_URL)
     session_factory = async_sessionmaker(
         engine, autoflush=False, expire_on_commit=False)
 

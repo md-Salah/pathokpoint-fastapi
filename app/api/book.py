@@ -33,6 +33,7 @@ async def get_all_books(*, page: int = Query(1, ge=1), per_page: int = Query(10,
 
     return books
 
+# SEARCH BOOKS : CUSTOMER
 @router.get('/book/search/{q}', response_model=list[schema.ReadBook])
 async def search_books(q: str = Path(..., min_length=3), db: AsyncSession = Depends(get_db)):
     return await book_service.search_books(q, db)
