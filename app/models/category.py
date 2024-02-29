@@ -4,7 +4,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 from typing import Set
 
-from app.models.mixins import TimestampMixin, Base
+from app.models.mixins import TimestampMixin
+from app.models.base import Base
 from app.models.book import Book
 
 

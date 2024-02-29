@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 
 from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
+from app.pydantic_schema.base import BaseModel
 
 example_category = {
         'name': 'Fiction',

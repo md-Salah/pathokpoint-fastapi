@@ -1,6 +1,7 @@
 from typing import List, Optional
-from pydantic import BaseModel
 from datetime import datetime
+
+from app.pydantic_schema.base import BaseModel
 
 class CreateOrder(BaseModel):
     books: List[int]

@@ -1,9 +1,10 @@
-from pydantic import BaseModel, model_validator, ConfigDict
+from pydantic import model_validator, ConfigDict
 from typing import Optional, Set, Literal
 from typing_extensions import Self
 from fastapi import HTTPException
 
 from app.pydantic_schema.mixins import TimestampMixin
+from app.pydantic_schema.base import BaseModel
 
 class BookBase(BaseModel):
     sku: Optional[str] = None
@@ -50,6 +51,7 @@ class BookBase(BaseModel):
     # Relationship
 
 class CreateBook(BookBase):
+    pass
     @model_validator(mode='after')
     def validate_model(self) -> Self:
         try:

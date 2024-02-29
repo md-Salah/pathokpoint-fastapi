@@ -1,18 +1,12 @@
-from app.controller.utility import slugify
+class User():
+    name = 'salah uddin'
 
-text = [
-    'আগুনডানা মেয়ে',
-    'নিঃসঙ্গতা',
-    'কালপিয়াসী জ্যোৎস্না',
-    'অর্ধেক তুমি অর্ধেক বনলতা সেন',
-    'সুমন্ত আসলাম',
-    'অপূর্বা বড়ুয়া',
-    'আব্দুল্লাহ শুভ্র',
-    'সাহানা মওলা',
-    'সমকালীন গল্প',
-    'সাদাত হোসাইন'
-]
-
-for t in text:
-    print(slugify(t))
+    @classmethod
+    def get_user(cls, name):
+        return name
     
+    @property
+    def get_name(self):
+        return self.name
+    
+print(User.get_name) # salah

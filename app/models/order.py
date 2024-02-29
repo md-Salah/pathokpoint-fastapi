@@ -5,7 +5,8 @@
 # from typing import Set, List
 # from enum import Enum
 
-# # from app.models.mixins import TimestampMixin, Base
+# # from app.models.mixins import TimestampMixin
+# from app.models.base import Base
 # from app.models.book import Book
 
 # class OrderStatus(Enum):
