@@ -7,7 +7,9 @@ from app.api.book import router as book_route
 from app.api.author import router as author_route
 from app.api.publisher import router as publisher_route
 from app.api.category import router as category_route
-# from app.api.order import router as order_route
+from app.api.order import router as order_route
+from app.api.courier import router as courier_route
+from app.api.address import router as address_route
 
 from app.config.database import create_tables, drop_tables
 from app.config.settings import settings
@@ -22,9 +24,9 @@ async def lifespan(app: FastAPI):
     # shutdown
 
 app = FastAPI(
-    title = settings.PROJECT_NAME,
-    description = settings.PROJECT_DESCRIPTION,
-    version = settings.PROJECT_VERSION,
+    title=settings.PROJECT_NAME,
+    description=settings.PROJECT_DESCRIPTION,
+    version=settings.PROJECT_VERSION,
     contact={
         'name': 'Md Salah',
         'email': 'mdsalah.connect@gmail.com',
@@ -42,6 +44,6 @@ app.include_router(book_route, tags=['Book'])
 app.include_router(author_route, tags=['Author'])
 app.include_router(publisher_route, tags=['Publisher'])
 app.include_router(category_route, tags=['Category'])
-# app.include_router(order_route, tags=['Order'])
-
-
+app.include_router(order_route, tags=['Order'])
+app.include_router(courier_route, tags=['Courier'])
+app.include_router(address_route, tags=['Address'])

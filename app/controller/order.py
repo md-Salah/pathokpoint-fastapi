@@ -1,11 +1,11 @@
-# from fastapi import HTTPException, status
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from sqlalchemy import select, func, delete, or_
-# from uuid import UUID
-# from typing import Sequence
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, delete, or_
+from uuid import UUID
+from typing import Sequence
 
-# from app.models.order import Order
-# import app.pydantic_schema.order as schema
+from app.models.order import Order
+import app.pydantic_schema.order as schema
 
 # async def get_order_by_id(id: UUID, db: AsyncSession) -> schema.ReadOrder:
 #     result = await db.execute(select(Order).where(Order.id == id))
@@ -35,12 +35,13 @@
 #     return orders
 
 
-# async def create_order(payload: schema.CreateOrder, db: AsyncSession) -> schema.ReadOrder:
-#     new_order = Order(**schema.CreateOrder.model_dump(payload))
-#     db.add(new_order)
-#     await db.commit()
+async def create_order(payload: schema.CreateOrder, db: AsyncSession):
+    print(payload.model_dump())
+    # new_order = Order(**schema.CreateOrder.model_dump(payload))
+    # db.add(new_order)
+    # await db.commit()
 
-#     return new_order
+    # return new_order
 
 
 # async def update_order(id: UUID, payload: schema.UpdateOrder, db: AsyncSession) -> schema.ReadOrder:

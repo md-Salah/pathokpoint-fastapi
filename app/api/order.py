@@ -1,13 +1,13 @@
-# import app.pydantic_schema.order as schema
-# import app.controller.order as order_service
-# from fastapi import APIRouter, Depends, Query, Path, Response, HTTPException
-# from typing import List
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from uuid import UUID
+import app.pydantic_schema.order as schema
+import app.controller.order as order_service
+from fastapi import APIRouter, Depends, Query, Path, Response, HTTPException
+from typing import List
+from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
-# from app.config.database import get_db
+from app.config.database import get_db
 
-# router = APIRouter()
+router = APIRouter()
 
 # # Admin | Customer(creator) : GET order by id
 # @router.get('/order/{id}', response_model=schema.ReadOrder)
@@ -27,10 +27,10 @@
 
 #     return orders
 
-# # Customer: CREATE order
-# @router.post('/order/', response_model=schema.ReadOrder)
-# async def create_order(payload: schema.CreateOrder, db: AsyncSession = Depends(get_db)):
-#     return await order_service.create_order(payload, db)
+# Customer: CREATE order
+@router.post('/order/')
+async def create_order(payload: schema.CreateOrder, db: AsyncSession = Depends(get_db)):
+    return await order_service.create_order(payload, db)
 
 # # Admin: UPDATE order
 # @router.put('/order/{id}', response_model=schema.ReadOrder)

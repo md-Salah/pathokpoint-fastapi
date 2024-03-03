@@ -1,14 +1,20 @@
 from typing import List, Optional
 from datetime import datetime
+from pydantic import UUID4
 
 from app.pydantic_schema.base import BaseModel
 
+class OrderItem(BaseModel):
+    book_id: UUID4
+    quantity: int
+
 class CreateOrder(BaseModel):
-    books: List[int]
-    shipping_method: int
-    coupon_code: Optional[str] = None
-    transaction_ids: List[str] = []
-    status: Optional[str] = 'order placed'
+    user_id: UUID4
+    items: List[OrderItem]
+    shipping_method_id: UUID4
+    coupon_ids: List[UUID4] = []
+    transaction_ids: List[UUID4] = []
+    address_id: UUID4
     
 class UpdateOrder(CreateOrder):
     pass

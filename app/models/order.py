@@ -1,69 +1,102 @@
-# from sqlalchemy import Integer, String, Float, ARRAY, ForeignKey
-# from sqlalchemy.dialects.postgresql import UUID
-# from sqlalchemy.orm import Mapped, mapped_column, relationship
-# import uuid
-# from typing import Set, List
-# from enum import Enum
+from sqlalchemy import Integer, String, Float, ARRAY, ForeignKey, Enum
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+import uuid
+from typing import Set, List, TYPE_CHECKING
+import enum
 
-# # from app.models.mixins import TimestampMixin
-# from app.models.base import Base
-# from app.models.book import Book
+from app.models.mixins import TimestampMixin
+if TYPE_CHECKING:
+    from app.models.transaction import Transaction
+    from app.models.coupon import Coupon
+    from app.models.courier import Courier
+from app.models.address import Address
 
-# class OrderStatus(Enum):
-#     PENDING = 'pending'
-#     PROCESSING = 'processing'
-#     SHIPPED = 'shipped'
-#     DELIVERED = 'delivered'
-#     CANCELLED = 'cancelled'
-#     RETURNED = 'returned'
-#     REFUNDED = 'refunded'
-#     FAILED = 'failed'
-#     COMPLETED = 'completed'
-#     ARCHIVED = 'archived'
-#     DELETED = 'deleted'
-#     UNKNOWN = 'unknown'
+class Status(enum.Enum):
+    pending_payment = 'pending_payment'
+    order_confirmed = 'order_confirmed'
+    photo_sent = 'photo_sent'
+    condition_confirmed = 'condition_confirmed'
+    packaging_completed = 'packaging_completed'
+    on_delivery = 'on_delivery'
+    delivered = 'delivered'
+    
+    returned = 'returned'
+    cancelled = 'cancelled'
+    refunded = 'refunded'
+    
+    cod_received = 'cod_received'
+    
+class OrderItem():
+    __tablename__ = 'order_items'
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
+    book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('books.id'), primary_key=True, nullable=False)
+    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('orders.id'), primary_key=True, nullable=False)
+    
+    regular_price: Mapped[float] = mapped_column(Float, nullable=False)
+    sold_price: Mapped[float] = mapped_column(Float, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     
 
-# class Order():
-#     __tablename__ = 'orders'
-
-#     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
-    
-#     shipping_charge: Mapped[float] = mapped_column(Float, nullable=False)
-#     weight_charge: Mapped[float] = mapped_column(Float, nullable=False)
-#     total: Mapped[float] = mapped_column(Float, nullable=False)
-#     # coupon_code: Mapped[str] = mapped_column(String, nullable=True)
-#     discount: Mapped[float] = mapped_column(Float, nullable=True)
-#     payable: Mapped[float] = mapped_column(Float, nullable=False)
-    
-#     transaction_ids: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=True)
-#     paid: Mapped[float] = mapped_column(Float, nullable=False)
-#     refunded: Mapped[float] = mapped_column(Float, nullable=False)
-#     due: Mapped[float] = mapped_column(Float, nullable=False)
-    
-    
-#     # user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, foreign_key='users.id')
-    
-#     # shipping_method_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, foreign_key='shipping_methods.id')
-#     items: Mapped[Set["Book"]] = relationship("Book", secondary='order_items', backref='orders')
-#     # status: Mapped[OrderStatus] = mapped_column(OrderStatus, nullable=False)
-    
-    
-#     def __repr__(self):
-#         return f'<Order {self.id}>'
+    def __repr__(self):
+        return f'<OrderItem (order_id={self.order_id}, book_id={self.book_id})>'
 
 
-# class OrderItem():
-#     __tablename__ = 'order_items'
+class OrderStatus():
+    __tablename__ = 'order_status'
     
-#     # id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('orders.id'), nullable=False)
     
-#     regular_price: Mapped[float] = mapped_column(Float, nullable=False)
-#     sold_price: Mapped[float] = mapped_column(Float, nullable=False)
-#     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[Status] = mapped_column(Enum(Status), nullable=False)
     
-#     book_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('books.id'), primary_key=True, nullable=False)
-#     order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('orders.id'), primary_key=True, nullable=False)
+    note_to_customer: Mapped[str | None] = mapped_column(String)
+    note_to_admin: Mapped[str | None] = mapped_column(String)
+    admin_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'), nullable=True)
+    
+    def __repr__(self):
+        return f'<OrderStatus (order_id={self.order_id}, status={self.status})>'
+    
+class Order(TimestampMixin):
+    __tablename__ = 'orders'
 
-#     def __repr__(self):
-#         return f'<OrderItem {self.book_id}>'
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
+
+    # user
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id')) 
+    
+    # items/books
+    # items: Mapped[List['OrderItem']] = relationship(backref='order', cascade='all, delete-orphan', lazy='joined')
+    old_book_total: Mapped[float] = mapped_column(Float)
+    new_book_total: Mapped[float] = mapped_column(Float)
+      
+    # Shipping method
+    courier_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('couriers.id'))
+    courier: Mapped['Courier'] = relationship(back_populates='orders')
+    shipping_charge: Mapped[float] = mapped_column(Float)
+    weight_charge: Mapped[float] = mapped_column(Float)
+    
+    # Shipping Address
+    address_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('addresses.id'))
+    address: Mapped['Address'] = relationship(lazy='joined')
+    
+    # discount
+    coupon_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('coupons.id'), nullable=True)
+    coupons: Mapped[Set['Coupon']] = relationship(secondary='order_coupon_link', back_populates='orders') # convert to many to many
+    discount: Mapped[float] = mapped_column(Float, nullable=True)
+    
+    # summary
+    total: Mapped[float] = mapped_column(Float)
+    payable: Mapped[float] = mapped_column(Float)
+    paid: Mapped[float] = mapped_column(Float)
+    refunded: Mapped[float] = mapped_column(Float)
+    cash_on_delivery: Mapped[float] = mapped_column(Float)
+    
+    # payment
+    transactions: Mapped[Set['Transaction']] = relationship(back_populates='order')
+    
+    
+    def __repr__(self):
+        return f'<Order id={self.id}>'
+
