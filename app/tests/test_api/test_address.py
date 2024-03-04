@@ -14,9 +14,24 @@ simple_address = {
         "country": "bangladesh",
     }
 
+simple_user = {
+        "email": "testuser@gmail.com",
+        "first_name": "Fname",
+        "last_name": "Lname",
+        "password": "test123456",
+        "phone_number": "017xxxxxxxx",
+        "username": "testuser"
+    }
+
+@pytest_asyncio.fixture(name="user")
+async def create_user(client: AsyncClient):
+    response = await client.post("/signup", json=simple_user)
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
 @pytest_asyncio.fixture(name="created_address")
-async def create_address(client: AsyncClient):
-    response = await client.post("/address", json=simple_address)
+async def create_address(client: AsyncClient, user: dict):
+    response = await client.post(f"/address/{user['user']['id']}", json=simple_address)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
@@ -43,29 +58,22 @@ async def test_get_address_by_fake_uuid(client: AsyncClient):
     assert response.json() == {'detail': f'Address with id ({id}) not found'}
 
 
-
 # GET /addresss
 async def test_get_all_addresss(client: AsyncClient, created_address: dict):
-    response = await client.get("/addresss")
+    response = await client.get(f"/addresss/{created_address['user_id']}")
     assert len(response.json()) == 1
     assert response.json()[0].items() >= simple_address.items()
     
 # POST /address
-async def test_create_address(client: AsyncClient):
-    response = await client.post("/address", json=simple_address)
+async def test_create_address(client: AsyncClient, user: dict):
+    response = await client.post(f"/address/{user['user']['id']}", json=simple_address)
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json().items() >= simple_address.items()
-    
-# POST /address
-async def test_create_duplicate_address(client: AsyncClient, created_address: dict):
-    response = await client.post("/address", json=simple_address)
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json() == {'detail': f'Address with method name ({simple_address["method_name"]}) already exists'}
 
     
 # PATCH /address/{id}
 async def test_update_address(client: AsyncClient, created_address: dict):
-    created_address['base_charge'] = 100.0
+    created_address['city'] = 'chattogram'
     created_address.pop('updated_at')
     response = await client.patch(f"/address/{created_address['id']}", json=created_address)
     assert response.status_code == status.HTTP_200_OK

@@ -1,9 +1,20 @@
-from sqlalchemy import String
+from sqlalchemy import String, Enum
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
+import enum
+from typing import TYPE_CHECKING
+
 from app.models.mixins import TimestampMixin
 # from app.models.order import Order
+if TYPE_CHECKING:
+    from app.models.address import Address
+
+class Role(enum.Enum):
+    customer = 'customer'
+    staff = 'staff'
+    admin = 'admin'
+    super_admin = 'super_admin'
 
 class User(TimestampMixin):
     __tablename__ = 'users'
@@ -19,9 +30,11 @@ class User(TimestampMixin):
     phone_number: Mapped[str] = mapped_column(String(15), nullable=True) 
     profile_picture: Mapped[str] = mapped_column(String(255), nullable=True)   
     
-    role: Mapped[str] = mapped_column(String(20), default='customer')
+    role: Mapped[Role] = mapped_column(Enum(Role), default=Role.customer)
     
     # orders: Mapped[list["Order"]] = relationship(back_populates='user')
+    
+    addresses: Mapped[list["Address"]] = relationship(back_populates='user', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<User (username={self.username})>'

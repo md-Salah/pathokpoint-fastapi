@@ -1,8 +1,9 @@
 from sqlalchemy import String, ForeignKey, Enum
-from sqlalchemy.orm import mapped_column, Mapped
+from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
+from app.models.user import User
 from app.models.mixins import TimestampMixin
 from app.constant.country import Country
 from app.constant.city import City
@@ -20,6 +21,7 @@ class Address(TimestampMixin):
     country: Mapped[Country] = mapped_column(Enum(Country), default=Country.bangladesh)
     
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'))
+    user: Mapped['User'] = relationship(back_populates='addresses')
     
     def __repr__(self):
         return f'<Address (address={self.address}, user_id={self.user_id})>'

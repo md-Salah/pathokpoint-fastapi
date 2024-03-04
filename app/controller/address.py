@@ -5,6 +5,7 @@ from typing import Sequence
 from uuid import UUID
 
 from app.models.address import Address
+from app.models.user import User
 
 
 async def get_address_by_id(id: UUID, db: AsyncSession) -> Address:
@@ -15,14 +16,25 @@ async def get_address_by_id(id: UUID, db: AsyncSession) -> Address:
     return address
 
 
-async def get_all_addresss(page: int, per_page: int, db: AsyncSession) -> Sequence[Address]:
+async def get_all_addresss(user_id, page: int, per_page: int, db: AsyncSession) -> Sequence[Address]:
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'User with id ({user_id}) not found')
+
     offset = (page - 1) * per_page
-    result = await db.execute(select(Address).offset(offset).limit(per_page))
+    result = await db.execute(select(Address).where(Address.user == user).offset(offset).limit(per_page))
     return result.scalars().all()
 
 
-async def create_address(payload: dict, db: AsyncSession) -> Address:
+async def create_address(user_id, payload: dict, db: AsyncSession) -> Address:
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'User with id ({user_id}) not found')
+    
     address = Address(**payload)
+    address.user = user
     db.add(address)
     await db.commit()
     return address

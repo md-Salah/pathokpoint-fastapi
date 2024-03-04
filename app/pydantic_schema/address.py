@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, UUID4
 
 from app.constant.city import City
 from app.constant.country import Country
@@ -38,5 +38,6 @@ class UpdateAddress(AddressBase):
 
 
 class AddressOut(AddressBase, TimestampMixin):
+    user_id: UUID4
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_address | timestamp_mixin_example})

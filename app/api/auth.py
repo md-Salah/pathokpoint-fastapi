@@ -17,7 +17,7 @@ def verify_token(token: str = Depends(oauth_scheme)):
 @router.post("/token", response_model=auth_schema.TokenResponse)
 async def login_for_access_token(req: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user = await auth_service.authenticate_user(db, req.username, req.password) # we are using email as username
-    token = auth_service.create_jwt_token(user.id, user.role)
+    token = auth_service.create_jwt_token(user.id, str(user.role))
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -30,7 +30,7 @@ async def user_signup(user: user_schema.CreateUser, db: AsyncSession = Depends(g
 
     user.password = auth_service.get_hashed_password(user.password)
     new_user = await user_service.create_user(db, user)
-    token = auth_service.create_jwt_token(new_user.id, new_user.role)
+    token = auth_service.create_jwt_token(new_user.id, str(new_user.role))
 
     return {
         'user': new_user,

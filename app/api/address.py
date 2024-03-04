@@ -17,11 +17,11 @@ async def get_address_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 # Permission: Customer
-@router.get('/addresss', response_model=list[address_schema.AddressOut])
-async def get_all_addresss(*, page: int = Query(1, ge=1),
+@router.get('/addresss/{user_id}', response_model=list[address_schema.AddressOut])
+async def get_all_addresss(*, user_id:UUID, page: int = Query(1, ge=1),
                            per_page: int = Query(10, ge=1, le=100),
                            db: AsyncSession = Depends(get_db),  response: Response):
-    addresss = await address_service.get_all_addresss(page, per_page, db)
+    addresss = await address_service.get_all_addresss(user_id, page, per_page, db)
     total_addresss = await address_service.count_address(db)
 
     response.headers['X-Total-Count'] = str(total_addresss)
@@ -33,9 +33,9 @@ async def get_all_addresss(*, page: int = Query(1, ge=1),
 
 
 # Permission: Admin
-@router.post('/address', response_model=address_schema.AddressOut, status_code=status.HTTP_201_CREATED)
-async def create_address(payload: address_schema.CreateAddress, db: AsyncSession = Depends(get_db)):
-    address = await address_service.create_address(payload.model_dump(), db)
+@router.post('/address/{user_id}', response_model=address_schema.AddressOut, status_code=status.HTTP_201_CREATED)
+async def create_address(user_id: UUID, payload: address_schema.CreateAddress, db: AsyncSession = Depends(get_db)):
+    address = await address_service.create_address(user_id, payload.model_dump(), db)
     return address_schema.AddressOut.model_validate(address)
 
 
