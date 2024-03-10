@@ -1,158 +1,108 @@
-from fastapi import HTTPException, status, UploadFile
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, or_
+from sqlalchemy import select, func, or_
 from uuid import UUID
 from typing import Sequence
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import joinedload
 
-from app.models import Book
-import app.pydantic_schema.book as book_schema
-# import app.controller.csv as csv_service
-from app.controller.utility import slugify
+from slugify import slugify
 
-async def test(db: AsyncSession):
-    # book = Book(**{
-    #     'name': 'আগুনডানা মেয়ে',
-    #     'slug': 'agun-dana-meye',
-    #     'regular_price': 800,
-    #     'sale_price': 584,
-    # })
-    # author = Author(**{
-    #     'name': 'সাদাত হোসাইন',
-    #     'banglish_name': 'Sadat Hossain',
-    #     'slug': 'sadat-hossain',
-    # })
-    
-    # db.add(book)
-    # db.add(author)
-    # book.authors.add(author)    
-    # await db.commit()
-    # id = '65ccf19c-679b-4155-8402-9577c6f1f2bb'
-    
-    book_with_authors = await (
-        db.execute(select(Book).options(joinedload(Book.authors)).where(Book.id == id))
-    )
-    
-    return book_with_authors.unique().scalars().all()
+from app.models import Book, Author, Category, Image, Publisher, Tag
 
-async def get_book_by_id(id: UUID, db: AsyncSession) -> book_schema.ReadBook:
-    result = await db.execute(select(Book).where(Book.id == id))
-    book = result.scalar()
+query = select(Book).options(
+    joinedload(Book.publisher),
+    joinedload(Book.authors),
+    joinedload(Book.translators),
+    joinedload(Book.categories),
+    joinedload(Book.images),
+    joinedload(Book.tags)
+)
+
+
+async def get_book_by_id(id: UUID, db: AsyncSession) -> Book:
+    book = await db.scalar(query.where(Book.id == id))
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Book with id {id} not found')
     return book
 
 
-async def get_book_by_slug(slug: str, db: AsyncSession) -> book_schema.ReadBook:
-    result = await db.execute(select(Book).where(Book.slug == slug))
-    book = result.scalar()
-    if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Book with slug {slug} not found')
-    return book
-
-
-async def get_all_books(page: int, per_page: int, db: AsyncSession) -> Sequence[book_schema.ReadBook]:
+async def get_all_books(page: int, per_page: int, db: AsyncSession) -> Sequence[Book]:
     offset = (page - 1) * per_page
-    
-    result = await db.execute(select(Book).offset(offset).limit(per_page))
-    books = result.scalars().all()
+
+    result = await db.execute(query.offset(offset).limit(per_page))
+    books = result.unique().scalars().all()
     return books
 
-async def search_books(q: str, db: AsyncSession) -> Sequence[book_schema.ReadBook]:
-    result = await db.execute(select(Book).where(
+
+async def search_books(q: str, db: AsyncSession) -> Sequence[Book]:
+    result = await db.execute(query.where(
         or_(
             Book.name.ilike(f'%{q}%'),
             Book.slug.ilike(f'%{q}%'),
         )
     ))
-    books = result.scalars().all()
+    books = result.unique().scalars().all()
     return books
 
-async def create_book(payload: book_schema.CreateBook, db: AsyncSession) -> book_schema.ReadBook:
-    # if sku it should be unique
-    if payload.sku and await db.scalar(select(Book).where(Book.sku == payload.sku)):
+
+async def create_book(payload: dict, db: AsyncSession) -> Book:
+    if await db.scalar(select(Book).where(Book.sku == payload['sku'])):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Book with sku {payload.sku} already exists')
+                            detail='Book with sku ({}) already exists'.format(payload['sku']))
 
-    payload.slug = await generate_unique_slug(payload, db)
+    payload['slug'] = slugify(payload['slug'])
+    payload = await build_relationships(payload, db)
 
-    book = Book(**payload.model_dump())
+    book = Book(**payload)
     db.add(book)
     await db.commit()
 
-    return book_schema.ReadBook.model_validate(book)
+    return book
 
 
-async def update_book(id: UUID, payload: book_schema.UpdateBook, db: AsyncSession) -> book_schema.ReadBook:
-    book = await get_book_by_id(id, db)
+async def update_book(id: UUID, payload: dict, db: AsyncSession) -> Book:
+    book = await db.scalar(query.where(Book.id == id))
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Book with id ({id}) not found')
 
-    data = book_schema.UpdateBook.model_dump(payload, exclude_unset=True)
-    for key, value in data.items():
-        setattr(book, key, value)
+    if payload.get('slug'):
+        payload['slug'] = slugify(payload['slug'])
+    payload = await build_relationships(payload, db)
+
+    [setattr(book, key, value) for key, value in payload.items()]
 
     await db.commit()
     return book
 
-async def delete_book(id: UUID, db: AsyncSession):
-    book = await get_book_by_id(id, db)
-    await db.delete(book)   
+
+async def delete_book(id: UUID, db: AsyncSession) -> None:
+    book = await db.get(Book, id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Book with id ({id}) not found')
+    await db.delete(book)
     await db.commit()
-    
+
+
 async def count_book(db: AsyncSession) -> int:
     result = await db.execute(select(func.count()).select_from(Book))
     return result.scalar_one()
 
-# Bulk operations
-async def bulk_create_n_update_books(payload: list[book_schema.CreateBook], db: AsyncSession) -> list[Book]:
-    new_books = []
-    existing_books = []
 
-    for book in payload:
-        # Update book if sku exists
-        if book.sku:
-            result = await db.execute(select(Book).where(Book.sku == book.sku))
-            existing_book = result.scalar()
-            if existing_book:
-                [existing_book.__setattr__(key, value) for key, value in book_schema.CreateBook.model_dump(
-                    book, exclude_unset=True).items()]
-                existing_books.append(existing_book)
-                continue
+async def build_relationships(payload: dict, db: AsyncSession) -> dict:
+    if payload.get('publisher'):
+        payload['publisher'] = await db.get(Publisher, payload['publisher'])
+    if payload.get('authors'):
+        payload['authors'] = [await db.get(Author, author_id) for author_id in payload['authors']]
+    if payload.get('translators'):
+        payload['translators'] = [await db.get(Author, translator_id) for translator_id in payload['translators']]
+    if payload.get('categories'):
+        payload['categories'] = [await db.get(Category, category_id) for category_id in payload['categories']]
+    if payload.get('images'):
+        payload['images'] = [await db.get(Image, image_id) for image_id in payload['images']]
+    if payload.get('tags'):
+        payload['tags'] = [await db.get(Tag, tag_id) for tag_id in payload['tags']]
 
-        book.slug = await generate_unique_slug(book, db)
-        new_books.append(Book(**book_schema.CreateBook.model_dump(book)))
-
-    db.add_all(new_books)
-    await db.commit()
-
-    return new_books + existing_books
-
-
-# def import_book_from_csv(file: UploadFile, db: AsyncSession) -> str:
-#     books = csv_service.clean_csv(file.file)
-#     payload = [book_schema.CreateBook(**book) for book in books]
-#     new_books = bulk_create_n_update_books(payload, db)
-
-#     return csv_service.book_to_csv_stream([book_orm_to_dict(book) for book in new_books])
-
-# def export_book_to_csv(db: AsyncSession) -> str:
-#     books = db.query(Book).all()
-#     return csv_service.book_to_csv_stream([book_orm_to_dict(book) for book in books])
-
-
-async def set_price_in_bulk():
-    pass
-
-# Additional functions
-async def generate_unique_slug(payload, db: AsyncSession) -> str:
-    slug = payload.slug.replace(
-        ' ', '-').lower() if payload.slug else slugify(payload.name)
-    result = await db.execute(select(Book).filter(Book.slug.like(f'{slug}%')))
-    existing_book = result.scalars().all()
-    return f"{slug}-{len(existing_book)}" if existing_book else slug
-
-def book_orm_to_dict(book: Book):
-    book_dict = book.__dict__
-    book_dict.pop('_sa_instance_state')
-    return book_dict
+    return payload

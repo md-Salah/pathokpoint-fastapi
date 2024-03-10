@@ -12,7 +12,7 @@ example_courier = {
     'weight_charge_per_kg': 20,
     'allow_cash_on_delivery': True,
 
-    'include_country': [Country.bangladesh],
+    'include_country': [Country.BD],
     'include_city': [City.dhaka],
     'exclude_city': [],
 }

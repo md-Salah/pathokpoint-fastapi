@@ -3,7 +3,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 from typing import Set, List, TYPE_CHECKING
-import enum
+
+from app.constant.orderstatus import Status
 
 from app.models.mixins import TimestampMixin
 if TYPE_CHECKING:
@@ -11,21 +12,6 @@ if TYPE_CHECKING:
     from app.models.coupon import Coupon
     from app.models.courier import Courier
 from app.models.address import Address
-
-class Status(enum.Enum):
-    pending_payment = 'pending_payment'
-    order_confirmed = 'order_confirmed'
-    photo_sent = 'photo_sent'
-    condition_confirmed = 'condition_confirmed'
-    packaging_completed = 'packaging_completed'
-    on_delivery = 'on_delivery'
-    delivered = 'delivered'
-    
-    returned = 'returned'
-    cancelled = 'cancelled'
-    refunded = 'refunded'
-    
-    cod_received = 'cod_received'
     
 class OrderItem():
     __tablename__ = 'order_items'

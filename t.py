@@ -1,12 +1,14 @@
-class User():
-    name = 'salah uddin'
+from pydantic import BaseModel
+from enum import Enum
 
-    @classmethod
-    def get_user(cls, name):
-        return name
+class Country(Enum):
+    BD = 'Bangladesh'
+    IN = 'India'
     
-    @property
-    def get_name(self):
-        return self.name
     
-print(User.get_name) # salah
+class Desh(BaseModel):
+    country: Country
+    
+d = Desh(country=Country.BD)
+
+print(d.country)

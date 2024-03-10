@@ -8,3 +8,5 @@ from .address import Address # noqa: F401
 from .coupon import Coupon # noqa: F401
 from .courier import Courier # noqa: F401
 from .user import User # noqa: F401
+from .image import Image # noqa: F401
+from .tag import Tag # noqa: F401

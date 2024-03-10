@@ -18,7 +18,7 @@ class Address(TimestampMixin):
     address: Mapped[str] = mapped_column(String)
     thana: Mapped[str] = mapped_column(String)
     city: Mapped[City] = mapped_column(Enum(City))
-    country: Mapped[Country] = mapped_column(Enum(Country), default=Country.bangladesh)
+    country: Mapped[Country] = mapped_column(Enum(Country), default=Country.BD)
     
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'))
     user: Mapped['User'] = relationship(back_populates='addresses')

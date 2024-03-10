@@ -6,12 +6,12 @@ from starlette import status
 pytestmark = pytest.mark.asyncio
 
 simple_address = {
-        "phone_number": "01710000000",
-        "alternative_phone_number": "01710000001",
+        "phone_number": "+8801710002000",
+        "alternative_phone_number": "+8801710000001",
         "address": "House 1, Road 1, Block A, Dhaka",
         "thana": "dhanmondi",
         "city": "dhaka",
-        "country": "bangladesh",
+        "country": "BD",
     }
 
 simple_user = {

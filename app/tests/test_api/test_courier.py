@@ -11,7 +11,7 @@ simple_courier = {
         "base_charge": 60.0,
         "weight_charge_per_kg": 20.0,
         "allow_cash_on_delivery": True,
-        "include_country": ["bangladesh"],
+        "include_country": ["BD"],
         "include_city": ["dhaka"],
         "exclude_city": [],
     }
