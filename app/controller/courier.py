@@ -24,7 +24,7 @@ async def get_all_couriers(page: int, per_page: int, db: AsyncSession) -> Sequen
 async def create_courier(payload: dict, db: AsyncSession) -> Courier:
     if await db.scalar(select(Courier).filter(Courier.method_name == payload['method_name'])):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Courier with method name ({payload['method_name']}) already exists')
+                            detail=f'Courier with method name ({payload["method_name"]}) already exists')
 
     courier = Courier(**payload)
     db.add(courier)
