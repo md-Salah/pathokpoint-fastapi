@@ -8,11 +8,7 @@ from app.models.mixins import TimestampMixin
 from app.constant import Condition, StockLocation, Country, Cover, Language
 
 if TYPE_CHECKING:
-    from app.models.author import Author
-    from app.models.category import Category
-    from app.models.publisher import Publisher
-    from app.models.image import Image
-    from app.models.tag import Tag
+    from app.models import Author, Publisher, Category, Image, Tag
 
 
 class Book(TimestampMixin):

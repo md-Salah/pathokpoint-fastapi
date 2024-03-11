@@ -68,8 +68,7 @@ class Order(TimestampMixin):
     address: Mapped['Address'] = relationship(lazy='joined')
     
     # discount
-    coupon_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('coupons.id'), nullable=True)
-    coupons: Mapped[Set['Coupon']] = relationship(secondary='order_coupon_link', back_populates='orders') # convert to many to many
+    coupons: Mapped[List['Coupon']] = relationship(secondary='order_coupon_link', back_populates='orders')
     discount: Mapped[float] = mapped_column(Float, nullable=True)
     
     # summary
@@ -80,7 +79,7 @@ class Order(TimestampMixin):
     cash_on_delivery: Mapped[float] = mapped_column(Float)
     
     # payment
-    transactions: Mapped[Set['Transaction']] = relationship(back_populates='order')
+    transactions: Mapped[List['Transaction']] = relationship(back_populates='order')
     
     
     def __repr__(self):

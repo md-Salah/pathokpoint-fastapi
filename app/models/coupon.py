@@ -3,28 +3,23 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 from datetime import date, datetime
-from typing import Set
+from typing import List, TYPE_CHECKING
 
 from app.models.mixins import TimestampMixin
 from app.models.base import Base
-from app.models.order import Order
-from app.models.book import Book
+from app.models import Order, Author, Book, Publisher, Category
+if TYPE_CHECKING:
+    from app.models import Tag, User
 
-import enum
-
-
-class DiscountType(enum.Enum):
-    fixed_amount = 'fixed_amount'
-    percentage = 'percentage'
-    flat_rate = 'flat_rate'
-
+from app.constant.discount_type import DiscountType
+from app.constant.condition import Condition
 
 class Coupon(TimestampMixin):
     __tablename__ = 'coupons'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(
         as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
-    code: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    code: Mapped[str] = mapped_column(String, index=True, unique=True, nullable=False)
     short_description: Mapped[str | None] = mapped_column(String)
     expiry_date: Mapped[datetime | None] = mapped_column(DateTime)
 
@@ -42,24 +37,106 @@ class Coupon(TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     free_shipping: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Relationships
-    # include_books: Mapped[Set[Book]] = mapped_column(relationship())
-    # include_authors: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
-    # include_categories: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
-    # include_publishers: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
-    # include_tags: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
+    use_count: Mapped[int] = mapped_column(Integer, default=0)
+    discount_given_old: Mapped[float] = mapped_column(Integer, default=0)
+    discount_given_new: Mapped[float] = mapped_column(Integer, default=0)
 
-    # exclude_categories: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
-    # exclude_publishers: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
-    # exclude_tags: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
-
-    # allowed_users: Mapped[Set[str]] = mapped_column(ARRAY(String), default=set)
+    include_conditions: Mapped[List[Condition]] = mapped_column(ARRAY(Enum(Condition)), default=list)
     
-    orders: Mapped['Order'] = relationship(secondary='order_coupon_link', back_populates='coupons')
+    # Relationships
+    include_books: Mapped[List['Book']] = relationship(secondary='coupon_book_include_link', backref='coupons')
+    include_authors: Mapped[List['Author']] = relationship(secondary='coupon_author_include_link', backref='coupons')
+    include_categories: Mapped[List['Category']] = relationship(secondary='coupon_category_include_link', backref='coupons')
+    include_publishers: Mapped[List['Publisher']] = relationship(secondary='coupon_publisher_include_link', backref='coupons')
+    include_tags: Mapped[List['Tag']] = relationship(secondary='coupon_tag_include_link', backref='coupons')
+
+    exclude_books: Mapped[List['Book']] = relationship(secondary='coupon_book_exclude_link')
+    exclude_authors: Mapped[List['Author']] = relationship(secondary='coupon_author_exclude_link')
+    exclude_categories: Mapped[List['Category']] = relationship(secondary='coupon_category_exclude_link')
+    exclude_publishers: Mapped[List['Publisher']] = relationship(secondary='coupon_publisher_exclude_link')
+    exclude_tags: Mapped[List['Tag']] = relationship(secondary='coupon_tag_exclude_link')
+
+    allowed_users: Mapped[List['User']] = relationship(secondary='coupon_user_link')
+    
+    orders: Mapped[List['Order']] = relationship(secondary='order_coupon_link', back_populates='coupons')
 
     def __repr__(self):
         return f'<Coupon (code={self.code})>'
 
+coupon_book_include_link = Table(
+    'coupon_book_include_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('book_id', UUID(as_uuid=True), ForeignKey('books.id'), primary_key=True),
+)
+coupon_book_exclude_link = Table(
+    'coupon_book_exclude_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('book_id', UUID(as_uuid=True), ForeignKey('books.id'), primary_key=True),
+)
+
+coupon_author_include_link = Table(
+    'coupon_author_include_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('author_id', UUID(as_uuid=True), ForeignKey('authors.id'), primary_key=True),
+)
+coupon_author_exclude_link = Table(
+    'coupon_author_exclude_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('author_id', UUID(as_uuid=True), ForeignKey('authors.id'), primary_key=True),
+)
+
+coupon_category_include_link = Table(
+    'coupon_category_include_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('category_id', UUID(as_uuid=True), ForeignKey('categories.id'), primary_key=True),
+)
+
+coupon_category_exclude_link = Table(
+    'coupon_category_exclude_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('category_id', UUID(as_uuid=True), ForeignKey('categories.id'), primary_key=True),
+)
+
+coupon_publisher_include_link = Table(
+    'coupon_publisher_include_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('publisher_id', UUID(as_uuid=True), ForeignKey('publishers.id'), primary_key=True),
+)
+
+coupon_publisher_exclude_link = Table(
+    'coupon_publisher_exclude_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('publisher_id', UUID(as_uuid=True), ForeignKey('publishers.id'), primary_key=True),
+)
+
+coupon_tag_include_link = Table(
+    'coupon_tag_include_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('tag_id', UUID(as_uuid=True), ForeignKey('tags.id'), primary_key=True),
+)
+
+coupon_tag_exclude_link = Table(
+    'coupon_tag_exclude_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('tag_id', UUID(as_uuid=True), ForeignKey('tags.id'), primary_key=True),
+)
+
+coupon_user_link = Table(
+    'coupon_user_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
+    Column('user_id', UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True),
+)
 
 order_coupon_link = Table(
     'order_coupon_link',

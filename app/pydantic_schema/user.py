@@ -42,3 +42,6 @@ class ReadUserWithToken(BaseModel):
     user: ReadUser
     token: TokenResponse
     
+    
+class UserOut(ReadUser):
+    pass

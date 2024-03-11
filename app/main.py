@@ -11,6 +11,7 @@ from app.api.category import router as category_route
 from app.api.order import router as order_route
 from app.api.courier import router as courier_route
 from app.api.address import router as address_route
+from app.api.coupon import router as coupon_route
 
 from app.config.database import create_tables, drop_tables
 from app.config.settings import settings
@@ -49,3 +50,4 @@ app.include_router(category_route, tags=['Category'])
 app.include_router(order_route, tags=['Order'])
 app.include_router(courier_route, tags=['Courier'])
 app.include_router(address_route, tags=['Address'])
+app.include_router(coupon_route, tags=['Coupon'])
