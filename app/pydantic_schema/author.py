@@ -24,8 +24,8 @@ class AuthorBase(BaseModel):
     slug: str
     
     description: str | None = None
-    image: HttpUrl | None = None
-    banner: HttpUrl | None = None
+    image: str | None = None
+    banner: str | None = None
     
     birth_date: date | None = None
     death_date: date | None = None
