@@ -2,6 +2,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from httpx import AsyncClient, ASGITransport
 from typing import AsyncGenerator
+from fastapi import status
 
 from app.main import app
 from app.config.database import get_db, Base
@@ -33,3 +34,33 @@ async def client_fixture(session: AsyncSession) -> AsyncGenerator[AsyncClient, N
             app.dependency_overrides[get_db] = lambda: session
             yield client
             app.dependency_overrides.clear()
+
+
+
+# Other fixtures
+@pytest_asyncio.fixture(name="author_in_db")
+async def create_author(client: AsyncClient):
+    response = await client.post("/author", json={
+        "name": "Humayun Ahmed",
+        "slug": "humayun-ahmed",
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+@pytest_asyncio.fixture(name="publisher_in_db")
+async def create_publisher(client: AsyncClient):
+    response = await client.post("/publisher", json={
+        "name": "Rupa Publications",
+        "slug": "rupa-publications",
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+@pytest_asyncio.fixture(name="category_in_db")
+async def create_category(client: AsyncClient):
+    response = await client.post("/category", json={
+        "name": "Fiction",
+        "slug": "fiction",
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()

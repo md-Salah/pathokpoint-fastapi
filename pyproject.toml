@@ -17,6 +17,7 @@ bcrypt = "^4.1.2"
 python-multipart = "^0.0.9"
 pyjwt = "^2.8.0"
 python-slugify = "^8.0.4"
+cloudinary = "^1.39.0"
 
 
 [tool.poetry.group.dev.dependencies]

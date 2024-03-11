@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from app.api.root import router as root_route
 from app.api.auth import router as auth_route
 from app.api.book import router as book_route
+from app.api.image import router as image_route
 from app.api.tag import router as tag_route
 from app.api.author import router as author_route
 from app.api.publisher import router as publisher_route
@@ -42,6 +43,7 @@ app = FastAPI(
 app.include_router(root_route, tags=['Root'])
 app.include_router(auth_route, tags=['Auth'])
 app.include_router(book_route, tags=['Book'])
+app.include_router(image_route, tags=['Image'])
 app.include_router(tag_route, tags=['Tag'])
 app.include_router(author_route, tags=['Author'])
 app.include_router(publisher_route, tags=['Publisher'])
