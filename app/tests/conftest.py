@@ -64,3 +64,16 @@ async def create_category(client: AsyncClient):
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
+
+@pytest_asyncio.fixture(name="user_in_db")
+async def create_user(client: AsyncClient):
+    response = await client.post("/signup", json = {
+        "email": "testuser@gmail.com",
+        "password": "testPassword2235#",
+        "phone_number": "+8801311701123",
+        "first_name": "test",
+        "last_name": "user1",
+        "username": "lal"
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()

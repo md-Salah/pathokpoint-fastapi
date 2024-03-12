@@ -1,12 +1,14 @@
-from fastapi import HTTPException, status, UploadFile
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Sequence
-from uuid import UUID
-from ftplib import FTP
+from uuid import UUID, uuid4
+import os
 
 from app.models.image import Image
-from app.config.settings import settings
+
+from app.lib import upload_file_to_cloudinary
+
 
 async def get_image_by_id(id: UUID, db: AsyncSession) -> Image:
     image = await db.get(Image, id)
@@ -22,23 +24,19 @@ async def get_all_images(page: int, per_page: int, db: AsyncSession) -> Sequence
     return result.scalars().all()
 
 
-async def create_image(file: UploadFile, alt: str, db: AsyncSession) -> Image:
-    src = upload_file_via_ftp(file)
+async def create_image(file: str, filename: str, alt: str, db: AsyncSession) -> Image:
+    id = uuid4()
+    src = upload_file_to_cloudinary(file, filename, str(id))
+    os.remove(file)
+
     if not src:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail='Image upload failed')
-    
-    image = Image(name= file.filename, src=src, alt=alt)
+
+    image = Image(id=id, name=filename, src=src, alt=alt)
     db.add(image)
     await db.commit()
     return image
-
-# async def update_image(id: UUID, payload: dict, db: AsyncSession) -> Image:
-#     image = await get_image_by_id(id, db)
-#     [setattr(image, key, value)
-#      for key, value in payload.items()]
-#     await db.commit()
-#     return image
 
 
 async def delete_image(id: UUID, db: AsyncSession) -> None:
@@ -50,23 +48,3 @@ async def delete_image(id: UUID, db: AsyncSession) -> None:
 async def count_image(db: AsyncSession) -> int:
     result = await db.execute(select(func.count()).select_from(Image))
     return result.scalar_one()
-
-
-
-def upload_file_via_ftp(file: UploadFile, remote_directory='fastapi-img'):
-
-    try:
-        remote_file_path = '/{}/{}'.format(remote_directory, file.filename)
-
-        with FTP(settings.ftp_host) as ftp:
-            ftp.login(user=settings.ftp_user, passwd=settings.ftp_pass)
-            ftp.storbinary('STOR ' + remote_file_path, file.file)
-
-        src = 'http://mdsalah.customerserver003003.eurhosting.net/fastapi-img/{}'.format(file.filename)
-        return src
-    
-    except Exception as err:
-        print(err)
-    
-    return None
-

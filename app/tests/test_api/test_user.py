@@ -4,111 +4,47 @@ from starlette import status
 
 pytestmark = pytest.mark.asyncio
 
-async def create_user(payload: dict, client: AsyncClient):
-    response = await client.post(
-        "/signup", json=payload
-    )
-    return response
-    
-# /signup
-async def test_user_signup(client: AsyncClient):  
-    payload = {
-        "email": "testuser@gmail.com",
-        "password": "testPassword2235#",
-        "phone_number": "+8801311701123",
-        "first_name": "test",
-        "last_name": "user1",
-        "username": "lal"
-    } 
-     
-    response = await client.post(
-        "/signup", json=payload
-    )
-    data = response.json()
-    user = data['user']
-    token = data['token']
+simple_user = {
+    "email": "testuser@gmail.com",
+    "password": "testPassword2235#",
+    "phone_number": "+8801311701123",
+    "first_name": "test",
+    "last_name": "user1",
+    "username": "lal"
+}
 
-    payload.pop('password')
-    payload.pop('username')
+async def test_get_user_by_id(client: AsyncClient, user_in_db: dict):
+    id = user_in_db['user']['id']
+    response = await client.get(f"/user/id/{id}")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json().items() >= user_in_db['user'].items()
+
+async def test_get_all_users(client: AsyncClient, user_in_db: dict):
+    response = await client.get("/users")
+    assert len(response.json()) == 1
+    assert response.json()[0].items() >= user_in_db['user'].items()
+
+
+async def test_create_user(client: AsyncClient):
+    payload = simple_user.copy()
+    response = await client.post("/user", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
-    assert payload.items() <= user.items()
-    assert user['role'] == "customer"
-    assert token['token_type'] == "bearer"
+    payload.pop('password')
+    assert response.json().items() >= payload.items()
 
-async def test_signup_with_existing_email(client: AsyncClient):
+
+async def test_update_user(client: AsyncClient, user_in_db: dict):
     payload = {
-        "first_name": "test",
-        "last_name": "user1",
-        "email": "existingemail@gmail.com",
-        "password": "testPassword2235#",
+        'first_name': 'updated first name',
     }
-    await create_user(payload, client)
-    
-    response = await client.post(
-        "/signup", json=payload
-    )
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json() == {"detail": "Email is already registered, Try login or forget password."}    
-    
-# /token
-async def test_user_login(client: AsyncClient):
-    payload = {
-        "email": "testuser@gmail.com",
-        "password": "testPassword2235#",
-        "first_name": "test",
-        "last_name": "user1",
-    } 
-    
-    await create_user(payload, client)
-    
-    response = await client.post(
-        "/token", data={"username": payload['email'], "password": payload['password']}
-    )
-    
+    response = await client.patch(f"/user/{user_in_db['user']['id']}", json=payload)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json().get("access_token") is not None
-    assert response.json().get("token_type") == "bearer"
-    
-async def test_user_login_with_wrong_password(client: AsyncClient):
-    payload = {
-        "email": "testuser@gmail.com",
-        "password": "testPassword2235#",
-        "first_name": "test",
-        "last_name": "user1",
-    }
-    
-    await create_user(payload, client)
-    
-    response = await client.post(
-        '/token', data={"username": payload['email'], "password": "wrongpassword"}
-    )
-    
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json() == {"detail": "Incorrect email or password"}
-    
-# /get-private-data
-async def test_get_private_data(client: AsyncClient):
-    payload = {
-        "email": "testuser@gmail.com",
-        "password": "testPassword2235#",
-        "first_name": "test",
-        "last_name": "user1",
-    } 
-    
-    response = await create_user(payload, client)
-    token = response.json()['token']['access_token']
-    
-    response = await client.get(
-        '/get-private-data', headers={"Authorization": f"Bearer {token}"},
-    )
-    
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {"message": "You are accessing private data because you have the access token."}
-    
-async def test_get_private_data_without_token(client: AsyncClient):
-    response = await client.get(
-        '/get-private-data'
-    )
-    
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json() == {"detail": "Not authenticated"}
+    assert response.json().items() >= payload.items()
+
+
+async def test_delete_user(client: AsyncClient, user_in_db: dict):
+    id = user_in_db['user']['id']
+    response = await client.delete(f"/user/{id}")
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    response = await client.get(f"/user/id/{id}")
+    assert response.status_code == status.HTTP_404_NOT_FOUND

@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, Field, UUID4, validator, FutureDatetime
+from pydantic import ConfigDict, Field, UUID4, field_validator, FutureDatetime, ValidationInfo
 from datetime import datetime, timedelta
 
 from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
@@ -77,9 +77,10 @@ class CouponBase(BaseModel):
 
     model_config = ConfigDict(json_schema_extra={"example": example_coupon})
     
-    @validator('discount_old', 'discount_new', always=True)
-    def validate_discount(cls, v, values):
-        if values['discount_type'] == DiscountType.percentage:
+    @field_validator('discount_old', 'discount_new')
+    @classmethod
+    def validate_percentage_discount(cls, v: float, info: ValidationInfo):
+        if info.data['discount_type'] == DiscountType.percentage:
             if not 0 <= v <= 100:
                 raise ValueError('Discount must be between 0 and 100 for percent type.')
         return v

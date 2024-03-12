@@ -29,7 +29,7 @@ async def user_signup(user: user_schema.CreateUser, db: AsyncSession = Depends(g
                                 detail="Email is already registered, Try login or forget password.")
 
     user.password = auth_service.get_hashed_password(user.password)
-    new_user = await user_service.create_user(db, user)
+    new_user = await user_service.create_user(user.model_dump(), db)
     token = auth_service.create_jwt_token(new_user.id, str(new_user.role))
 
     return {

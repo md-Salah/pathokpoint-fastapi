@@ -38,6 +38,9 @@ class OrderBase(CreateOrder):
 class ReadOrder(OrderBase):
     pass
 
+class OrderOut(ReadOrder):
+    pass
+
     
 class DeleteOrder(BaseModel):
     msg: str
