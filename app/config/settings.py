@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
 
+    PRODUCTION: bool
 
     model_config = SettingsConfigDict(env_file='.env', extra='allow')
     
