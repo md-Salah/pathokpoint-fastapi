@@ -1,0 +1,1 @@
+from .cloudinary import upload_file_to_cloudinary # noqa

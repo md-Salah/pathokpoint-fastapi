@@ -7,7 +7,7 @@ import os
 
 from app.models.image import Image
 
-from app.lib import upload_file_to_cloudinary
+from app.library import upload_file_to_cloudinary
 
 
 async def get_image_by_id(id: UUID, db: AsyncSession) -> Image:
