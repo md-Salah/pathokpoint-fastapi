@@ -30,6 +30,3 @@ pytest-asyncio = "^0.23.5"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[[tool.poetry.packages]]
-path = "app"
-include = "**/*"
