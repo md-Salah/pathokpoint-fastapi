@@ -9,8 +9,15 @@ class TimestampMixin(BaseModel):
     created_at: datetime
     updated_at: datetime
     
+class IdTimestampMixin(TimestampMixin):
+    pass
+    
 timestamp_mixin_example = {
     "id": "5b36385d-27bf-47dd-9126-df04bccfc773",
     "created_at": "2024-02-27T18:05:58.659365Z",
     "updated_at": "2024-02-27T18:05:58.659365Z"
+}
+
+id_timestamp_mixin_example = {
+    **timestamp_mixin_example,
 }

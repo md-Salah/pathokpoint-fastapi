@@ -5,16 +5,27 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
+from typing import Literal
 
+from app.constant.role import Role
 from app.config.settings import settings
 from app.models.user import User
 
+def unauthorized_exception(detail: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
 
-def create_jwt_token(id: UUID, role: str) -> str:
+def create_jwt_token(id: UUID, role: Role, type: Literal['access', 'refresh', 'reset_password', 'verification'], minutes: int | None = None) -> str:
+    minutes = minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
     payload = {
         "id": str(id),
-        'role': role,
-        "expires": (datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp()
+        'role': str(role),
+        "expires": (datetime.now(timezone.utc) + timedelta(minutes=minutes)).timestamp(),
+        "type": type
     }
     token = jwt.encode(payload, settings.JWT_SECRET,
                        algorithm=settings.JWT_ALGORITHM)
@@ -31,23 +42,11 @@ def verify_token(token: str) -> dict:
         
         return payload
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise unauthorized_exception("Token has expired")
     except jwt.InvalidSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token signature verification failed",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise unauthorized_exception("Invalid token")
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise unauthorized_exception("Could not validate credentials")
 
 def get_hashed_password(password: str) -> str:
     pwd_bytes = password.encode('utf-8')
@@ -70,10 +69,6 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
             headers={"WWW-Authenticate": "Bearer"}
         )
     elif not verify_password(password, user.password):  
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
+        raise unauthorized_exception("Incorrect email or password")
 
     return user

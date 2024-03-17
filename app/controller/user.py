@@ -5,25 +5,25 @@ from uuid import UUID
 from typing import Sequence
 
 from app.models.user import User
+import app.controller.auth as auth_service
 
-
-async def is_user_exist(db: AsyncSession, email: str) -> User | None:
-    statement = select(User).where(User.email == email)
-    result = await db.execute(statement)
-    return result.scalars().first()
-
-
-async def is_username_exist(db: AsyncSession, username: str) -> User | None:
-    statement = select(User).where(User.username == username)
-    result = await db.execute(statement)
-    return result.scalars().first()
-
+async def is_user_exist(email: str, db: AsyncSession) -> bool:
+    user = await db.scalar(select(User).where(User.email == email))
+    return True if user else False
 
 async def get_user_by_id(id: UUID, db: AsyncSession) -> User:
     user = await db.get(User, id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'User with id ({id}) not found')
+    return user
+
+
+async def get_user_by_email(email: str, db: AsyncSession) -> User:
+    user = await db.scalar(select(User).where(User.email == email))
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'User with email ({email}) not found')
     return user
 
 
@@ -35,6 +35,8 @@ async def get_all_users(page: int, per_page: int, db: AsyncSession) -> Sequence[
 
 async def create_user(payload: dict, db: AsyncSession) -> User:
     payload['username'] = await generate_unique_username(payload, db)
+    payload['password'] = auth_service.get_hashed_password(
+        payload['password'].get_secret_value())
 
     new_user = User(**payload)
     db.add(new_user)
@@ -45,6 +47,14 @@ async def create_user(payload: dict, db: AsyncSession) -> User:
 
 async def update_user(id: UUID, payload: dict, db: AsyncSession) -> User:
     user = await get_user_by_id(id, db)
+    if payload.get('email'):
+        payload['is_verified'] = False
+    if payload.get('username'):
+        payload['username'] = await generate_unique_username(payload, db)
+    if payload.get('password'):
+        payload['password'] = auth_service.get_hashed_password(
+            payload['password'].get_secret_value())
+
     [setattr(user, key, value) for key, value in payload.items()]
     await db.commit()
     return user
@@ -57,10 +67,15 @@ async def delete_user(id: UUID, db: AsyncSession) -> None:
 
 
 async def generate_unique_username(payload, db: AsyncSession) -> str:
-    username_base = payload['username'] if payload.get('username') else payload['first_name'].lower() + \
-        payload['last_name'].lower()
+    if payload['username']:
+        username_base = payload['username']
+    elif payload['first_name'] and payload['last_name']:
+        username_base = payload['first_name'] + payload['last_name']
+    else:
+        username_base = payload['email'].split('@')[0]
     username_base = username_base.replace(' ', '-')
-    results = await db.execute(select(User).where(User.username.like(f'{username_base}%')))
+
+    results = await db.execute(select(User).where(User.username == username_base))
     ln = len(results.scalars().all())
     return f"{username_base}-{ln}" if ln else username_base
 

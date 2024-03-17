@@ -13,12 +13,19 @@ class Settings(BaseSettings):
     JWT_REFRESH_SECRET_KEY: str
     
     JWT_ALGORITHM: str = 'HS256'
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # in mins
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # in mins
+    
+    PRODUCTION: bool = False
     
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
 
+    
+    SMTP_SERVER: str
+    SMTP_PORT: int
+    SMTP_USERNAME: str
+    SMTP_PASSWORD: str
 
     model_config = SettingsConfigDict(env_file='.env', extra='allow')
     

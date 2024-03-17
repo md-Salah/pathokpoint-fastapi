@@ -72,8 +72,8 @@ async def create_user(client: AsyncClient):
         "password": "testPassword2235#",
         "phone_number": "+8801311701123",
         "first_name": "test",
-        "last_name": "user1",
-        "username": "lal"
+        "last_name": "user",
+        "username": "testUser1"
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()

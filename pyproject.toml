@@ -19,6 +19,7 @@ pyjwt = "^2.8.0"
 python-slugify = "^8.0.4"
 cloudinary = "^1.39.0"
 aiofiles = "^23.2.1"
+fastapi-mail = "^1.4.1"
 
 
 [tool.poetry.group.dev.dependencies]
