@@ -45,3 +45,10 @@ async def update_user(id: UUID, payload: user_schema.UpdateUser, db: AsyncSessio
 @router.delete('/user/{id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(id: UUID, db: AsyncSession = Depends(get_db)):
     await user_service.delete_user(id, db)
+
+
+@router.patch('/update-user/{user_id}', response_model=user_schema.UserOut)
+async def update_user_by_admin(user_id: UUID, payload: user_schema.UpdateUserByAdmin, db: AsyncSession = Depends(get_db)):
+    user = await user_service.update_user(user_id, payload.model_dump(exclude_unset=True), db)
+    return user_schema.UserOut.model_validate(user)
+

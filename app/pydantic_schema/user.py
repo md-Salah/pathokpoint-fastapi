@@ -1,47 +1,68 @@
-from pydantic import EmailStr, ConfigDict
+from pydantic import EmailStr, ConfigDict, Field, SecretStr, UUID4
 
-from app.pydantic_schema.auth import TokenResponse
-from app.pydantic_schema.mixins import TimestampMixin
+from app.pydantic_schema.mixins import IdTimestampMixin, id_timestamp_mixin_example
 from app.pydantic_schema.base import BaseModel
 
+from app.constant.role import Role
+
+example_user = {
+    "first_name": "Md",
+    "last_name": "Abdullah",
+    "username": "md_abdullah",
+    "email": "abdullah2024@gmail.com",
+    "phone_number": "+8801712345678",
+    "image": "https://example.com/image.png"
+}
+
+example_user_in = {
+    **example_user,
+    "password": "********",
+}
+
+example_user_out = {
+    **example_user,
+    "is_verified": True,
+    "role": Role.customer,
+}
+
+example_update_user_by_admin = {
+    **example_user_out,
+    "password": "*********",
+}
+
+
 class UserBase(BaseModel):
-    first_name: str
-    last_name: str
-    username: str | None = None
+    first_name: str | None = Field(None, min_length=2, max_length=50, pattern=r'^[a-zA-Z ]+$')
+    last_name: str | None = Field(None, min_length=2, max_length=50, pattern=r'^[a-zA-Z ]+$')
+    username: str | None = Field(None, min_length=5, max_length=50, pattern=r'^[a-zA-Z0-9_-]+$')
     email: EmailStr
-    phone_number: str | None = None
+    phone_number: str | None = Field(None, min_length=14, max_length=14, pattern=r'^\+\d{13}$')
+    image: str | UUID4 | None = None
 
 class CreateUser(UserBase):
-    password: str
-    
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "first_name": "Md",
-                "last_name": "Salah",
-                "username": "mdsalah",
-                "email": "mdsalah@gmail.com",
-                "phone_number": "017xxxxxxxx",
-                "password": "123456"
-            },
-        }
-    }
+    password: SecretStr = Field(..., min_length=8, max_length=100)
 
-class UpdateUser(UserBase):
-    first_name: str | None = None
-    last_name: str | None = None
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_user_in}) # type: ignore
+
+
+class UpdateUser(CreateUser):
     email: EmailStr | None = None
-    password: str | None = None
-    profile_picture: str | None = None
+    password: SecretStr | None = None
 
 
-class ReadUser(UserBase, TimestampMixin):
-    role: str
-
-class ReadUserWithToken(BaseModel):
-    user: ReadUser
-    token: TokenResponse
+class UserOut(UserBase, IdTimestampMixin):
+    is_verified: bool
+    role: Role
     
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_user_out | id_timestamp_mixin_example})
     
-class UserOut(ReadUser):
-    pass
+
+class UpdateUserByAdmin(UpdateUser):
+    is_verified: bool | None = None
+    role: Role | None = None
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_update_user_by_admin }) 
+    

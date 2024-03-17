@@ -1,16 +1,16 @@
-from sqlalchemy import Integer, String, Float, ARRAY, ForeignKey, Enum
+from sqlalchemy import Integer, String, Float, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
-from typing import Set, List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
 from app.constant.orderstatus import Status
 
 from app.models.mixins import TimestampMixin
 if TYPE_CHECKING:
-    from app.models.transaction import Transaction
-    from app.models.coupon import Coupon
-    from app.models.courier import Courier
+    from app.models import Courier, Coupon, Transaction
+    
+from app.models.user import User
 from app.models.address import Address
     
 class OrderItem():
@@ -51,6 +51,7 @@ class Order(TimestampMixin):
 
     # user
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id')) 
+    user: Mapped['User'] = relationship(back_populates='orders')
     
     # items/books
     # items: Mapped[List['OrderItem']] = relationship(backref='order', cascade='all, delete-orphan', lazy='joined')
