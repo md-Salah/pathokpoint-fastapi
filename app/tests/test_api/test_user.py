@@ -20,9 +20,19 @@ async def test_get_user_by_id(client: AsyncClient, user_in_db: dict):
     assert response.json().items() >= user_in_db['user'].items()
 
 async def test_get_all_users(client: AsyncClient, user_in_db: dict):
-    response = await client.get("/users")
+    response = await client.get("/user/all")
     assert len(response.json()) == 1
     assert response.json()[0].items() >= user_in_db['user'].items()
+    
+async def test_get_all_users_with_phone_number(client: AsyncClient, user_in_db: dict):
+    response = await client.get("/user/all?q=01311701123")
+    assert len(response.json()) == 1
+    assert response.json()[0].items() >= user_in_db['user'].items()
+    
+async def test_get_all_users_with_role(client: AsyncClient, user_in_db: dict, admin_in_db: dict):
+    response = await client.get("/user/all?role=admin")
+    assert len(response.json()) == 1
+    assert response.json()[0].items() >= admin_in_db.items()
 
 
 async def test_create_user(client: AsyncClient):
@@ -61,7 +71,7 @@ async def test_update_user(client: AsyncClient, user_in_db: dict):
     payload = {
         'first_name': 'updated first name',
     }
-    response = await client.patch(f"/user/{user_in_db['user']['id']}", json=payload)
+    response = await client.patch(f"/user/profile/{user_in_db['user']['id']}", json=payload)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= payload.items()
     
@@ -69,7 +79,7 @@ async def test_update_user_password(client: AsyncClient, user_in_db: dict):
     payload = {
         'password': 'newPassword2235#7666778',
     }
-    response = await client.patch(f"/user/{user_in_db['user']['id']}", json=payload)
+    response = await client.patch(f"/user/profile/{user_in_db['user']['id']}", json=payload)
     assert response.status_code == status.HTTP_200_OK
     
     response = await client.post("/token", data={"username": user_in_db['user']['email'], "password": payload['password']})
@@ -81,7 +91,7 @@ async def test_update_user_by_admin(client: AsyncClient, user_in_db: dict):
         'first_name': 'updated first name',
         'role': 'admin'
     }
-    response = await client.patch(f"/update-user/{user_in_db['user']['id']}", json=payload)
+    response = await client.patch(f"/user/{user_in_db['user']['id']}", json=payload)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= payload.items()
 

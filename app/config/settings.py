@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = 'PATHOK POINT'
     PROJECT_DESCRIPTION: str = 'Ecommerce backend for the bookshop PATHOK POINT'
     PROJECT_VERSION: str = '1.0.0'
+    BASE_URL: str = "http://localhost:8000"
     
     DATABASE_URL: str
     TEST_DATABASE_URL: str

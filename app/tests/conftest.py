@@ -28,9 +28,8 @@ async def session_fixture():
 @pytest_asyncio.fixture(name="client")
 async def client_fixture(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
-    BASE_URL = "http://localhost:8000"
     async with ASGITransport(app=app) as transport:  # type: ignore
-        async with AsyncClient(transport=transport, base_url=BASE_URL) as client:
+        async with AsyncClient(transport=transport, base_url=settings.BASE_URL) as client:
             app.dependency_overrides[get_db] = lambda: session
             yield client
             app.dependency_overrides.clear()
@@ -77,3 +76,18 @@ async def create_user(client: AsyncClient):
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
+
+@pytest_asyncio.fixture(name="admin_in_db")
+async def create_admin(client: AsyncClient):
+    response = await client.post("/user", json = {
+        "email": "testadmin@gmail.com",
+        "password": "testPassword2235#",
+        "phone_number": "+8801311701123",
+        "first_name": "test",
+        "last_name": "user",
+        "username": "testadmin",
+        "role": "admin"
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+

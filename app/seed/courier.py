@@ -1,7 +1,7 @@
 import asyncio
 import httpx
 
-async def create_courier(payload):
+async def create_data(payload):
     async with httpx.AsyncClient() as client:
         response = await client.post("http://localhost:8000/courier", json=payload)
         print('Done')
@@ -33,7 +33,7 @@ async def seed():
         }
     ]
     for payload in data:
-        await create_courier(payload)
+        await create_data(payload)
 
 # Run the seed function
 asyncio.run(seed())

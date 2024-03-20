@@ -19,15 +19,16 @@ example_user_in = {
     "password": "********",
 }
 
+example_user_in_by_admin = {
+    **example_user_in,
+    "is_verified": False,
+    "role": Role.customer
+}
+
 example_user_out = {
     **example_user,
     "is_verified": True,
     "role": Role.customer,
-}
-
-example_update_user_by_admin = {
-    **example_user_out,
-    "password": "*********",
 }
 
 
@@ -39,30 +40,36 @@ class UserBase(BaseModel):
     phone_number: str | None = Field(None, min_length=14, max_length=14, pattern=r'^\+\d{13}$')
     image: str | UUID4 | None = None
 
+
 class CreateUser(UserBase):
     password: SecretStr = Field(..., min_length=8, max_length=100)
 
     model_config = ConfigDict(
-        json_schema_extra={"example": example_user_in}) # type: ignore
+        json_schema_extra={"example": example_user_in})  # type: ignore
 
 
 class UpdateUser(CreateUser):
-    email: EmailStr | None = None
-    password: SecretStr | None = None
+    email: EmailStr = Field(None)
+    password: SecretStr = Field(None, min_length=8, max_length=100)
+
+
+class CreateUserByAdmin(CreateUser):
+    is_verified: bool = False
+    role: Role = Role.customer
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_user_in_by_admin})
+
+
+class UpdateUserByAdmin(CreateUserByAdmin):
+    email: EmailStr = Field(None)
+    password: SecretStr = Field(None, min_length=8, max_length=100)
 
 
 class UserOut(UserBase, IdTimestampMixin):
+    username: str = Field(min_length=5, max_length=50, pattern=r'^[a-zA-Z0-9_-]+$')
     is_verified: bool
     role: Role
-    
+
     model_config = ConfigDict(
         json_schema_extra={"example": example_user_out | id_timestamp_mixin_example})
-    
-
-class UpdateUserByAdmin(UpdateUser):
-    is_verified: bool | None = None
-    role: Role | None = None
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": example_update_user_by_admin }) 
-    
