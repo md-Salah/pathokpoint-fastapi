@@ -1,15 +1,16 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from uuid import UUID
 from typing import Sequence
 from sqlalchemy.orm import joinedload
 
 from slugify import slugify
 
+from app.filter_schema.book import BookFilter
 from app.models import Book, Author, Category, Image, Publisher, Tag
 
-query = select(Book).options(
+book_query = select(Book).options(
     joinedload(Book.publisher),
     joinedload(Book.authors),
     joinedload(Book.translators),
@@ -20,30 +21,72 @@ query = select(Book).options(
 
 
 async def get_book_by_id(id: UUID, db: AsyncSession) -> Book:
-    book = await db.scalar(query.where(Book.id == id))
+    book = await db.scalar(book_query.where(Book.id == id))
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Book with id {id} not found')
     return book
 
 
-async def get_all_books(page: int, per_page: int, db: AsyncSession) -> Sequence[Book]:
+async def get_all_books(page: int, per_page: int, db: AsyncSession,
+                        book_filter: BookFilter,
+                        authors: str | None,
+                        categories: str | None,
+                        publishers: str | None,
+                        translators: str | None,
+                        tags: str | None) -> Sequence[Book]:
     offset = (page - 1) * per_page
 
-    result = await db.execute(query.offset(offset).limit(per_page))
+    query = book_filter.filter(book_query)
+    query = query.offset(offset).limit(per_page)
+
+    if authors:
+        query = query.filter(Book.authors.any(
+            Author.slug.in_(authors.split(','))))
+    if categories:
+        query = query.filter(Book.categories.any(
+            Category.slug.in_(categories.split(','))))
+    if publishers:
+        query = query.filter(Book.publisher.slug.in_(
+            publishers.split(',')))
+    if translators:
+        query = query.filter(Book.translators.any(
+            Author.slug.in_(translators.split(','))))
+    if tags:
+        query = query.filter(Book.tags.any(
+            Tag.slug.in_(tags.split(','))))
+
+    result = await db.execute(query)
     books = result.unique().scalars().all()
     return books
 
 
-async def search_books(q: str, db: AsyncSession) -> Sequence[Book]:
-    result = await db.execute(query.where(
-        or_(
-            Book.name.ilike(f'%{q}%'),
-            Book.slug.ilike(f'%{q}%'),
-        )
-    ))
-    books = result.unique().scalars().all()
-    return books
+async def count_books(db: AsyncSession, book_filter: BookFilter,
+                      authors: str | None,
+                      categories: str | None,
+                      publishers: str | None,
+                      translators: str | None,
+                      tags: str | None) -> int:
+    query = select(func.count(Book.id.distinct()))
+    query = book_filter.filter(query)
+
+    if authors:
+        query = query.join(Book.authors).filter(
+            Author.slug.in_(authors.split(',')))
+    if categories:
+        query = query.join(Book.categories).filter(
+            Category.slug.in_(categories.split(',')))
+    if publishers:
+        query = query.join(Book.publisher).filter(
+            Publisher.slug.in_(publishers.split(',')))
+    if translators:
+        query = query.join(Book.translators).filter(
+            Author.slug.in_(translators.split(',')))
+    if tags:
+        query = query.join(Book.tags).filter(
+            Tag.slug.in_(tags.split(',')))
+
+    return await db.scalar(query)
 
 
 async def create_book(payload: dict, db: AsyncSession) -> Book:
@@ -62,7 +105,7 @@ async def create_book(payload: dict, db: AsyncSession) -> Book:
 
 
 async def update_book(id: UUID, payload: dict, db: AsyncSession) -> Book:
-    book = await db.scalar(query.where(Book.id == id))
+    book = await db.scalar(book_query.where(Book.id == id))
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Book with id ({id}) not found')
@@ -84,11 +127,6 @@ async def delete_book(id: UUID, db: AsyncSession) -> None:
                             detail=f'Book with id ({id}) not found')
     await db.delete(book)
     await db.commit()
-
-
-async def count_book(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count()).select_from(Book))
-    return result.scalar_one()
 
 
 async def build_relationships(payload: dict, db: AsyncSession) -> dict:

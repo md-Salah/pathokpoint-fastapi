@@ -5,10 +5,10 @@ from typing import Sequence
 from uuid import UUID
 
 from app.models import Author
-import app.pydantic_schema.author as author_schema
-from app.controller.utility import slugify
+from app.filter_schema.author import AuthorFilter
 
-async def get_author_by_id(id: UUID, db: AsyncSession) -> author_schema.AuthorOut:
+
+async def get_author_by_id(id: UUID, db: AsyncSession) -> Author:
     result = await db.execute(select(Author).filter(Author.id == id))
     author = result.scalar()
     if not author:
@@ -16,49 +16,43 @@ async def get_author_by_id(id: UUID, db: AsyncSession) -> author_schema.AuthorOu
                             detail=f'Author with id {id} not found')
     return author
 
-async def get_author_by_slug(slug: str, db: AsyncSession) -> author_schema.AuthorOut:
-    result = await db.execute(select(Author).filter(Author.slug == slug))
-    return result.scalars().first()
 
-async def get_all_authors(page: int, per_page:int, db: AsyncSession) -> Sequence[author_schema.AuthorOut]:
+async def get_all_authors(page: int, per_page: int, db: AsyncSession, author_filter: AuthorFilter) -> Sequence[Author]:
     offset = (page - 1) * per_page
-
-    result = await db.execute(select(Author).offset(offset).limit(per_page))
+    
+    query = select(Author)
+    query = author_filter.filter(query)
+    query = query.offset(offset).limit(per_page)
+    result = await db.execute(query)
     return result.scalars().all()
 
-async def create_author(payload: author_schema.CreateAuthor, db: AsyncSession) -> author_schema.AuthorOut:
-    author = Author(**payload.model_dump(exclude_unset=True))
-    author.slug = await generate_unique_slug(payload.slug, payload.name, db)
+async def count_author(db: AsyncSession, author_filter: AuthorFilter) -> int:
+    query = select(func.count(Author.id))
+    query = author_filter.filter(query)
+    result = await db.execute(query)
+    return result.scalar_one()
+
+
+async def create_author(payload: dict, db: AsyncSession) -> Author:
+    author = Author(**payload)
 
     db.add(author)
     await db.commit()
 
-    print(author.__dict__)
+    return author
 
-    return author_schema.AuthorOut.model_validate(author)
 
-async def update_author(id: UUID, payload: author_schema.UpdateAuthor, db: AsyncSession) -> author_schema.AuthorOut:
+async def update_author(id: UUID, payload: dict, db: AsyncSession) -> Author:
     author = await get_author_by_id(id, db)
 
-    data = author_schema.UpdateAuthor.model_dump(payload, exclude_unset=True)
-    [setattr(author, key, value) for key, value in data.items()]
+    [setattr(author, key, value) for key, value in payload.items()]
 
     await db.commit()
-    return author_schema.AuthorOut.model_validate(author)
+    return author
+
 
 async def delete_author(id: UUID, db: AsyncSession) -> None:
     author = await get_author_by_id(id, db)
     await db.delete(author)
     await db.commit()
-    
-async def count_author(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count()).select_from(Author))
-    return result.scalar_one()
 
-# Additional Function
-async def generate_unique_slug(slug: str | None, name: str, db: AsyncSession) -> str:
-    slug = slug.replace(
-        ' ', '-').lower() if slug else slugify(name)
-    result = await db.execute(select(Author).filter(Author.slug.like(f'{slug}%')))
-    existing_book = result.scalars().all()
-    return f"{slug}-{len(existing_book)}" if existing_book else slug

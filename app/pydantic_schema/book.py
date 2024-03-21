@@ -1,7 +1,7 @@
-from pydantic import UUID4, ConfigDict, Field
+from pydantic import UUID4, ConfigDict, Field, field_validator, PositiveInt, ValidationInfo
 from typing import List
 
-from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
+from app.pydantic_schema.mixins import IdTimestampMixin, id_timestamp_mixin_example
 from app.pydantic_schema.base import BaseModel
 
 from app.constant import Cover, Language, Condition, StockLocation, Country
@@ -67,8 +67,6 @@ example_book_admin = {
 _10_lakh = 1000000
 
 class BookBase(BaseModel):
-    model_config = ConfigDict(json_schema_extra={"example": example_book})
-    
     name: str = Field(min_length=2, max_length=100)
     slug: str = Field(min_length=2, max_length=100, pattern=r'^[a-z0-9-]+$')
     short_description: str | None = Field(None, min_length=10, max_length=1000)
@@ -104,16 +102,31 @@ class BookBase(BaseModel):
     bar_code: str | None = Field(None, min_length=4, max_length=20)
     weight_in_gm: float = Field(0, ge=0, le=10000) # 10 kg max
     
+    model_config = ConfigDict(json_schema_extra={"example": example_book})
+    
+    @field_validator('sale_price')
+    @classmethod
+    def validate_sale_price(cls, v: float, info: ValidationInfo):
+        if v > info.data['regular_price']:
+            raise ValueError('Sale price cannot be greater than regular price')
+        return v
+    
+    @field_validator('condition')
+    @classmethod
+    def validate_condition(cls, v: Condition, info: ValidationInfo):
+        if info.data['is_used'] is True and v == Condition.new:
+            raise ValueError('Condition cannot be new when is_used is True')
+        return v
     
 class BookBaseAdmin(BookBase):
-    model_config = ConfigDict(json_schema_extra={"example": example_book_admin})
-    
     sku: str = Field(min_length=4, max_length=15)
     stock_location: StockLocation = StockLocation.mirpur_11
     shelf: str | None = Field(None, min_length=2, max_length=20)
     row_col: str | None = Field(None, min_length=2, max_length=20)
     cost: float = Field(0, ge=0, le=_10_lakh) 
+    sold_count: int = 0
 
+    model_config = ConfigDict(json_schema_extra={"example": example_book_admin})
 
 class CreateBook(BookBaseAdmin):
     authors: List[UUID4] = []
@@ -124,21 +137,19 @@ class CreateBook(BookBaseAdmin):
     tags: List[UUID4] = []
 
 class UpdateBook(CreateBook):
-    sku: str | None = Field(None, min_length=4, max_length=15)
-    name: str | None = Field(None, min_length=2, max_length=100)
-    slug: str | None = Field(None, min_length=2, max_length=100, pattern=r'^[a-z0-9-]+$')
-    regular_price: float | None = Field(None, ge=0, le=_10_lakh)
-    sale_price: float | None = Field(None, ge=0, le=_10_lakh)
-    manage_stock: bool | None = None
-    quantity: int | None = Field(None, ge=0, le=_10_lakh)
-    is_used: bool | None = None
-    condition: Condition | None = None
-    stock_location: StockLocation | None = None
+    sku: str = Field(None, min_length=4, max_length=15)
+    name: str = Field(None, min_length=2, max_length=100)
+    slug: str = Field(None, min_length=2, max_length=100, pattern=r'^[a-z0-9-]+$')
+    regular_price: float = Field(None, ge=0, le=_10_lakh)
+    sale_price: float = Field(None, ge=0, le=_10_lakh)
+    manage_stock: bool = Field(None)
+    quantity: int = Field(None, ge=0, le=_10_lakh)
+    is_used: bool = Field(None)
+    condition: Condition = Field(None)
+    stock_location: StockLocation = Field(None)
 
 
-class BookOut(BookBase, TimestampMixin):
-    model_config = ConfigDict(json_schema_extra={"example": example_book | timestamp_mixin_example})
-        
+class BookOut(BookBase, IdTimestampMixin):
     authors: List[AuthorOut] = []
     translators: List[AuthorOut] = []
     categories: List[CategoryOut] = []
@@ -146,8 +157,9 @@ class BookOut(BookBase, TimestampMixin):
     images: List[ImageOut] = []
     tags: List[TagOut] = []
     
-    serial_number: int
+    serial_number: PositiveInt
     
+    model_config = ConfigDict(json_schema_extra={"example": example_book | id_timestamp_mixin_example})
         
 class BookOutAdmin(BookOut, BookBaseAdmin):
-    model_config = ConfigDict(json_schema_extra={"example": example_book_admin | timestamp_mixin_example})
+    model_config = ConfigDict(json_schema_extra={"example": example_book_admin | id_timestamp_mixin_example})
