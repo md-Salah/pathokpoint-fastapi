@@ -16,7 +16,7 @@ class Book(TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
-    serial_number: Mapped[int] = mapped_column(Integer, Identity(start=1000), unique=True, autoincrement=True)
+    serial_number: Mapped[int] = mapped_column(Integer, Identity(start=1), unique=True, autoincrement=True)
     sku: Mapped[str] = mapped_column(String(15), unique=True)
     
     name: Mapped[str] = mapped_column(String(100), index=True)
@@ -58,6 +58,7 @@ class Book(TimestampMixin):
     bar_code: Mapped[str | None] = mapped_column(String)
     weight_in_gm: Mapped[float] = mapped_column(Float, default=0)
     cost: Mapped[float] = mapped_column(Float, default=0)
+    sold_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationship
     authors: Mapped[List['Author']] = relationship(

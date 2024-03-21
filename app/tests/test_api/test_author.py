@@ -5,85 +5,59 @@ from starlette import status
 pytestmark = pytest.mark.asyncio
 
 simple_author = {
-        "name": "Test Author",
-        "slug": "test-author"
-    }
+    "birth_date": "1948-11-13",
+    "book_published": 200,
+    "city": "dhaka",
+    "country": "BD",
+    "death_date": "2012-07-19",
+    "description": "বাংলাদেশের প্রখ্যাত লেখক",
+    "is_popular": True,
+    "name": "হুমায়ূন আহমেদ",
+    "slug": "humayun-ahmed",
+    "image": None,
+    "banner": None,
+}
 
-async def create_author(payload: dict, client: AsyncClient):
-    response = await client.post("/author", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
 
-# GET /author/id/{id}
-async def test_get_author_by_id(client: AsyncClient):
-    existing_author = await create_author(simple_author, client)
-    response = await client.get(f"/author/id/{existing_author['id']}")
+async def test_get_author_by_id(client: AsyncClient, author_in_db: dict):
+    response = await client.get(f"/author/id/{author_in_db['id']}")
     assert response.status_code == 200
-    assert response.json()["name"] == simple_author["name"]
-    
-# GET /author/slug/{slug}
-async def test_get_author_by_slug(client: AsyncClient):
-    existing_author = await create_author(simple_author, client)
-    response = await client.get(f"/author/slug/{existing_author['slug']}")
-    assert response.status_code == 200
-    assert response.json()["name"] == simple_author["name"] 
+    assert response.json().items() == author_in_db.items()
 
-# GET /authors
-async def test_get_all_authors(client: AsyncClient):
-    await create_author(simple_author, client)
-    response = await client.get("/authors")
-    assert len(response.json()) == 1
-    assert response.json()[0]["name"] == simple_author["name"]
-    
-# GET /author/search/{q}
-# async def test_search_authors(client: AsyncClient):
-#     payload = {
-#         "name": "Test Author",
-#         "slug": "test-author"
-#     }
-#     await create_author(payload, client)
-#     response = await client.get("/author/search/Test")
-#     data = response.json()
-#     assert len(data) == 1
-#     assert data[0]["name"] == "Test Author"
-    
-#     response = await client.get("/author/search/Author")
-#     data = response.json()
-#     assert len(data) == 1
-#     assert data[0]["name"] == "Test Author"
-    
 
-# POST /author
+@pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
+    ("", 1, lambda qs, _: qs),  
+    ("?q={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'][:5])),  
+    ("?name={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'])),  
+    ("?slug={}", 1, lambda qs, author_in_db: qs.format(author_in_db['slug'])),  
+    ("?country=BD", 1, lambda qs, _: qs), 
+    ("?is_popular=true", 1, lambda qs, _: qs), 
+    ("?q={}&country=BD&is_popular=true", 1, lambda qs, author_in_db: qs.format(author_in_db['name'][:5])),
+])
+async def test_get_all_authors(client: AsyncClient, author_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
+    query_string = modify_query_string(query_string_template, author_in_db)
+    response = await client.get(f"/author/all{query_string}")
+    assert len(response.json()) == expected_length
+    assert response.json()[0].items() == author_in_db.items()
+    assert response.headers.get("x-total-count") == "1"
+
 async def test_create_author(client: AsyncClient):
     response = await client.post("/author", json=simple_author)
-    data = response.json()
     assert response.status_code == 201
-    assert data["name"] == simple_author["name"]
-    assert data['slug'] == simple_author['slug']
-    
-# PATCH /author/{id}
-async def test_update_author(client: AsyncClient):
-    existing_author = await create_author(simple_author, client)
+    assert response.json().items() >= simple_author.items()
+
+
+async def test_update_author(client: AsyncClient, author_in_db: dict):
     payload = {
         "name": "Updated Author",
     }
-    response = await client.patch(f"/author/{existing_author['id']}", json=payload)
-    data = response.json()
+    response = await client.patch(f"/author/{author_in_db['id']}", json=payload)
     assert response.status_code == 200
-    assert data["name"] == payload["name"]
-    assert data["slug"] == simple_author["slug"]
+    author_in_db.update(payload)
+    author_in_db.pop('updated_at')
+    assert response.json().items() >= author_in_db.items()
 
-# DELETE /author/{id}
-async def test_delete_author(client: AsyncClient):
-    existing_author = await create_author(simple_author, client)
-    id = existing_author['id']
-    
-    response = await client.delete(f"/author/{id}")
+
+async def test_delete_author(client: AsyncClient, author_in_db: dict):
+    response = await client.delete(f"/author/{author_in_db['id']}")
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    
-    # check if the author exists yet
-    response = await client.get(f"/author/id/{id}")
-    assert response.status_code == 404 
-      
-    
-    

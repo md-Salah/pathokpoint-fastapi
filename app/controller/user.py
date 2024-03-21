@@ -1,15 +1,18 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, update
 from uuid import UUID
 from typing import Sequence
 
 from app.models.user import User
 import app.controller.auth as auth_service
+from app.constant import Role
+
 
 async def is_user_exist(email: str, db: AsyncSession) -> bool:
     user = await db.scalar(select(User).where(User.email == email))
     return True if user else False
+
 
 async def get_user_by_id(id: UUID, db: AsyncSession) -> User:
     user = await db.get(User, id)
@@ -27,27 +30,38 @@ async def get_user_by_email(email: str, db: AsyncSession) -> User:
     return user
 
 
-async def get_all_users(page: int, per_page: int, db: AsyncSession) -> Sequence[User]:
+async def get_all_users(q: str | None, role: Role | None, page: int, per_page: int, db: AsyncSession) -> Sequence[User]:
     offset = (page - 1) * per_page
-    result = await db.execute(select(User).offset(offset).limit(per_page))
+    query = select(User)
+    if role:
+        query = query.where(User.role == role)
+    if q:
+        query = query.where(or_(User.email.ilike(
+            f'%{q}%'), User.phone_number.like(f'%{q}%')))
+    query = query.offset(offset).limit(per_page)
+    result = await db.execute(query)
     return result.scalars().all()
 
 
 async def create_user(payload: dict, db: AsyncSession) -> User:
+    if await db.scalar(select(User).where(User.email == payload['email'])):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='User with email ({}) already exists'.format(payload['email']))
+
     payload['username'] = await generate_unique_username(payload, db)
     payload['password'] = auth_service.get_hashed_password(
         payload['password'].get_secret_value())
 
-    new_user = User(**payload)
-    db.add(new_user)
+    user = User(**payload)
+    db.add(user)
     await db.commit()
 
-    return new_user
+    return user
 
 
 async def update_user(id: UUID, payload: dict, db: AsyncSession) -> User:
     user = await get_user_by_id(id, db)
-    if payload.get('email'):
+    if payload.get('email') and payload.get('is_verified') is None:
         payload['is_verified'] = False
     if payload.get('username'):
         payload['username'] = await generate_unique_username(payload, db)
@@ -58,7 +72,6 @@ async def update_user(id: UUID, payload: dict, db: AsyncSession) -> User:
     [setattr(user, key, value) for key, value in payload.items()]
     await db.commit()
     return user
-
 
 async def delete_user(id: UUID, db: AsyncSession) -> None:
     user = await get_user_by_id(id, db)
@@ -74,12 +87,22 @@ async def generate_unique_username(payload, db: AsyncSession) -> str:
     else:
         username_base = payload['email'].split('@')[0]
     username_base = username_base.replace(' ', '-')
+    if len(username_base) < 5:
+        username_base += 'user'
+    elif len(username_base) > 20:
+        username_base = username_base[:20]
 
-    results = await db.execute(select(User).where(User.username == username_base))
+    results = await db.execute(select(User).where(User.username.like(username_base + '%')))
     ln = len(results.scalars().all())
     return f"{username_base}-{ln}" if ln else username_base
 
 
-async def count_user(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count()).select_from(User))
+async def count_user(q: str | None, role: Role | None, db: AsyncSession) -> int:
+    query = select(func.count(User.id))
+    if role:
+        query = query.where(User.role == role)
+    if q:
+        query = query.where(or_(User.email.ilike(
+            f'%{q}%'), User.phone_number.like(f'%{q}%')))
+    result = await db.execute(query)
     return result.scalar_one()

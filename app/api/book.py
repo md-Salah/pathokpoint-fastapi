@@ -1,25 +1,35 @@
-from fastapi import APIRouter, status, Depends, Query, Response, UploadFile, File, HTTPException, Path
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, status, Depends, Query, Response, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from typing import Annotated
+from fastapi_filter import FilterDepends
 
+from app.filter_schema.book import BookFilter
 import app.pydantic_schema.book as schema
 from app.config.database import get_db
 import app.controller.book as book_service
 
-router = APIRouter()
+router = APIRouter(prefix='/book')
 
 
-@router.get('/book/id/{id}', response_model=schema.BookOut)
+@router.get('/id/{id}', response_model=schema.BookOut)
 async def get_book_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
     return await book_service.get_book_by_id(id, db)
 
 
-@router.get('/books', response_model=list[schema.BookOut])
-async def get_all_books(*, page: int = Query(1, ge=1), per_page: int = Query(10, ge=1, le=100), db: AsyncSession = Depends(get_db),  response: Response):
-    books = await book_service.get_all_books(page, per_page, db)
-    total_books = await book_service.count_book(db)
+@router.get('/all', response_model=list[schema.BookOut])
+async def get_all_books(*, 
+                        page: int = Query(1, ge=1), 
+                        per_page: int = Query(10, ge=1, le=100), 
+                        book_filter: BookFilter = FilterDepends(BookFilter),
+                        authors: str | None = Query(None, description='Comma separated author slugs', pattern=r'^[\w-]+(,[\w-]+)*$'),
+                        categories: str | None = Query(None, description='Comma separated category slugs', pattern=r'^[\w-]+(,[\w-]+)*$'),
+                        publishers: str | None = Query(None, description='Comma separated publisher slugs', pattern=r'^[\w-]+(,[\w-]+)*$'),
+                        translators: str | None = Query(None, description='Comma separated translator slugs', pattern=r'^[\w-]+(,[\w-]+)*$'),
+                        tags: str | None = Query(None, description='Comma separated tag slugs', pattern=r'^[\w-]+(,[\w-]+)*$'),
+                        db: AsyncSession = Depends(get_db),  
+                        response: Response):
+    books = await book_service.get_all_books(page, per_page, db, book_filter, authors, categories, publishers, translators, tags)
+    total_books = await book_service.count_books(db, book_filter, authors, categories, publishers, translators, tags)
 
     response.headers['X-Total-Count'] = str(total_books)
     response.headers['X-Total-Pages'] = str(-(-total_books // per_page))
@@ -29,44 +39,16 @@ async def get_all_books(*, page: int = Query(1, ge=1), per_page: int = Query(10,
     return books
 
 
-@router.get('/book/search/{q}', response_model=list[schema.BookOut])
-async def search_books(q: str = Path(..., min_length=3), db: AsyncSession = Depends(get_db)):
-    return await book_service.search_books(q, db)
-
-
-@router.post('/book', response_model=schema.BookOutAdmin, status_code=status.HTTP_201_CREATED)
+@router.post('', response_model=schema.BookOutAdmin, status_code=status.HTTP_201_CREATED)
 async def create_book(payload: schema.CreateBook, db: AsyncSession = Depends(get_db)):
     return await book_service.create_book(payload.model_dump(), db)
 
 
-@router.patch('/book/{id}', response_model=schema.BookOutAdmin)
+@router.patch('/{id}', response_model=schema.BookOutAdmin)
 async def update_book(id: UUID, payload: schema.UpdateBook, db: AsyncSession = Depends(get_db)):
     return await book_service.update_book(id, payload.model_dump(exclude_unset=True), db)
 
 
-@router.delete('/book/{id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(id: UUID, db: AsyncSession = Depends(get_db)):
     await book_service.delete_book(id, db)
-
-
-# # IMPORT CSV : ADMIN
-# @router.post('/book/import-from-csv', response_class=StreamingResponse ,status_code=status.HTTP_201_CREATED)
-# def import_csv(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
-#     if file.filename and file.filename.endswith('.csv'):
-#         csv_stream = book_service.import_book_from_csv(file, db)
-#         response = StreamingResponse(iter([csv_stream]), media_type="text/csv")
-#         response.headers["Content-Disposition"] = "attachment; filename={}".format(file.filename)
-
-#         return response
-#     else:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid file format. Please upload a CSV file')
-
-
-# # EXPORT TO CSV : ADMIN
-# @router.get('/book/export-to-csv', response_class=StreamingResponse)
-# def export_to_csv(db: AsyncSession = Depends(get_db)):
-#     csv_stream = book_service.export_book_to_csv(db)
-#     response = StreamingResponse(iter([csv_stream]), media_type="text/csv")
-#     response.headers["Content-Disposition"] = "attachment; filename=books.csv"
-
-#     return response

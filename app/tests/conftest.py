@@ -28,24 +28,32 @@ async def session_fixture():
 @pytest_asyncio.fixture(name="client")
 async def client_fixture(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
-    BASE_URL = "http://localhost:8000"
     async with ASGITransport(app=app) as transport:  # type: ignore
-        async with AsyncClient(transport=transport, base_url=BASE_URL) as client:
+        async with AsyncClient(transport=transport, base_url=settings.BASE_URL) as client:
             app.dependency_overrides[get_db] = lambda: session
             yield client
             app.dependency_overrides.clear()
-
 
 
 # Other fixtures
 @pytest_asyncio.fixture(name="author_in_db")
 async def create_author(client: AsyncClient):
     response = await client.post("/author", json={
-        "name": "Humayun Ahmed",
+        "birth_date": "1948-11-13",
+        "book_published": 200,
+        "city": "dhaka",
+        "country": "BD",
+        "death_date": "2012-07-19",
+        "description": "বাংলাদেশের প্রখ্যাত লেখক",
+        "is_popular": True,
+        "name": "হুমায়ূন আহমেদ",
         "slug": "humayun-ahmed",
+        "image": None,
+        "banner": None,
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
+
 
 @pytest_asyncio.fixture(name="publisher_in_db")
 async def create_publisher(client: AsyncClient):
@@ -56,6 +64,7 @@ async def create_publisher(client: AsyncClient):
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
+
 @pytest_asyncio.fixture(name="category_in_db")
 async def create_category(client: AsyncClient):
     response = await client.post("/category", json={
@@ -65,15 +74,31 @@ async def create_category(client: AsyncClient):
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
+
 @pytest_asyncio.fixture(name="user_in_db")
 async def create_user(client: AsyncClient):
-    response = await client.post("/signup", json = {
+    response = await client.post("/signup", json={
         "email": "testuser@gmail.com",
         "password": "testPassword2235#",
         "phone_number": "+8801311701123",
         "first_name": "test",
         "last_name": "user",
         "username": "testUser1"
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
+@pytest_asyncio.fixture(name="admin_in_db")
+async def create_admin(client: AsyncClient):
+    response = await client.post("/user", json={
+        "email": "testadmin@gmail.com",
+        "password": "testPassword2235#",
+        "phone_number": "+8801311701123",
+        "first_name": "test",
+        "last_name": "user",
+        "username": "testadmin",
+        "role": "admin"
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()

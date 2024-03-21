@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = '1.0.0'
     PRODUCTION: bool = False
 
+    BASE_URL: str = "http://localhost:8000"
+    
     DATABASE_URL: str
     TEST_DATABASE_URL: str
 
