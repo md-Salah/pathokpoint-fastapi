@@ -17,9 +17,9 @@ async def get_user_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/all', response_model=list[user_schema.UserOut])
-async def get_all_users(*, q: str | None = Query(None, min_length=3, max_length=50, title='Search by email & phone number'),
+async def get_all_users(*, q: str | None = Query(None, min_length=3, max_length=50, description='Search by email or phone number'),
                         role: Role | None = Query(
-                            None, title="Role of the user"),
+                            None, description="Filter by role"),
                         page: int = Query(1, ge=1),
                         per_page: int = Query(10, ge=1, le=100),
                         db: AsyncSession = Depends(get_db),  response: Response):
