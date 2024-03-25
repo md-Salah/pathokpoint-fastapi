@@ -15,6 +15,9 @@ router = APIRouter(prefix='/author')
 async def get_author_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
     return await author_service.get_author_by_id(id, db)
 
+@router.get('/slug/{slug}', response_model=author_schema.AuthorOut)
+async def get_author_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
+    return await author_service.get_author_by_slug(slug, db)
 
 @router.get('/all', response_model=list[author_schema.AuthorOut])
 async def get_all_authors(*,

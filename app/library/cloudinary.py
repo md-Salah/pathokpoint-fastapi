@@ -18,3 +18,14 @@ def upload_file_to_cloudinary(file, filename, public_id):
     except Exception as e:
         print(e)
         return None
+    
+def delete_file_from_cloudinary(public_id):
+    try:
+        response = cloudinary.uploader.destroy(public_id)
+        print(response)
+        return response['result'] == 'ok'
+    except Exception as e:
+        print(e)
+        return False
+    
+    

@@ -4,8 +4,8 @@ from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
 from app.pydantic_schema.base import BaseModel
 
 example_image = {
-    'name': 'The God of Small Things',
-    'alt': 'The God of Small Things book cover image',
+    'name': 'cover photo',
+    'alt': 'cover photo',
 }
 example_image_out = {
     **example_image,

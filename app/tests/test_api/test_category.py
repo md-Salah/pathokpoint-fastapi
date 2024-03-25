@@ -4,109 +4,66 @@ from starlette import status
 
 pytestmark = pytest.mark.asyncio
 
-async def create_category(payload: dict, client: AsyncClient):
-    return await client.post("/category", json=payload)
+simple_category = {
+    "name": "Fiction",
+    "slug": "fiction",
+    "description": "This is a fiction category",
+    "is_islamic": False,
+    "is_english_featured": True,
+    "is_bangla_featured": False,
+    "is_job_featured": False,
+    "is_comics": True,
+    "is_popular": True,
+    "is_big_sale": False,
+}
 
-# GET /category/id/{id}
-async def test_get_category_by_id(client: AsyncClient):
-    payload = {
-        "name": "Test Category",
-        "slug": "test-category"
-    }
-    response = await create_category(payload, client)
-    response = await client.get(f"/category/id/{response.json()['id']}")
-    data = response.json()
+
+async def test_get_category_by_id(client: AsyncClient, category_in_db: dict):
+    response = await client.get("/category/id/{}".format(category_in_db['id']))
     assert response.status_code == 200
-    assert data["name"] == "Test Category"
-    
-# GET /category/slug/{slug}
-async def test_get_category_by_slug(client: AsyncClient):
-    payload = {
-        "name": "Test Category by Slug",
-        "slug": "test-category"
-    }
-    response = await create_category(payload, client)
-    data = response.json()
-    response = await client.get(f"/category/slug/{data['slug']}")
-    data = response.json()
+    assert response.json().items() == category_in_db.items()
+
+
+async def test_get_category_by_slug(client: AsyncClient, category_in_db: dict):
+    response = await client.get("/category/slug/{}".format(category_in_db['slug']))
     assert response.status_code == 200
-    assert data["name"] == "Test Category by Slug" 
+    assert response.json().items() == category_in_db.items()
 
-# GET /categorys
-async def test_get_all_categorys(client: AsyncClient):
-    payload = {
-        "name": "Test Category",
-        "slug": "test-category"
-    }
-    await create_category(payload, client)
-    response = await client.get("/categorys")
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["name"] == "Test Category"
-    
-# GET /category/search/{q}
-# async def test_search_categorys(client: AsyncClient):
-#     payload = {
-#         "name": "Test Category",
-#         "slug": "test-category"
-#     }
-#     await create_category(payload, client)
-#     response = await client.get("/category/search/Test")
-#     data = response.json()
-#     assert len(data) == 1
-#     assert data[0]["name"] == "Test Category"
-    
-#     response = await client.get("/category/search/Category")
-#     data = response.json()
-#     assert len(data) == 1
-#     assert data[0]["name"] == "Test Category"
-    
 
-# POST /category
+@pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
+    ("", 1, lambda qs, _: qs),  
+    ("?q={}", 1, lambda qs, category_in_db: qs.format(category_in_db['name'][:5])),  
+    ("?name={}", 1, lambda qs, category_in_db: qs.format(category_in_db['name'])),  
+    ("?slug={}", 1, lambda qs, category_in_db: qs.format(category_in_db['slug'])),  
+    ("?is_popular=true", 1, lambda qs, _: qs), 
+    ("?q={}&is_popular=true", 1, lambda qs, category_in_db: qs.format(category_in_db['name'][:5])),
+])
+async def test_get_all_categories(client: AsyncClient, category_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
+    query_string = modify_query_string(query_string_template, category_in_db)
+    response = await client.get(f"/category/all{query_string}")
+    assert len(response.json()) == expected_length
+    assert response.json()[0].items() == category_in_db.items()
+    assert response.headers.get("x-total-count") == "1"
+
+
 async def test_create_category(client: AsyncClient):
-    payload = {
-        "name": "Test Category",
-        "slug": "test-category"
-    }
+    payload = {**simple_category}
     response = await client.post("/category", json=payload)
-    data = response.json()
     assert response.status_code == 201
-    assert data["name"] == "Test Category"
-    # Test the slug is generated
-    assert data['slug'] == 'test-category'
-    
-# PATCH /category/{id}
-async def test_update_category(client: AsyncClient):
-    payload = {
-        "name": "Test Category",
-        "slug": "test-category"
-    }
-    response = await create_category(payload, client)
-    data = response.json()
+    assert response.json().items() >= payload.items()
+
+
+async def test_update_category(client: AsyncClient, category_in_db: dict):
     payload = {
         "name": "Updated Category",
     }
-    response = await client.patch(f"/category/{data['id']}", json=payload)
-    data = response.json()
+    response = await client.patch("/category/{}".format(category_in_db['id']), json=payload)
     assert response.status_code == 200
-    assert data["name"] == "Updated Category"
-    assert data["slug"] == "test-category"
+    category_in_db.update(payload)
+    category_in_db.pop('updated_at')
+    assert response.json().items() >= category_in_db.items()
 
-# DELETE /category/{id}
-async def test_delete_category(client: AsyncClient):
-    payload = {
-        "name": "Test Delete Category",
-        "slug": "test-category"
-    }
-    response = await create_category(payload, client)
-    id = response.json()['id']
-    
-    response = await client.delete(f"/category/{id}")
+
+async def test_delete_category(client: AsyncClient, category_in_db: dict):
+    response = await client.delete("/category/{}".format(category_in_db['id']))
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    
-    # check if the category exists yet
-    response = await client.get(f"/category/id/{id}")
-    assert response.status_code == 404 
-      
-    
-    

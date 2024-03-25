@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get('/image/id/{id}', response_model=image_schema.ImageOut)
 async def get_image_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
     image = await image_service.get_image_by_id(id, db)
-    return image_schema.ImageOut.model_validate(image)
+    return image
 
 
 @router.get('/images', response_model=list[image_schema.ImageOut])
@@ -29,7 +29,7 @@ async def get_all_images(*, page: int = Query(1, ge=1),
     response.headers['X-Current-Page'] = str(page)
     response.headers['X-Per-Page'] = str(per_page)
 
-    return [image_schema.ImageOut.model_validate(image) for image in images]
+    return images
 
 
 @router.post('/image', response_model=image_schema.ImageOut, status_code=status.HTTP_201_CREATED)
@@ -64,7 +64,7 @@ async def upload_image(file: UploadFile = File(...), alt: str = Form(...), db: A
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Error while uploading image')
 
-    return image_schema.ImageOut.model_validate(image)
+    return image
 
 
 @router.delete('/image/{id}', status_code=status.HTTP_204_NO_CONTENT)

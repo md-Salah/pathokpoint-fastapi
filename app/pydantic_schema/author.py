@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, NonNegativeInt, Field, UUID4, PastDate, PositiveInt
+from pydantic import ConfigDict, NonNegativeInt, Field, UUID4, PastDate
 
 from app.pydantic_schema.mixins import IdTimestampMixin, id_timestamp_mixin_example
 from app.pydantic_schema.base import BaseModel
@@ -31,7 +31,7 @@ example_author_out = {
 
 class AuthorBase(BaseModel):
     name: str = Field(..., min_length=3, max_length=100)
-    slug: str = Field(..., min_length=3, max_length=100)
+    slug: str = Field(..., min_length=3, max_length=100, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     description: str | None = Field(None, max_length=500)
     birth_date: PastDate | None = None
     death_date: PastDate | None = None
@@ -48,12 +48,11 @@ class CreateAuthor(AuthorBase):
     
 class UpdateAuthor(CreateAuthor):
     name: str = Field(None, min_length=3, max_length=100)
-    slug: str = Field(None, min_length=3, max_length=100)
+    slug: str = Field(None, min_length=3, max_length=100, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     
 class AuthorOut(AuthorBase, IdTimestampMixin):
     image: ImageOut | None
     banner: ImageOut | None
-    serial_number: PositiveInt
     
     model_config = ConfigDict(json_schema_extra={"example": 
         example_author_out | id_timestamp_mixin_example})

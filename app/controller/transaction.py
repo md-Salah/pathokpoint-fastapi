@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from typing import Sequence
 from uuid import UUID
 
@@ -42,8 +42,7 @@ async def create_transaction(payload: dict, db: AsyncSession) -> Transaction:
 
 
 async def delete_transaction(id: UUID, db: AsyncSession) -> None:
-    transaction = await db.get(Transaction, id)
-    await db.delete(transaction)
+    await db.execute(delete(Transaction).where(Transaction.id == id))
     await db.commit()
 
 

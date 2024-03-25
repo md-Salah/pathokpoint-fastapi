@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete 
 from typing import Sequence
 from uuid import UUID
 
@@ -49,8 +49,7 @@ async def update_address(id: UUID, payload: dict, db: AsyncSession) -> Address:
 
 
 async def delete_address(id: UUID, db: AsyncSession) -> None:
-    address = await get_address_by_id(id, db)
-    await db.delete(address)
+    await db.execute(delete(Address).where(Address.id == id))
     await db.commit()
 
 

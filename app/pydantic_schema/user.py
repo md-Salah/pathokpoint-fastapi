@@ -38,14 +38,17 @@ class UserBase(BaseModel):
     username: str | None = Field(None, min_length=5, max_length=50, pattern=r'^[a-zA-Z0-9_-]+$')
     email: EmailStr
     phone_number: str | None = Field(None, min_length=14, max_length=14, pattern=r'^\+\d{13}$')
-    image: str | UUID4 | None = None
+    image: UUID4 | None = None
 
 
 class CreateUser(UserBase):
     password: SecretStr = Field(..., min_length=8, max_length=100)
 
     model_config = ConfigDict(
-        json_schema_extra={"example": example_user_in})  # type: ignore
+        json_schema_extra={"example": example_user_in},  # type: ignore
+        str_to_lower=False,
+        str_strip_whitespace=False,
+        )  
 
 
 class UpdateUser(CreateUser):

@@ -4,7 +4,7 @@ from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
 from app.pydantic_schema.base import BaseModel
 
 example_tag = {
-    'name': 'Indian bangla books',
+    'name': 'indian bangla books',
     'slug': 'indian-bangla-books',
     'private': True,
 }

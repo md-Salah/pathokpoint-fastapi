@@ -7,6 +7,7 @@ from fastapi import status
 from app.main import app
 from app.config.database import get_db, Base
 from app.config.settings import settings
+from app.constant import Country
 
 
 @pytest_asyncio.fixture(name="session")
@@ -60,6 +61,8 @@ async def create_publisher(client: AsyncClient):
     response = await client.post("/publisher", json={
         "name": "Rupa Publications",
         "slug": "rupa-publications",
+        "is_popular": True,
+        "country": Country.BD.value,
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
@@ -70,6 +73,7 @@ async def create_category(client: AsyncClient):
     response = await client.post("/category", json={
         "name": "Fiction",
         "slug": "fiction",
+        'is_popular': True,
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()

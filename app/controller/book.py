@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, update
 from uuid import UUID
 from typing import Sequence
 from sqlalchemy.orm import joinedload
@@ -90,9 +90,13 @@ async def count_books(db: AsyncSession, book_filter: BookFilter,
 
 
 async def create_book(payload: dict, db: AsyncSession) -> Book:
-    if await db.scalar(select(Book).where(Book.sku == payload['sku'])):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Book with sku ({}) already exists'.format(payload['sku']))
+    _book = await db.scalar(select(Book).where(Book.sku == payload['sku']))
+    if _book:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail={
+                                'msg': 'Book with sku ({}) already exists'.format(payload['sku']),
+                                'resource_id': str(_book.id),
+                            })
 
     payload['slug'] = slugify(payload['slug'])
     payload = await build_relationships(payload, db)
@@ -121,11 +125,7 @@ async def update_book(id: UUID, payload: dict, db: AsyncSession) -> Book:
 
 
 async def delete_book(id: UUID, db: AsyncSession) -> None:
-    book = await db.get(Book, id)
-    if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Book with id ({id}) not found')
-    await db.delete(book)
+    await db.execute(delete(Book).where(Book.id == id))
     await db.commit()
 
 

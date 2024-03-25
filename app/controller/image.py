@@ -1,13 +1,13 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from typing import Sequence
 from uuid import UUID, uuid4
 import os
 
 from app.models.image import Image
 
-from app.library import upload_file_to_cloudinary
+from app.library import upload_file_to_cloudinary, delete_file_from_cloudinary
 
 
 async def get_image_by_id(id: UUID, db: AsyncSession) -> Image:
@@ -41,8 +41,13 @@ async def create_image(file: str, filename: str, alt: str, db: AsyncSession) -> 
 
 async def delete_image(id: UUID, db: AsyncSession) -> None:
     image = await get_image_by_id(id, db)
-    await db.delete(image)
-    await db.commit()
+    success = delete_file_from_cloudinary(str(image.id))
+    if success:
+        await db.delete(image)
+        await db.commit()
+    else:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail='Image delete failed')
 
 
 async def count_image(db: AsyncSession) -> int:

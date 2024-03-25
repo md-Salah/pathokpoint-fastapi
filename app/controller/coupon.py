@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, update
 from sqlalchemy.orm import joinedload
 from typing import Sequence
 from uuid import UUID
@@ -64,8 +64,7 @@ async def update_coupon(id: UUID, payload: dict, db: AsyncSession) -> Coupon:
 
 
 async def delete_coupon(id: UUID, db: AsyncSession) -> None:
-    coupon = await get_coupon_by_id(id, db)
-    await db.delete(coupon)
+    await db.execute(delete(Coupon).where(Coupon.id == id))
     await db.commit()
 
 

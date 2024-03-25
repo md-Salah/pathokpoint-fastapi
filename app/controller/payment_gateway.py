@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, update
 from typing import Sequence
 from uuid import UUID
 
@@ -41,8 +41,7 @@ async def update_payment_gateway(id: UUID, payload: dict, db: AsyncSession) -> P
 
 
 async def delete_payment_gateway(id: UUID, db: AsyncSession) -> None:
-    payment_gateway = await get_payment_gateway_by_id(id, db)
-    await db.delete(payment_gateway)
+    await db.execute(delete(PaymentGateway).where(PaymentGateway.id == id))
     await db.commit()
 
 

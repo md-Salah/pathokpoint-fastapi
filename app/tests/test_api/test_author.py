@@ -24,6 +24,10 @@ async def test_get_author_by_id(client: AsyncClient, author_in_db: dict):
     assert response.status_code == 200
     assert response.json().items() == author_in_db.items()
 
+async def test_get_author_by_slug(client: AsyncClient, author_in_db: dict):
+    response = await client.get(f"/author/slug/{author_in_db['slug']}")
+    assert response.status_code == 200
+    assert response.json().items() == author_in_db.items()
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 1, lambda qs, _: qs),  

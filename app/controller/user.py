@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, update
+from sqlalchemy import select, func, or_, update, delete
 from uuid import UUID
 from typing import Sequence
 
@@ -74,8 +74,7 @@ async def update_user(id: UUID, payload: dict, db: AsyncSession) -> User:
     return user
 
 async def delete_user(id: UUID, db: AsyncSession) -> None:
-    user = await get_user_by_id(id, db)
-    await db.delete(user)
+    await db.execute(delete(User).where(User.id == id))
     await db.commit()
 
 

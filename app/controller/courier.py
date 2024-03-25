@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, update
 from typing import Sequence
 from uuid import UUID
 
@@ -41,8 +41,7 @@ async def update_courier(id: UUID, payload: dict, db: AsyncSession) -> Courier:
 
 
 async def delete_courier(id: UUID, db: AsyncSession) -> None:
-    courier = await get_courier_by_id(id, db)
-    await db.delete(courier)
+    await db.execute(delete(Courier).where(Courier.id == id))
     await db.commit()
 
 

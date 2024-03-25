@@ -4,108 +4,70 @@ from starlette import status
 
 pytestmark = pytest.mark.asyncio
 
-async def create_publisher(payload: dict, client: AsyncClient):
-    return await client.post("/publisher", json=payload)
+simple_publisher = {
+    "name": "Test Publisher",
+    "slug": "test-publisher",
+    "description": "Test Publisher Description",
+    "image": None,
+    "banner": None,
+    "is_islamic": True,
+    "is_english": False,
+    "is_popular": True,
+    "country": "BD",
+    "book_published": 100,
+}
 
-# GET /publisher/id/{id}
-async def test_get_publisher_by_id(client: AsyncClient):
-    payload = {
-        "name": "Test Publisher",
-        "slug": "test-publisher"
-    }
-    response = await create_publisher(payload, client)
-    response = await client.get(f"/publisher/id/{response.json()['id']}")
-    data = response.json()
+async def test_get_publisher_by_id(client: AsyncClient, publisher_in_db: dict):
+    response = await client.get("/publisher/id/{}".format(publisher_in_db['id']))
     assert response.status_code == 200
-    assert data["name"] == "Test Publisher"
+    assert response.json().items() == publisher_in_db.items()
     
-# GET /publisher/slug/{slug}
-async def test_get_publisher_by_slug(client: AsyncClient):
-    payload = {
-        "name": "Test Publisher by Slug",
-        "slug": "test-publisher"
-    }
-    response = await create_publisher(payload, client)
-    data = response.json()
-    response = await client.get(f"/publisher/slug/{data['slug']}")
-    data = response.json()
+
+async def test_get_publisher_by_slug(client: AsyncClient, publisher_in_db: dict):
+    response = await client.get("/publisher/slug/{}".format(publisher_in_db['slug']))
     assert response.status_code == 200
-    assert data["name"] == "Test Publisher by Slug" 
+    assert response.json().items() == publisher_in_db.items()
 
-# GET /publishers
-async def test_get_all_publishers(client: AsyncClient):
-    payload = {
-        "name": "Test Publisher",
-        "slug": "test-publisher"
-    }
-    await create_publisher(payload, client)
-    response = await client.get("/publishers")
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["name"] == "Test Publisher"
-    
-# GET /publisher/search/{q}
-# async def test_search_publishers(client: AsyncClient):
-#     payload = {
-#         "name": "Test Publisher",
-#         "slug": "test-publisher"
-#     }
-#     await create_publisher(payload, client)
-#     response = await client.get("/publisher/search/Test")
-#     data = response.json()
-#     assert len(data) == 1
-#     assert data[0]["name"] == "Test Publisher"
-    
-#     response = await client.get("/publisher/search/Publisher")
-#     data = response.json()
-#     assert len(data) == 1
-#     assert data[0]["name"] == "Test Publisher"
-    
 
-# POST /publisher
+@pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
+    ("", 1, lambda qs, _: qs),  
+    ("?q={}", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['name'][:5])),  
+    ("?name={}", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['name'])),  
+    ("?slug={}", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['slug'])),  
+    ("?country=BD", 1, lambda qs, _: qs), 
+    ("?is_popular=true", 1, lambda qs, _: qs), 
+    ("?q={}&country=BD&is_popular=true", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['name'][:5])),
+])
+async def test_get_all_publishers(client: AsyncClient, publisher_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
+    query_string = modify_query_string(query_string_template, publisher_in_db)
+    response = await client.get(f"/publisher/all{query_string}")
+    assert len(response.json()) == expected_length
+    assert response.json()[0].items() == publisher_in_db.items()
+    assert response.headers.get("x-total-count") == "1"
+
+    
 async def test_create_publisher(client: AsyncClient):
-    payload = {
-        "name": "Test Publisher",
-        "slug": "test-publisher"
-    }
+    payload = {**simple_publisher}
     response = await client.post("/publisher", json=payload)
-    data = response.json()
     assert response.status_code == 201
-    assert data["name"] == "Test Publisher"
-    # Test the slug is generated
-    assert data['slug'] == 'test-publisher'
+    assert response.json().items() >= payload.items()
     
-# PATCH /publisher/{id}
-async def test_update_publisher(client: AsyncClient):
-    payload = {
-        "name": "Test Publisher",
-        "slug": "test-publisher"
-    }
-    response = await create_publisher(payload, client)
-    data = response.json()
+
+async def test_update_publisher(client: AsyncClient, publisher_in_db: dict):
     payload = {
         "name": "Updated Publisher",
     }
-    response = await client.patch(f"/publisher/{data['id']}", json=payload)
-    data = response.json()
+    response = await client.patch("/publisher/{}".format(publisher_in_db['id']), json=payload)
     assert response.status_code == 200
-    assert data["name"] == "Updated Publisher"
-    assert data["slug"] == "test-publisher"
+    publisher_in_db.update(payload)
+    publisher_in_db.pop('updated_at')
+    assert response.json().items() >= publisher_in_db.items()
 
-# DELETE /publisher/{id}
-async def test_delete_publisher(client: AsyncClient):
-    payload = {
-        "name": "Test Delete Publisher",
-        "slug": "test-publisher"
-    }
-    response = await create_publisher(payload, client)
-    id = response.json()['id']
-    
-    response = await client.delete(f"/publisher/{id}")
+
+async def test_delete_publisher(client: AsyncClient, publisher_in_db: dict):
+    response = await client.delete("/publisher/{}".format(publisher_in_db['id']))
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    
-    # check if the publisher exists yet
-    response = await client.get(f"/publisher/id/{id}")
+    response = await client.get("/publisher/id/{}".format(publisher_in_db['id']))
     assert response.status_code == 404 
       
     

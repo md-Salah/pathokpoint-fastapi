@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, Column, Table, ForeignKey, Boolean, Identity
+from sqlalchemy import String, Column, Table, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
@@ -17,18 +17,18 @@ class Author(TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
-    serial_number: Mapped[int] = mapped_column(Integer, Identity(start=1), unique=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String, index=True)
-    slug: Mapped[str] = mapped_column(String(100), index=True)
+    name: Mapped[str] = mapped_column(String, index=True, unique=True)
+    slug: Mapped[str] = mapped_column(String(100), index=True, unique=True)
 
     description: Mapped[str | None]
     birth_date: Mapped[date | None]
     death_date: Mapped[date | None]
-    book_published: Mapped[int | None] = mapped_column(Integer, default=0)
+    book_published: Mapped[int | None]
 
     city: Mapped[str | None]
     country: Mapped[Country | None]
     is_popular: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_big_sale: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationship
     books: Mapped[List['Book']] = relationship(

@@ -1,16 +1,14 @@
 from fastapi_filter.contrib.sqlalchemy import Filter
 
-from app.models.author import Author
-from app.constant.country import Country
+from app.models.tag import Tag
 
-class AuthorFilter(Filter):
+class TagFilter(Filter):
     q: str | None = None
     name: str | None = None
     slug: str | None = None
-    country: Country | None = None
-    is_popular: bool | None = None
+    private: bool | None = None
 
     class Constants(Filter.Constants):
-        model = Author
+        model = Tag
         search_field_name = 'q'
         search_model_fields = ['name', 'slug']

@@ -1,7 +1,7 @@
 import httpx
 
 from app.config.settings import settings
-
+from app.constant import Country
 
 async def seed_author():
     data = [
@@ -13,7 +13,7 @@ async def seed_author():
             "death_date": "2012-07-19",
             "book_published": 200,
             "city": "dhaka",
-            "country": "BD",
+            "country": Country.BD.value,
             "is_popular": True,
         },
         {
@@ -24,7 +24,7 @@ async def seed_author():
             "death_date": "1941-08-07",
             "book_published": 150,
             "city": "Kolkata",
-            "country": "IN",
+            "country": Country.IN.value,
             "is_popular": True,
         },
         {
@@ -35,7 +35,7 @@ async def seed_author():
             "death_date": "1938-01-16",
             "book_published": 20,
             "city": "Debanandapur",
-            "country": "IN",
+            "country": Country.IN.value,
             "is_popular": True,
         },
         {
@@ -46,7 +46,7 @@ async def seed_author():
             "death_date": None,
             "book_published": 35,
             "city": "Mymensingh",
-            "country": "BD",
+            "country": Country.BD.value,
             "is_popular": False,
         },
         {
@@ -57,7 +57,7 @@ async def seed_author():
             "death_date": None,
             "book_published": 15,
             "city": "Yate",
-            "country": "GB",
+            "country": Country.GB.value,
             "is_popular": True,
         },
         {
@@ -68,7 +68,7 @@ async def seed_author():
             "death_date": None,
             "book_published": 25,
             "city": "Bayonne",
-            "country": "US",
+            "country": Country.US.value,
             "is_popular": True,
         },
         {
@@ -79,7 +79,7 @@ async def seed_author():
             "death_date": "1976-08-29",
             "book_published": 75,
             "city": "Churulia",
-            "country": "BD",
+            "country": Country.BD.value,
             "is_popular": True,
         },
         {
@@ -90,7 +90,7 @@ async def seed_author():
             "death_date": "1817-07-18",
             "book_published": 7,
             "city": "Steventon",
-            "country": "GB",
+            "country": Country.GB.value,
             "is_popular": True,
         },
         {
@@ -101,7 +101,7 @@ async def seed_author():
             "death_date": "1910-11-20",
             "book_published": 48,
             "city": "Yasnaya Polyana",
-            "country": "RU",
+            "country": Country.US.value,
             "is_popular": True,
         },
     ]
