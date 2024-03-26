@@ -1,7 +1,6 @@
-from pydantic import ConfigDict, UUID4, Field
+from pydantic import ConfigDict, UUID4
 
-from app.pydantic_schema.mixins import IdTimestampMixin, id_timestamp_mixin_example
-from app.pydantic_schema.base import BaseModel
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin, id_timestamp_mixin_example
 from app.pydantic_schema.image import ImageOut, example_image_out
 
 example_category = {
@@ -34,11 +33,7 @@ example_category_out = {
 }
 
 
-class CategoryBase(BaseModel):
-    name: str = Field(..., min_length=3, max_length=100)
-    slug: str = Field(..., min_length=3, max_length=100,
-                      pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
-
+class CategoryBase(NameSlugMixin):
     description: str | None = None
     is_islamic: bool = False
     is_english_featured: bool = False
@@ -57,16 +52,14 @@ class CreateCategory(CategoryBase):
         json_schema_extra={"example": example_category_in})
 
 
-class UpdateCategory(CategoryBase):
-    name: str | None = Field(None, min_length=3, max_length=100)
-    slug: str | None = Field(
-        None, min_length=3, max_length=100, pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+class UpdateCategory(NameSlugMixinOptional, CreateCategory):
+    pass
 
 class CategoryOut(CategoryBase, IdTimestampMixin):
-    class CategoryRelationship(BaseModel):
-        id: UUID4
-        name: str
-        slug: str
+    # class CategoryRelationship(BaseModel):
+    #     id: UUID4
+    #     name: str
+    #     slug: str
     
     image: ImageOut | None = None
     banner: ImageOut | None = None

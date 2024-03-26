@@ -1,7 +1,6 @@
 from pydantic import ConfigDict, NonNegativeInt, UUID4, Field
 
-from app.pydantic_schema.mixins import IdTimestampMixin, id_timestamp_mixin_example
-from app.pydantic_schema.base import BaseModel
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin, id_timestamp_mixin_example
 from app.pydantic_schema.image import ImageOut, example_image_out
 
 from app.constant import Country
@@ -31,9 +30,7 @@ example_publisher_out = {
 }
 
 
-class PublisherBase(BaseModel):
-    name: str = Field(max_length=100)
-    slug: str = Field(max_length=100, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+class PublisherBase(NameSlugMixin):
     description: str | None = Field(None, max_length=500)
     is_islamic: bool = False
     is_english: bool = False
@@ -52,10 +49,8 @@ class CreatePublisher(PublisherBase):
         json_schema_extra={"example": example_publisher_in})
 
 
-class UpdatePublisher(PublisherBase):
-    name: str | None = Field(None, max_length=100)
-    slug: str | None = Field(None, max_length=100,
-                             pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+class UpdatePublisher(NameSlugMixinOptional, CreatePublisher):
+    pass
 
 
 class PublisherOut(PublisherBase, IdTimestampMixin):

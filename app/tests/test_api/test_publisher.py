@@ -46,10 +46,16 @@ async def test_get_all_publishers(client: AsyncClient, publisher_in_db: dict, qu
     assert response.headers.get("x-total-count") == "1"
 
     
-async def test_create_publisher(client: AsyncClient):
-    payload = {**simple_publisher}
+async def test_create_publisher(client: AsyncClient, image_in_db: dict):
+    payload = {
+        **simple_publisher,
+        'image': image_in_db['id'],
+        'banner': image_in_db['id'],
+    }
     response = await client.post("/publisher", json=payload)
     assert response.status_code == 201
+    payload['image'] = image_in_db
+    payload['banner'] = image_in_db
     assert response.json().items() >= payload.items()
     
 

@@ -4,7 +4,7 @@ from sqlalchemy import select, func, or_, delete, update
 from typing import Sequence
 from uuid import UUID
 
-from app.models import Author
+from app.models import Author, Image
 from app.filter_schema.author import AuthorFilter
 
 
@@ -58,6 +58,11 @@ async def create_author(payload: dict, db: AsyncSession) -> Author:
                                     'resource_id': f'{_author.id}'
                                 })
 
+    if payload.get('image'):
+        payload['image'] = await db.get(Image, payload['image'])
+    if payload.get('banner'):
+        payload['banner'] = await db.get(Image, payload['banner'])
+
     author = Author(**payload)
     db.add(author)
     await db.commit()
@@ -82,6 +87,10 @@ async def update_author(id: UUID, payload: dict, db: AsyncSession) -> Author:
                                     'msg': 'Author with slug {} already exists'.format(payload["slug"]),
                                     'resource_id': f'{_author.id}'
                                 })
+    if payload.get('image'):
+        payload['image'] = await db.get(Image, payload['image'])
+    if payload.get('banner'):
+        payload['banner'] = await db.get(Image, payload['banner'])
 
     [setattr(author, key, value) for key, value in payload.items()]
     await db.commit()

@@ -5,7 +5,7 @@ from typing import Sequence
 from uuid import UUID
 
 from app.filter_schema.category import CategoryFilter
-from app.models import Category
+from app.models import Category, Image
 
 
 async def get_category_by_id(id: UUID, db: AsyncSession) -> Category:
@@ -57,6 +57,11 @@ async def create_category(payload: dict, db: AsyncSession) -> Category:
                                     'resource_id': f'{_category.id}'
                                 })
 
+    if payload.get('image'):
+        payload['image'] = await db.get(Image, payload['image'])
+    if payload.get('banner'):
+        payload['banner'] = await db.get(Image, payload['banner'])
+
     category = Category(**payload)
     db.add(category)
     await db.commit()
@@ -81,6 +86,11 @@ async def update_category(id: UUID, payload: dict, db: AsyncSession) -> Category
                                     'msg': 'Category with slug {} already exists'.format(payload["slug"]),
                                     'resource_id': f'{_category.id}'
                                 })
+
+    if payload.get('image'):
+        payload['image'] = await db.get(Image, payload['image'])
+    if payload.get('banner'):
+        payload['banner'] = await db.get(Image, payload['banner'])
 
     [setattr(category, key, value) for key, value in payload.items()]
 

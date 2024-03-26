@@ -4,7 +4,7 @@ from sqlalchemy import select, func, or_, delete, update
 from typing import Sequence
 from uuid import UUID
 
-from app.models import Publisher
+from app.models import Publisher, Image
 from app.filter_schema.publisher import PublisherFilter
 
 
@@ -57,6 +57,11 @@ async def create_publisher(payload: dict, db: AsyncSession) -> Publisher:
                                     'resource_id': f'{_publisher.id}'
                                 })
 
+    if payload.get('image'):
+        payload['image'] = await db.get(Image, payload['image'])
+    if payload.get('banner'):
+        payload['banner'] = await db.get(Image, payload['banner'])
+
     publisher = Publisher(**payload)
     db.add(publisher)
     await db.commit()
@@ -81,6 +86,11 @@ async def update_publisher(id: UUID, payload: dict, db: AsyncSession) -> Publish
                                     'msg': 'Publisher with slug {} already exists'.format(payload["slug"]),
                                     'resource_id': f'{_publisher.id}'
                                 })
+
+    if payload.get('image'):
+        payload['image'] = await db.get(Image, payload['image'])
+    if payload.get('banner'):
+        payload['banner'] = await db.get(Image, payload['banner'])
 
     [setattr(publisher, key, value) for key, value in payload.items()]
     await db.commit()

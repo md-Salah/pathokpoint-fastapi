@@ -1,6 +1,8 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict, Field
 from datetime import datetime
 from uuid import UUID
+from app.pydantic_schema.base import BaseModel
+
 
 class TimestampMixin(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -21,3 +23,17 @@ timestamp_mixin_example = {
 id_timestamp_mixin_example = {
     **timestamp_mixin_example,
 }
+
+
+
+name_regex = r'^[^\n\t_]+$'
+slug_regex = r'^[a-z0-9]+(?:-[a-z0-9]+)*$'
+class NameSlugMixin(BaseModel):
+    name: str = Field(..., min_length=3, max_length=100, pattern=name_regex)
+    slug: str = Field(..., min_length=3, max_length=100, pattern=slug_regex)
+    
+class NameSlugMixinOptional(BaseModel):
+    name: str | None = Field(None, min_length=3, max_length=100, pattern=name_regex)
+    slug: str | None = Field(None, min_length=3, max_length=100, pattern=slug_regex)
+    
+    

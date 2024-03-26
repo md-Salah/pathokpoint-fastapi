@@ -1,8 +1,7 @@
 from pydantic import UUID4, ConfigDict, Field, field_validator, PositiveInt, ValidationInfo
 from typing import List
 
-from app.pydantic_schema.mixins import IdTimestampMixin, id_timestamp_mixin_example
-from app.pydantic_schema.base import BaseModel
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin, id_timestamp_mixin_example
 
 from app.constant import Cover, Language, Condition, StockLocation, Country
 from app.pydantic_schema.author import AuthorOut
@@ -66,9 +65,7 @@ example_book_admin = {
 
 _10_lakh = 1000000
 
-class BookBase(BaseModel):
-    name: str = Field(min_length=2, max_length=100)
-    slug: str = Field(min_length=2, max_length=100, pattern=r'^[a-z0-9-]+$')
+class BookBase(NameSlugMixin):
     short_description: str | None = Field(None, min_length=10, max_length=1000)
     regular_price: float = Field(ge=0, le=_10_lakh)
     sale_price: float = Field(ge=0, le=_10_lakh)
@@ -136,10 +133,8 @@ class CreateBook(BookBaseAdmin):
     images: List[UUID4] = []
     tags: List[UUID4] = []
 
-class UpdateBook(CreateBook):
+class UpdateBook(NameSlugMixinOptional, CreateBook):
     sku: str = Field(None, min_length=4, max_length=15)
-    name: str = Field(None, min_length=2, max_length=100)
-    slug: str = Field(None, min_length=2, max_length=100, pattern=r'^[a-z0-9-]+$')
     regular_price: float = Field(None, ge=0, le=_10_lakh)
     sale_price: float = Field(None, ge=0, le=_10_lakh)
     manage_stock: bool = Field(None)

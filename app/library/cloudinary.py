@@ -10,22 +10,20 @@ cloudinary.config(
 )
 
 
-def upload_file_to_cloudinary(file, filename, public_id):
+def upload_file_to_cloudinary(file, filename, public_id) -> str | None:
     try:
-        response = cloudinary.uploader.upload(file, public_id=public_id, filename=filename)
-        print(response)
+        response = cloudinary.uploader.upload(
+            file, public_id=public_id, filename=filename)
         return response['secure_url']
     except Exception as e:
         print(e)
         return None
-    
-def delete_file_from_cloudinary(public_id):
+
+
+def delete_file_from_cloudinary(public_id) -> bool:
     try:
         response = cloudinary.uploader.destroy(public_id)
-        print(response)
         return response['result'] == 'ok'
     except Exception as e:
         print(e)
         return False
-    
-    

@@ -31,12 +31,16 @@ async def test_get_category_by_slug(client: AsyncClient, category_in_db: dict):
 
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
-    ("", 1, lambda qs, _: qs),  
-    ("?q={}", 1, lambda qs, category_in_db: qs.format(category_in_db['name'][:5])),  
-    ("?name={}", 1, lambda qs, category_in_db: qs.format(category_in_db['name'])),  
-    ("?slug={}", 1, lambda qs, category_in_db: qs.format(category_in_db['slug'])),  
-    ("?is_popular=true", 1, lambda qs, _: qs), 
-    ("?q={}&is_popular=true", 1, lambda qs, category_in_db: qs.format(category_in_db['name'][:5])),
+    ("", 1, lambda qs, _: qs),
+    ("?q={}", 1, lambda qs, category_in_db: qs.format(
+        category_in_db['name'][:5])),
+    ("?name={}", 1, lambda qs, category_in_db: qs.format(
+        category_in_db['name'])),
+    ("?slug={}", 1, lambda qs, category_in_db: qs.format(
+        category_in_db['slug'])),
+    ("?is_popular=true", 1, lambda qs, _: qs),
+    ("?q={}&is_popular=true", 1, lambda qs,
+     category_in_db: qs.format(category_in_db['name'][:5])),
 ])
 async def test_get_all_categories(client: AsyncClient, category_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
     query_string = modify_query_string(query_string_template, category_in_db)
@@ -46,10 +50,16 @@ async def test_get_all_categories(client: AsyncClient, category_in_db: dict, que
     assert response.headers.get("x-total-count") == "1"
 
 
-async def test_create_category(client: AsyncClient):
-    payload = {**simple_category}
+async def test_create_category(client: AsyncClient, image_in_db: dict):
+    payload = {
+        **simple_category,
+        'image': image_in_db['id'],
+        'banner': image_in_db['id'],
+    }
     response = await client.post("/category", json=payload)
     assert response.status_code == 201
+    payload['image'] = image_in_db
+    payload['banner'] = image_in_db
     assert response.json().items() >= payload.items()
 
 

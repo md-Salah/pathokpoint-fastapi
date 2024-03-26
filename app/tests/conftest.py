@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from httpx import AsyncClient, ASGITransport
 from typing import AsyncGenerator
 from fastapi import status
+from unittest.mock import patch
 
 from app.main import app
 from app.config.database import get_db, Base
@@ -105,4 +106,17 @@ async def create_admin(client: AsyncClient):
         "role": "admin"
     })
     assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
+@pytest_asyncio.fixture(name="image_in_db")
+@patch("app.controller.image.upload_file_to_cloudinary")
+async def create_image(upload_file, client: AsyncClient):
+    upload_file.return_value = 'https://res.cloudinary.com/dummy/image/upload/v1629780000/test.jpg'
+    
+    with open("dummy/test.jpg", "rb") as f:
+        response = await client.post("/image",
+                                     files={"file": ("image.jpg", f, "image/jpeg")}, data={'alt': 'test-image'})
+    assert response.status_code == status.HTTP_201_CREATED
+    upload_file.assert_called_once()
     return response.json()

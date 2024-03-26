@@ -1,7 +1,6 @@
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict
 
-from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
-from app.pydantic_schema.base import BaseModel
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, TimestampMixin, timestamp_mixin_example
 
 example_tag = {
     'name': 'indian bangla books',
@@ -9,9 +8,7 @@ example_tag = {
     'private': True,
 }
 
-class TagBase(BaseModel):
-    name: str = Field(min_length=3, max_length=100)
-    slug: str = Field(min_length=3, max_length=100)
+class TagBase(NameSlugMixin):
     private: bool = False
 
     model_config = ConfigDict(json_schema_extra={"example": example_tag})
@@ -21,10 +18,8 @@ class CreateTag(TagBase):
     pass
 
 
-class UpdateTag(TagBase):
-    name: str | None = Field(min_length=3, max_length=100, default=None)
-    slug: str | None = Field(min_length=3, max_length=100, default=None)
-    private: bool | None = None
+class UpdateTag(NameSlugMixinOptional, CreateTag):
+    pass
 
 
 class TagOut(TagBase, TimestampMixin):
