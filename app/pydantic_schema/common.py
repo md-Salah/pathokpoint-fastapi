@@ -1,5 +1,4 @@
 from pydantic import AnyUrl
-from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.mixins import IdNameSlugMixin, IdTimestampMixin
 from typing import ClassVar
 
