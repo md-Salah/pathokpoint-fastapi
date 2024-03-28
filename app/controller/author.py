@@ -1,16 +1,17 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, delete, update
+from sqlalchemy import select, func, or_, delete
+from sqlalchemy.orm import joinedload
 from typing import Sequence
 from uuid import UUID
 
 from app.models import Author, Image
 from app.filter_schema.author import AuthorFilter
 
+query = select(Author).options(joinedload(Author.image), joinedload(Author.banner))
 
 async def get_author_by_id(id: UUID, db: AsyncSession) -> Author:
-    result = await db.execute(select(Author).filter(Author.id == id))
-    author = result.scalar()
+    author = await db.scalar(query.filter(Author.id == id))
     if not author:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Author with id {id} not found')
@@ -18,7 +19,7 @@ async def get_author_by_id(id: UUID, db: AsyncSession) -> Author:
 
 
 async def get_author_by_slug(slug: str, db: AsyncSession) -> Author:
-    author = await db.scalar(select(Author).filter(Author.slug == slug))
+    author = await db.scalar(query.filter(Author.slug == slug))
     if not author:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Author with slug {slug} not found')
@@ -28,17 +29,16 @@ async def get_author_by_slug(slug: str, db: AsyncSession) -> Author:
 async def get_all_authors(page: int, per_page: int, db: AsyncSession, author_filter: AuthorFilter) -> Sequence[Author]:
     offset = (page - 1) * per_page
 
-    query = select(Author)
-    query = author_filter.filter(query)
-    query = query.offset(offset).limit(per_page)
-    result = await db.execute(query)
+    stmt = author_filter.filter(query)
+    stmt = stmt.offset(offset).limit(per_page)
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
 async def count_author(db: AsyncSession, author_filter: AuthorFilter) -> int:
-    query = select(func.count(Author.id))
-    query = author_filter.filter(query)
-    result = await db.execute(query)
+    stmt = select(func.count(Author.id))
+    stmt = author_filter.filter(stmt)
+    result = await db.execute(stmt)
     return result.scalar_one()
 
 

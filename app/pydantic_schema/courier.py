@@ -2,7 +2,7 @@ from pydantic import ConfigDict, NonNegativeFloat, Field
 
 from app.constant.city import City
 from app.constant.country import Country
-from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
+from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
 
 example_courier = {
@@ -17,6 +17,15 @@ example_courier = {
     'exclude_city': [],
 }
 
+example_courier_in = {
+    **example_courier,
+}
+
+example_courier_out = {
+    **IdTimestampMixin._example,
+    **example_courier,
+}
+
 
 class CourierBase(BaseModel):
     method_name: str
@@ -29,11 +38,9 @@ class CourierBase(BaseModel):
     include_city: list[City] = []
     exclude_city: list[City] = []
 
-    model_config = ConfigDict(json_schema_extra={"example": example_courier})
-
-
 class CreateCourier(CourierBase):
-    pass
+    model_config = ConfigDict(json_schema_extra={"example": example_courier_in})
+
 
 
 class UpdateCourier(CourierBase):
@@ -44,6 +51,6 @@ class UpdateCourier(CourierBase):
     allow_cash_on_delivery: bool | None = None
 
 
-class CourierOut(CourierBase, TimestampMixin):
+class CourierOut(CourierBase, IdTimestampMixin):
     model_config = ConfigDict(json_schema_extra={"example":
-                                                 example_courier | timestamp_mixin_example})
+                                                 example_courier_out})

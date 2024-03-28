@@ -1,17 +1,13 @@
 from pydantic import UUID4, ConfigDict, Field, field_validator, PositiveInt, ValidationInfo
 from typing import List
 
-from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin, id_timestamp_mixin_example
-
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin
+from app.pydantic_schema.common import AuthorOut, PublisherOut, CategoryOut, TagOut, ImageOut
 from app.constant import Cover, Language, Condition, StockLocation, Country
-from app.pydantic_schema.author import AuthorOut
-from app.pydantic_schema.category import CategoryOut
-from app.pydantic_schema.publisher import PublisherOut
-from app.pydantic_schema.image import ImageOut
-from app.pydantic_schema.tag import TagOut
+
 
     
-example_book = {
+example_book_base = {
     'serial_number': 1,
     'name': 'The God of Small Things',
     'slug': 'the-god-of-small-things',
@@ -45,17 +41,10 @@ example_book = {
     
     'bar_code': '123456',
     'weight_in_gm': 540,
-    
-    'authors': [],
-    'translators': [],
-    'publisher': '11a132d7-6758-4603-8c32-668485ae8a6b',  
-    'categories': [],
-    'images': [],
-    'tags': [],
 }
 
-example_book_admin = {
-    **example_book,
+example_book_base_admin = {
+    **example_book_base,
     'sku': '123456',
     'stock_location': StockLocation.mirpur_11,
     'shelf': '101',
@@ -63,7 +52,34 @@ example_book_admin = {
     'cost': 200,     
 }
 
-_10_lakh = 1000000
+
+example_book_in = {
+    **example_book_base_admin,
+    'authors': ['example-uuid'],
+    'translators': ['example-uuid'],
+    'publisher': 'example-uuid',  
+    'categories': ['example-uuid'],
+    'images': ['example-uuid'],
+    'tags': ['example-uuid'],
+}
+
+example_book_out = {
+    **example_book_base,
+    **IdTimestampMixin._example,
+    'authors': [AuthorOut._example], 
+    'translators': [AuthorOut._example],
+    'publisher': PublisherOut._example,
+    'categories': [CategoryOut._example],
+    'images': [ImageOut._example],
+}
+
+example_book_out_admin = {
+    **example_book_out,
+    **example_book_base_admin,
+}
+
+
+_10_lakh: int = 1000000
 
 class BookBase(NameSlugMixin):
     short_description: str | None = Field(None, min_length=10, max_length=1000)
@@ -99,8 +115,6 @@ class BookBase(NameSlugMixin):
     bar_code: str | None = Field(None, min_length=4, max_length=20)
     weight_in_gm: float = Field(0, ge=0, le=10000) # 10 kg max
     
-    model_config = ConfigDict(json_schema_extra={"example": example_book})
-    
     @field_validator('sale_price')
     @classmethod
     def validate_sale_price(cls, v: float, info: ValidationInfo):
@@ -123,7 +137,6 @@ class BookBaseAdmin(BookBase):
     cost: float = Field(0, ge=0, le=_10_lakh) 
     sold_count: int = 0
 
-    model_config = ConfigDict(json_schema_extra={"example": example_book_admin})
 
 class CreateBook(BookBaseAdmin):
     authors: List[UUID4] = []
@@ -132,6 +145,9 @@ class CreateBook(BookBaseAdmin):
     publisher: UUID4 | None = None
     images: List[UUID4] = []
     tags: List[UUID4] = []
+
+    model_config = ConfigDict(json_schema_extra={"example": example_book_in})
+
 
 class UpdateBook(NameSlugMixinOptional, CreateBook):
     sku: str = Field(None, min_length=4, max_length=15)
@@ -143,7 +159,6 @@ class UpdateBook(NameSlugMixinOptional, CreateBook):
     condition: Condition = Field(None)
     stock_location: StockLocation = Field(None)
 
-
 class BookOut(BookBase, IdTimestampMixin):
     authors: List[AuthorOut] = []
     translators: List[AuthorOut] = []
@@ -154,7 +169,7 @@ class BookOut(BookBase, IdTimestampMixin):
     
     serial_number: PositiveInt
     
-    model_config = ConfigDict(json_schema_extra={"example": example_book | id_timestamp_mixin_example})
+    model_config = ConfigDict(json_schema_extra={"example": example_book_out})
         
-class BookOutAdmin(BookOut, BookBaseAdmin):
-    model_config = ConfigDict(json_schema_extra={"example": example_book_admin | id_timestamp_mixin_example})
+class BookOutAdmin(BookBaseAdmin, BookOut):
+    model_config = ConfigDict(json_schema_extra={"example": example_book_out_admin})

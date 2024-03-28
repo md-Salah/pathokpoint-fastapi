@@ -1,6 +1,6 @@
 from pydantic import EmailStr, ConfigDict, Field, SecretStr, UUID4
 
-from app.pydantic_schema.mixins import IdTimestampMixin, id_timestamp_mixin_example
+from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
 
 from app.constant.role import Role
@@ -27,6 +27,7 @@ example_user_in_by_admin = {
 
 example_user_out = {
     **example_user,
+    **IdTimestampMixin._example,
     "is_verified": True,
     "role": Role.customer,
 }
@@ -75,4 +76,4 @@ class UserOut(UserBase, IdTimestampMixin):
     role: Role
 
     model_config = ConfigDict(
-        json_schema_extra={"example": example_user_out | id_timestamp_mixin_example})
+        json_schema_extra={"example": example_user_out})

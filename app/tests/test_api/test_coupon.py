@@ -16,19 +16,25 @@ simple_coupon = {
     "min_spend_new": 0,
 }
 
+
+def id_name_slug(data: dict):
+    return {k: data[k] for k in ["id", "name", "slug"]}
+
+
 @pytest_asyncio.fixture(name="coupon_in_db")
 async def create_coupon(client: AsyncClient):
     response = await client.post("/coupon", json=simple_coupon)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
-async def test_get_coupon_by_id(client: AsyncClient, coupon_in_db:dict):
+
+async def test_get_coupon_by_id(client: AsyncClient, coupon_in_db: dict):
     response = await client.get(f"/coupon/id/{coupon_in_db['id']}")
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() <= coupon_in_db.items()
 
 
-async def test_get_all_coupons(client: AsyncClient, coupon_in_db:dict):
+async def test_get_all_coupons(client: AsyncClient, coupon_in_db: dict):
     response = await client.get("/coupons")
     assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 1
@@ -37,54 +43,32 @@ async def test_get_all_coupons(client: AsyncClient, coupon_in_db:dict):
     assert response.headers['x-total-pages'] == '1'
     assert response.headers['x-current-page'] == '1'
     assert response.headers['x-per-page'] == '10'
-    
+
 
 async def test_create_coupon(client: AsyncClient):
     response = await client.post("/coupon", json=simple_coupon)
     assert response.status_code == status.HTTP_201_CREATED
-    assert simple_coupon.items() <= response.json().items()
-    
-async def test_create_coupon_with_author(client: AsyncClient, author_in_db:dict):
-    payload = {
-        **simple_coupon,
-        "include_authors": [author_in_db['id']]
-    }
-    response = await client.post("/coupon", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    assert simple_coupon.items() <= response.json().items()
-    assert response.json()["include_authors"][0] == author_in_db
-    
-async def test_create_coupon_with_publisher(client: AsyncClient, publisher_in_db:dict):
-    payload = {
-        **simple_coupon,
-        "include_publishers": [publisher_in_db["id"]]
-    }
-    response = await client.post("/coupon", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    assert simple_coupon.items() <= response.json().items()
-    assert response.json()["include_publishers"][0] == publisher_in_db
+    assert response.json().items() >= simple_coupon.items()
 
-async def test_create_coupon_with_category(client: AsyncClient, category_in_db:dict):
+
+async def test_create_coupon_with_relation(client: AsyncClient, author_in_db: dict, publisher_in_db: dict, category_in_db: dict):
     payload = {
         **simple_coupon,
-        "include_categories": [category_in_db['id']]
-    }
-    response = await client.post("/coupon", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    assert simple_coupon.items() <= response.json().items()
-    assert response.json()["include_categories"][0] == category_in_db
-    
-async def test_create_coupon_with_exclude_category(client: AsyncClient, category_in_db:dict):
-    payload = {
-        **simple_coupon,
+        "include_authors": [author_in_db['id']],
+        "include_publishers": [publisher_in_db["id"]],
+        "include_categories": [category_in_db['id']],
         "exclude_categories": [category_in_db['id']]
     }
     response = await client.post("/coupon", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
-    assert simple_coupon.items() <= response.json().items()
-    assert response.json()["exclude_categories"][0] == category_in_db
+    payload["include_authors"] = [id_name_slug(author_in_db)]
+    payload["include_publishers"] = [id_name_slug(publisher_in_db)]
+    payload["include_categories"] = [id_name_slug(category_in_db)]
+    payload["exclude_categories"] = [id_name_slug(category_in_db)]
+    assert response.json().items() >= payload.items()
 
-async def test_update_coupon(client: AsyncClient, coupon_in_db:dict):
+
+async def test_update_coupon(client: AsyncClient, coupon_in_db: dict):
     payload = {
         **coupon_in_db,
         "expiry_date": "2025-12-31T00:00:00",
@@ -93,14 +77,11 @@ async def test_update_coupon(client: AsyncClient, coupon_in_db:dict):
     assert response.status_code == status.HTTP_200_OK
     payload.pop('updated_at')
     assert payload.items() <= response.json().items()
-    
 
-async def test_delete_coupon(client: AsyncClient, coupon_in_db:dict):
+
+async def test_delete_coupon(client: AsyncClient, coupon_in_db: dict):
     response = await client.delete(f"/coupon/{coupon_in_db['id']}")
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    
+
     response = await client.get(f"/coupon/id/{coupon_in_db['id']}")
-    assert response.status_code == 404 
-      
-    
-    
+    assert response.status_code == 404

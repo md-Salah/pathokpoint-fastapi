@@ -1,7 +1,7 @@
 from pydantic import ConfigDict, NonNegativeInt, Field, UUID4, PastDate
 
-from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin, id_timestamp_mixin_example
-from app.pydantic_schema.image import ImageOut, example_image_out
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin
+from app.pydantic_schema.common import ImageOut
 from app.constant import Country
 
 example_author = {
@@ -24,8 +24,9 @@ example_author_in = {
 
 example_author_out = {
     **example_author,
-    'image': example_image_out,
-    'banner': example_image_out
+    **IdTimestampMixin._example,
+    'image': ImageOut._example,
+    'banner': ImageOut._example,
 }
 
 class AuthorBase(NameSlugMixin):
@@ -51,7 +52,7 @@ class AuthorOut(AuthorBase, IdTimestampMixin):
     banner: ImageOut | None
     
     model_config = ConfigDict(json_schema_extra={"example": 
-        example_author_out | id_timestamp_mixin_example})
+        example_author_out})
     
     
     

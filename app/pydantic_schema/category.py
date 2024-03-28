@@ -1,7 +1,9 @@
 from pydantic import ConfigDict, UUID4
 
-from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin, id_timestamp_mixin_example
-from app.pydantic_schema.image import ImageOut, example_image_out
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin
+from app.pydantic_schema.common import CategoryOut as ParentChildCategory, ImageOut
+
+from typing import List
 
 example_category = {
     'name': 'Fiction',
@@ -26,10 +28,11 @@ example_category_in = {
 
 example_category_out = {
     **example_category,
-    'image': example_image_out,
-    'banner': example_image_out,
-    'parent': [{'id': '5b36385d-27bf-47dd-9126-df04bccfc773', 'name': 'Fiction', 'slug': 'fiction'}],
-    'children': [{'id': '5b36385d-27bf-47dd-9126-df04bccfc773', 'name': 'Fiction', 'slug': 'fiction'}],
+    **IdTimestampMixin._example,
+    'image': ImageOut._example,
+    'banner': ImageOut._example,
+    'parent': ParentChildCategory._example,
+    'children': ParentChildCategory._example,
 }
 
 
@@ -45,6 +48,8 @@ class CategoryBase(NameSlugMixin):
 
 
 class CreateCategory(CategoryBase):
+    parent: List[UUID4] = []
+    children: List[UUID4] = []
     image: UUID4 | None = None
     banner: UUID4 | None = None
 
@@ -56,15 +61,11 @@ class UpdateCategory(NameSlugMixinOptional, CreateCategory):
     pass
 
 class CategoryOut(CategoryBase, IdTimestampMixin):
-    # class CategoryRelationship(BaseModel):
-    #     id: UUID4
-    #     name: str
-    #     slug: str
-    
     image: ImageOut | None = None
     banner: ImageOut | None = None
-    # parent: list[CategoryRelationship] | None = None
-    # children: list[CategoryRelationship] | None = None
+    parent: list[ParentChildCategory] | None = None
+    children: list[ParentChildCategory] | None = None
 
     model_config = ConfigDict(json_schema_extra={"example":
-                                                 example_category_out | id_timestamp_mixin_example})
+                                                 example_category_out})
+

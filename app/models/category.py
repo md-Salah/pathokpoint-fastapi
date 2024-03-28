@@ -32,8 +32,8 @@ class Category(TimestampMixin):
         secondary='book_category_link', back_populates='categories')
     parent: Mapped[List['Category']] = relationship(
         secondary='parent_child_link',
-        primaryjoin='parent_child_link.c.parent_id == Category.id',
-        secondaryjoin='parent_child_link.c.child_id == Category.id',
+        primaryjoin='parent_child_link.c.parent_id == categories.c.id',
+        secondaryjoin='parent_child_link.c.child_id == categories.c.id',
         backref='children',
     )
     image_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('images.id'))

@@ -1,15 +1,21 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, delete, update
+from sqlalchemy import select, func, or_, delete
+from sqlalchemy.orm import joinedload
 from typing import Sequence
 from uuid import UUID
+import asyncio
 
 from app.filter_schema.category import CategoryFilter
 from app.models import Category, Image
 
+query = select(Category).options(joinedload(Category.parent), 
+                                 joinedload(Category.children),  # type: ignore
+                                 joinedload(Category.image),
+                                 joinedload(Category.banner)) 
 
 async def get_category_by_id(id: UUID, db: AsyncSession) -> Category:
-    category = await db.scalar(select(Category).filter(Category.id == id))
+    category = await db.scalar(query.filter(Category.id == id))
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Category with id {id} not found')
@@ -17,7 +23,7 @@ async def get_category_by_id(id: UUID, db: AsyncSession) -> Category:
 
 
 async def get_category_by_slug(slug: str, db: AsyncSession) -> Category:
-    category = await db.scalar(select(Category).filter(Category.slug == slug))
+    category = await db.scalar(query.filter(Category.slug == slug))
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Category with slug {slug} not found')
@@ -27,17 +33,16 @@ async def get_category_by_slug(slug: str, db: AsyncSession) -> Category:
 async def get_all_categories(page: int, per_page: int, db: AsyncSession, category_filter: CategoryFilter) -> Sequence[Category]:
     offset = (page - 1) * per_page
 
-    query = select(Category)
-    query = category_filter.filter(query)
-    query = query.offset(offset).limit(per_page)
-    result = await db.execute(query)
-    return result.scalars().all()
+    stmt = category_filter.filter(query)
+    stmt = stmt.offset(offset).limit(per_page)
+    result = await db.execute(stmt)
+    return result.scalars().unique().all()
 
 
 async def count_category(db: AsyncSession, category_filter: CategoryFilter) -> int:
-    query = select(func.count(Category.id))
-    query = category_filter.filter(query)
-    result = await db.execute(query)
+    stmt = select(func.count(Category.id))
+    stmt = category_filter.filter(stmt)
+    result = await db.execute(stmt)
     return result.scalar_one()
 
 
@@ -61,6 +66,8 @@ async def create_category(payload: dict, db: AsyncSession) -> Category:
         payload['image'] = await db.get(Image, payload['image'])
     if payload.get('banner'):
         payload['banner'] = await db.get(Image, payload['banner'])
+    if payload.get('parent'):
+        payload['parent'] = await asyncio.gather(*[db.get(Category, parent_id) for parent_id in payload['parent']])
 
     category = Category(**payload)
     db.add(category)
@@ -69,7 +76,11 @@ async def create_category(payload: dict, db: AsyncSession) -> Category:
 
 
 async def update_category(id: UUID, payload: dict, db: AsyncSession) -> Category:
-    category = await get_category_by_id(id, db)
+    stmt = query.filter(Category.id == id)
+    category = await db.scalar(stmt)
+    assert category, HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                   detail=f'Category with id {id} not found')
+    
     if payload.get('name') and category.name != payload['name']:
         _category = await db.scalar(select(Category).filter(Category.name == payload['name']))
         if _category:
@@ -91,6 +102,8 @@ async def update_category(id: UUID, payload: dict, db: AsyncSession) -> Category
         payload['image'] = await db.get(Image, payload['image'])
     if payload.get('banner'):
         payload['banner'] = await db.get(Image, payload['banner'])
+    if payload.get('parent'):
+        payload['parent'] = await asyncio.gather(*[db.get(Category, parent_id) for parent_id in payload['parent']])
 
     [setattr(category, key, value) for key, value in payload.items()]
 

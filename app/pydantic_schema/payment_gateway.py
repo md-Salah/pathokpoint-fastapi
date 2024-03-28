@@ -1,5 +1,5 @@
 from pydantic import ConfigDict, Field
-from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
+from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
 
 
@@ -9,19 +9,31 @@ example_payment_gateway = {
     'is_enabled': True,
 }
 
+example_payment_gateway_in = {
+    **example_payment_gateway,
+}
+
+example_payment_gateway_out = {
+    **IdTimestampMixin._example,
+    **example_payment_gateway,
+}
+
+
 class PaymentGatewayBase(BaseModel):
     name: str = Field(..., min_length=3, max_length=100)
     description: str | None = Field(None, min_length=3, max_length=100)
     is_enabled: bool = True
 
-    model_config = ConfigDict(json_schema_extra={"example": example_payment_gateway})
 
 class CreatePaymentGateway(PaymentGatewayBase):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_payment_gateway_in})
+
 
 class UpdatePaymentGateway(CreatePaymentGateway):
     name: str | None = Field(None, min_length=3, max_length=100)
 
-class PaymentGatewayOut(PaymentGatewayBase, TimestampMixin):
+
+class PaymentGatewayOut(PaymentGatewayBase, IdTimestampMixin):
     model_config = ConfigDict(json_schema_extra={"example":
-                                                 example_payment_gateway | timestamp_mixin_example})
+                                                 example_payment_gateway_out})

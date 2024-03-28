@@ -56,13 +56,16 @@ async def test_create_book(client: AsyncClient, author_in_db: dict, category_in_
         "authors": [author_in_db['id']],
         "categories": [category_in_db['id']],
         "publisher": publisher_in_db["id"]
-    }
+    }    
     response = await client.post("/book", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json().items() >= simple_book.items()
-    assert response.json()["authors"] == [author_in_db]
-    assert response.json()["categories"] == [category_in_db]
-    assert response.json()["publisher"] == publisher_in_db
+
+    def id_name_slug(data: dict):
+        return {k: data[k] for k in ["id", "name", "slug"]}
+    assert response.json()["authors"] == [id_name_slug(author_in_db)]
+    assert response.json()["categories"] == [id_name_slug(category_in_db)]
+    assert response.json()["publisher"] == id_name_slug(publisher_in_db)
 
 
 async def test_update_book(client: AsyncClient, book_in_db: dict):

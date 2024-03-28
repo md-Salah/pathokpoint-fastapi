@@ -1,7 +1,7 @@
 from pydantic import ConfigDict, NonNegativeInt, UUID4, Field
 
-from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin, id_timestamp_mixin_example
-from app.pydantic_schema.image import ImageOut, example_image_out
+from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin
+from app.pydantic_schema.common import ImageOut
 
 from app.constant import Country
 
@@ -24,9 +24,10 @@ example_publisher_in = {
 }
 
 example_publisher_out = {
+    **IdTimestampMixin._example,
     **example_publisher,
-    'image': example_image_out,
-    'banner': example_image_out,
+    'image': ImageOut._example,
+    'banner': ImageOut._example,
 }
 
 
@@ -58,4 +59,4 @@ class PublisherOut(PublisherBase, IdTimestampMixin):
     banner: ImageOut | None = None
 
     model_config = ConfigDict(json_schema_extra={"example":
-                                                 example_publisher_out | id_timestamp_mixin_example})
+                                                 example_publisher_out})

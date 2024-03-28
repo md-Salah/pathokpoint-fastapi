@@ -1,6 +1,6 @@
 from pydantic import ConfigDict, Field, UUID4
 
-from app.pydantic_schema.mixins import TimestampMixin, timestamp_mixin_example
+from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.order import OrderOut
 from app.pydantic_schema.user import UserOut
@@ -29,6 +29,7 @@ example_refund_transaction_in = {
 
 example_transaction_out = {
     **example_transaction,
+    **IdTimestampMixin._example,
     'gateway': example_payment_gateway,
     'order': {},
     'refunded_by': {}
@@ -63,10 +64,10 @@ class CreateRefundTransaction(CreateTransaction, RefundTransactionBase):
         json_schema_extra={"example": example_refund_transaction_in})
 
 
-class TransactionOut(RefundTransactionBase, TimestampMixin):
+class TransactionOut(RefundTransactionBase, IdTimestampMixin):
     gateway: PaymentGatewayOut
     order: OrderOut | None = None
     refunded_by: UserOut | None = None
 
     model_config = ConfigDict(json_schema_extra={"example":
-                                                 example_transaction_out | timestamp_mixin_example})
+                                                 example_transaction_out})

@@ -38,8 +38,21 @@ async def client_fixture(session: AsyncSession) -> AsyncGenerator[AsyncClient, N
 
 
 # Other fixtures
+@pytest_asyncio.fixture(name="image_in_db")
+@patch("app.controller.image.upload_file_to_cloudinary")
+async def create_image(upload_file, client: AsyncClient):
+    upload_file.return_value = 'https://res.cloudinary.com/dummy/image/upload/v1629780000/test.jpg'
+    
+    with open("dummy/test.jpg", "rb") as f:
+        response = await client.post("/image",
+                                     files={"file": ("image.jpg", f, "image/jpeg")}, data={'alt': 'test-image'})
+    assert response.status_code == status.HTTP_201_CREATED
+    upload_file.assert_called_once()
+    return response.json()
+
+
 @pytest_asyncio.fixture(name="author_in_db")
-async def create_author(client: AsyncClient):
+async def create_author(client: AsyncClient, image_in_db: dict):
     response = await client.post("/author", json={
         "birth_date": "1948-11-13",
         "book_published": 200,
@@ -50,8 +63,8 @@ async def create_author(client: AsyncClient):
         "is_popular": True,
         "name": "হুমায়ূন আহমেদ",
         "slug": "humayun-ahmed",
-        "image": None,
-        "banner": None,
+        "image": image_in_db["id"],
+        "banner": image_in_db['id'],
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
@@ -108,15 +121,3 @@ async def create_admin(client: AsyncClient):
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
-
-@pytest_asyncio.fixture(name="image_in_db")
-@patch("app.controller.image.upload_file_to_cloudinary")
-async def create_image(upload_file, client: AsyncClient):
-    upload_file.return_value = 'https://res.cloudinary.com/dummy/image/upload/v1629780000/test.jpg'
-    
-    with open("dummy/test.jpg", "rb") as f:
-        response = await client.post("/image",
-                                     files={"file": ("image.jpg", f, "image/jpeg")}, data={'alt': 'test-image'})
-    assert response.status_code == status.HTTP_201_CREATED
-    upload_file.assert_called_once()
-    return response.json()

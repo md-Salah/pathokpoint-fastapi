@@ -76,3 +76,4 @@ async def test_update_author(client: AsyncClient, author_in_db: dict):
 async def test_delete_author(client: AsyncClient, author_in_db: dict):
     response = await client.delete(f"/author/{author_in_db['id']}")
     assert response.status_code == status.HTTP_204_NO_CONTENT
+    
