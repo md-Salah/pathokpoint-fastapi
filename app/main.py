@@ -20,15 +20,23 @@ from app.api.transaction import router as transaction_route
 
 from app.config.database import create_tables, drop_tables
 from app.config.settings import settings
-
+from app.config.redis import get_redis, get_cache
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup
+    app.state.redis = await get_redis()
+
+    
+    
     # await drop_tables()
     await create_tables()
+    
+    
     yield
     # shutdown
+    await app.state.redis.close()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
