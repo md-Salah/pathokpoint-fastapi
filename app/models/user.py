@@ -28,7 +28,7 @@ class User(TimestampMixin):
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.customer)
     
     
-    orders: Mapped[list["Order"]] = relationship(back_populates='user')
+    orders: Mapped[list["Order"]] = relationship(back_populates='customer')
     addresses: Mapped[list["Address"]] = relationship(back_populates='user', cascade='all, delete-orphan')
     
     def __repr__(self):

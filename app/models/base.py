@@ -1,5 +1,1 @@
-from app.config import database
-
-class Base(database.Base):
-    __abstract__ = True
-    pass
+from app.config.database import Base # noqa

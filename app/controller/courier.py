@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, update
+from sqlalchemy import select, func, delete
 from typing import Sequence
 from uuid import UUID
 
@@ -11,7 +11,7 @@ async def get_courier_by_id(id: UUID, db: AsyncSession) -> Courier:
     courier = await db.scalar(select(Courier).filter(Courier.id == id))
     if not courier:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Courier with id ({id}) not found')
+                            detail='Courier not found')
     return courier
 
 

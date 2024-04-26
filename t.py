@@ -1,6 +1,8 @@
 x = {
-    'lal': 2,
-    'nil': 3
+    
 }
 
-print(x.pop('lal'), x)
+if x.get('lal'):
+    print('lal exists')
+else:
+    print('lal does not exist')

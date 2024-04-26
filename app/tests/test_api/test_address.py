@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from starlette import status
 
@@ -13,14 +12,6 @@ simple_address = {
     "city": "dhaka",
     "country": "BD",
 }
-
-
-@pytest_asyncio.fixture(name="address_in_db")
-async def create_address(client: AsyncClient, user_in_db: dict):
-    response = await client.post(f"/address/{user_in_db['user']['id']}", json=simple_address)
-    assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
-
 
 async def test_get_address_by_id(client: AsyncClient, address_in_db: dict):
     response = await client.get(f"/address/id/{address_in_db['id']}")

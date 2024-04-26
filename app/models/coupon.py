@@ -58,7 +58,7 @@ class Coupon(TimestampMixin):
 
     allowed_users: Mapped[List['User']] = relationship(secondary='coupon_user_link')
     
-    orders: Mapped[List['Order']] = relationship(secondary='order_coupon_link', back_populates='coupons')
+    orders: Mapped[List['Order']] = relationship(back_populates='coupon')
 
     def __repr__(self):
         return f'<Coupon (code={self.code})>'
@@ -136,11 +136,4 @@ coupon_user_link = Table(
     Base.metadata,
     Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
     Column('user_id', UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True),
-)
-
-order_coupon_link = Table(
-    'order_coupon_link',
-    Base.metadata,
-    Column('order_id', UUID(as_uuid=True), ForeignKey('orders.id'), primary_key=True),
-    Column('coupon_id', UUID(as_uuid=True), ForeignKey('coupons.id'), primary_key=True),
 )

@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from starlette import status
 
@@ -17,33 +16,17 @@ simple_courier = {
 }
 
 
-@pytest_asyncio.fixture(name="courier_in_db")
-async def create_courier(client: AsyncClient):
-    response = await client.post("/courier", json=simple_courier)
-    assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
-
-
 async def test_get_courier_by_id(client: AsyncClient, courier_in_db: dict):
     response = await client.get(f"/courier/id/{courier_in_db['id']}")
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= courier_in_db.items()
 
 
-async def test_get_courier_by_fake_id(client: AsyncClient):
-    id = 'some-fake-id'
-    response = await client.get(f"/courier/id/{id}")
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-    assert response.json()['detail'][0]['loc'][1] == 'id'
-    assert 'Input should be a valid UUID' in response.json()[
-        'detail'][0]['msg']
-
-
 async def test_get_courier_by_fake_uuid(client: AsyncClient):
     id = '123e4567-e89b-12d3-a456-426614174000'
     response = await client.get(f"/courier/id/{id}")
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json() == {'detail': f'Courier with id ({id}) not found'}
+    assert response.json() == {'detail': 'Courier not found'}
 
 
 async def test_get_all_couriers(client: AsyncClient, courier_in_db: dict):

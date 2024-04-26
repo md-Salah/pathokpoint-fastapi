@@ -12,13 +12,13 @@ router = APIRouter()
 @router.get('/transaction/id/{id}', response_model=transaction_schema.TransactionOut)
 async def get_transaction_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
     transaction = await transaction_service.get_transaction_by_id(id, db)
-    return transaction_schema.TransactionOut.model_validate(transaction)
+    return transaction
 
 
 @router.get('/transactions', response_model=list[transaction_schema.TransactionOut])
 async def get_all_transactions(*, page: int = Query(1, ge=1),
-                           per_page: int = Query(10, ge=1, le=100),
-                           db: AsyncSession = Depends(get_db),  response: Response):
+                               per_page: int = Query(10, ge=1, le=100),
+                               db: AsyncSession = Depends(get_db),  response: Response):
     transactions = await transaction_service.get_all_transactions(page, per_page, db)
     total_transactions = await transaction_service.count_transaction(db)
 
@@ -27,19 +27,19 @@ async def get_all_transactions(*, page: int = Query(1, ge=1),
     response.headers['X-Current-Page'] = str(page)
     response.headers['X-Per-Page'] = str(per_page)
 
-    return [transaction_schema.TransactionOut.model_validate(transaction) for transaction in transactions]
+    return transactions
 
 
 @router.post('/transaction', response_model=transaction_schema.TransactionOut, status_code=status.HTTP_201_CREATED)
 async def create_transaction(payload: transaction_schema.CreateTransaction, db: AsyncSession = Depends(get_db)):
     transaction = await transaction_service.create_transaction(payload.model_dump(), db)
-    return transaction_schema.TransactionOut.model_validate(transaction)
+    return transaction
 
 
 @router.post('/refund', response_model=transaction_schema.TransactionOut, status_code=status.HTTP_201_CREATED)
 async def create_refund(payload: transaction_schema.CreateRefundTransaction, db: AsyncSession = Depends(get_db)):
     transaction = await transaction_service.create_transaction(payload.model_dump(), db)
-    return transaction_schema.TransactionOut.model_validate(transaction)
+    return transaction
 
 
 @router.delete('/transaction/{id}', status_code=status.HTTP_204_NO_CONTENT)

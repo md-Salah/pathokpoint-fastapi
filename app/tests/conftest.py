@@ -37,12 +37,12 @@ async def client_fixture(session: AsyncSession) -> AsyncGenerator[AsyncClient, N
             app.dependency_overrides.clear()
 
 
-# Other fixtures
+# In DB fixtures
 @pytest_asyncio.fixture(name="image_in_db")
 @patch("app.controller.image.upload_file_to_cloudinary")
 async def create_image(upload_file, client: AsyncClient):
     upload_file.return_value = 'https://res.cloudinary.com/dummy/image/upload/v1629780000/test.jpg'
-    
+
     with open("dummy/test.jpg", "rb") as f:
         response = await client.post("/image",
                                      files={"file": ("image.jpg", f, "image/jpeg")}, data={'alt': 'test-image'})
@@ -93,6 +93,24 @@ async def create_category(client: AsyncClient):
     return response.json()
 
 
+@pytest_asyncio.fixture(name="book_in_db")
+async def create_book(client: AsyncClient):
+    response = await client.post("/book", json={
+        "sku": "99-5432",
+        "name": "The Alchemist",
+        "slug": "the-alchemist",
+        "regular_price": 700,
+        "sale_price": 250,
+        "manage_stock": True,
+        "quantity": 10,
+        "is_used": True,
+        "condition": "old-like-new",
+        "is_popular": True,
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
 @pytest_asyncio.fixture(name="user_in_db")
 async def create_user(client: AsyncClient):
     response = await client.post("/signup", json={
@@ -121,3 +139,73 @@ async def create_admin(client: AsyncClient):
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
+
+@pytest_asyncio.fixture(name="courier_in_db")
+async def create_courier(client: AsyncClient):
+    response = await client.post("/courier", json={
+        "method_name": "Delivery Tiger - Inside Dhaka",
+        "company_name": "Delivery Tiger",
+        "base_charge": 60.0,
+        "weight_charge_per_kg": 20.0,
+        "allow_cash_on_delivery": True,
+        "include_country": ["BD"],
+        "include_city": ["dhaka"],
+        "exclude_city": [],
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
+@pytest_asyncio.fixture(name="address_in_db")
+async def create_address(client: AsyncClient, user_in_db: dict):
+    response = await client.post(f"/address/{user_in_db['user']['id']}", json={
+        "phone_number": "+8801710002000",
+        "alternative_phone_number": "+8801710000001",
+        "address": "House 1, Road 1, Block A, Dhaka",
+        "thana": "dhanmondi",
+        "city": "dhaka",
+        "country": "BD",
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
+@pytest_asyncio.fixture(name="coupon_in_db")
+async def create_coupon(client: AsyncClient):
+    response = await client.post("/coupon", json={
+        "code": "NewYear",
+        "short_description": "New year coupon",
+        "expiry_date": "2024-12-31T00:00:00",
+        "discount_type": "percentage",
+        "discount_old": 15,
+        "discount_new": 0,
+        "min_spend_old": 499,
+        "min_spend_new": 0,
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
+@pytest_asyncio.fixture(name="order_in_db")
+async def create_order(client: AsyncClient, book_in_db: dict):
+    response = await client.post("/order/admin/new", json={
+        "order_items": [
+            {
+                "book_id": book_in_db["id"],
+                "quantity": 1,
+            }
+        ]
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
+@pytest_asyncio.fixture(name="payment_gateway_in_db")
+async def create_payment_gateway(client: AsyncClient):
+    response = await client.post("/payment_gateway", json={
+        "name": "Bkash",
+        "description": "Bkash Payment Gateway",
+        "is_enabled": True
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()

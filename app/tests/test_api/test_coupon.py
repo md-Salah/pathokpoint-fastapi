@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from starlette import status
 
@@ -19,14 +18,6 @@ simple_coupon = {
 
 def id_name_slug(data: dict):
     return {k: data[k] for k in ["id", "name", "slug"]}
-
-
-@pytest_asyncio.fixture(name="coupon_in_db")
-async def create_coupon(client: AsyncClient):
-    response = await client.post("/coupon", json=simple_coupon)
-    assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
-
 
 async def test_get_coupon_by_id(client: AsyncClient, coupon_in_db: dict):
     response = await client.get(f"/coupon/id/{coupon_in_db['id']}")

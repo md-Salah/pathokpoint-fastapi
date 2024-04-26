@@ -1,10 +1,8 @@
-from pydantic import ConfigDict, Field, UUID4
+from pydantic import ConfigDict, Field, UUID4, root_validator
 
 from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
-from app.pydantic_schema.order import OrderOut
-from app.pydantic_schema.user import UserOut
-from app.pydantic_schema.payment_gateway import PaymentGatewayOut, example_payment_gateway
+from app.pydantic_schema.common import OrderOut, UserOut, PaymentGatewayOut
 
 example_transaction = {
     'amount': 100,
@@ -16,23 +14,23 @@ example_transaction = {
 
 example_transaction_in = {
     **example_transaction,
-    'gateway': '5b36385d-27bf-47dd-9126-df04bccfc773',
-    'order': '5b36385d-27bf-47dd-9126-df04bccfc773',
+    'gateway_id': 'valid-uuid4',
+    'order_id': 'valid-uuid4',
 }
 
 example_refund_transaction_in = {
     **example_transaction_in,
     'is_refund': True,
     'refund_reason': 'order cancelled',
-    'refunded_by': '5b36385d-27bf-47dd-9126-df04bccfc773'
+    'refunded_by_id': 'valid-uuid4'
 }
 
 example_transaction_out = {
     **example_transaction,
     **IdTimestampMixin._example,
-    'gateway': example_payment_gateway,
-    'order': {},
-    'refunded_by': {}
+    'gateway': PaymentGatewayOut._example,
+    'order': OrderOut._example,
+    'refunded_by': UserOut._example,
 }
 
 
@@ -45,8 +43,8 @@ class TransactionBase(BaseModel):
 
 
 class CreateTransaction(TransactionBase):
-    gateway: UUID4
-    order: UUID4 | None = None
+    gateway_id: UUID4
+    order_id: UUID4 | None = None
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_transaction_in})
@@ -58,7 +56,7 @@ class RefundTransactionBase(TransactionBase):
 
 
 class CreateRefundTransaction(CreateTransaction, RefundTransactionBase):
-    refunded_by: UUID4
+    refunded_by_id: UUID4
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_refund_transaction_in})

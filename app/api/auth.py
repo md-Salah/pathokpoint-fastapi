@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, APIRouter, status
-from fastapi.security import (OAuth2PasswordBearer, OAuth2PasswordRequestForm)
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.config.database import get_db, AsyncSession
 import app.pydantic_schema.user as user_schema
@@ -7,14 +7,10 @@ import app.pydantic_schema.auth as auth_schema
 import app.controller.user as user_service
 import app.controller.auth as auth_service
 import app.controller.email as email_service
+from app.controller.auth import AccessToken
 
 
 router = APIRouter()
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-def valid_token(token: str = Depends(oauth_scheme)):
-    return auth_service.verify_token(token)
 
 
 @router.post("/token", response_model=auth_schema.TokenResponse)
@@ -67,7 +63,7 @@ async def set_new_password(payload: auth_schema.SetNewPassword, db: AsyncSession
 
 
 @router.post('/request-email-verification')
-async def request_email_verification(decoded_token: dict = Depends(valid_token), db: AsyncSession = Depends(get_db)):
+async def request_email_verification(decoded_token: AccessToken, db: AsyncSession = Depends(get_db)):
     user = await user_service.get_user_by_id(decoded_token['id'], db)
     if user.is_verified:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,5 +88,5 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/get-private-data')
-def test_get_private_data(token: dict = Depends(valid_token)):
+def test_get_private_data(token: AccessToken):
     return {"message": "You are accessing private data because you have the access token."}

@@ -23,7 +23,7 @@ async def create_payment_gateway(client: AsyncClient):
 async def create_transaction(client: AsyncClient, payment_gateway_in_db: dict):
     payload = {
         **simple_transaction,
-        "gateway": payment_gateway_in_db["id"]
+        "gateway_id": payment_gateway_in_db["id"]
     }
     response = await client.post("/transaction", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
@@ -45,7 +45,7 @@ async def test_get_all_transactions(client: AsyncClient, transaction_in_db: dict
 async def test_create_transaction(client: AsyncClient, payment_gateway_in_db: dict):
     payload = {
         **simple_transaction,
-        "gateway": payment_gateway_in_db["id"]
+        "gateway_id": payment_gateway_in_db["id"]
     }
     response = await client.post("/transaction", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
@@ -55,17 +55,17 @@ async def test_create_transaction(client: AsyncClient, payment_gateway_in_db: di
 async def test_create_duplicate_transaction(client: AsyncClient, transaction_in_db: dict):
     payload = {
         **simple_transaction,
-        "gateway": transaction_in_db["gateway"]["id"]
+        "gateway_id": transaction_in_db["gateway"]["id"]
     }
     response = await client.post("/transaction", json=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json() == {"detail": "Transaction with transaction id ({}) already exists".format(simple_transaction['transaction_id'])}
+    assert response.json()['detail']['message'] == 'Duplicate transaction id'
 
 async def test_create_refund_transaction(client: AsyncClient, payment_gateway_in_db: dict, user_in_db: dict):
     payload = {
         **simple_transaction,
-        "gateway": payment_gateway_in_db["id"],
-        "refunded_by": user_in_db["user"]["id"],
+        "gateway_id": payment_gateway_in_db["id"],
+        "refunded_by_id": user_in_db["user"]["id"],
     }
     response = await client.post("/refund", json=payload)
     assert response.status_code == status.HTTP_201_CREATED

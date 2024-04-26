@@ -56,7 +56,7 @@ async def test_user_login_with_wrong_password(client: AsyncClient, user_in_db: d
     }
     response = await client.post('/token', data=payload)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json() == {"detail": "Incorrect email or password"}
+    assert response.json()['detail']['message'] == "Incorrect email or password"
 
 
 async def test_get_private_data(client: AsyncClient, user_in_db: dict):

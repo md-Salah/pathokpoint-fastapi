@@ -28,7 +28,7 @@ async def get_coupon_by_id(id: UUID, db: AsyncSession) -> Coupon:
     coupon = await db.scalar(query.where(Coupon.id == id))
     if not coupon:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Coupon with id ({id}) not found')
+                            detail='Coupon not found')
     return coupon
 
 

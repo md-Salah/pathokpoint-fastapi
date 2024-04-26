@@ -19,13 +19,6 @@ simple_book = {
 }
 
 
-@pytest_asyncio.fixture(name="book_in_db")
-async def create_book(client: AsyncClient):
-    response = await client.post("/book", json=simple_book)
-    assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
-
-
 async def test_get_book_by_id(client: AsyncClient, book_in_db: dict):
     response = await client.get(f"/book/id/{book_in_db['id']}")
     assert response.status_code == status.HTTP_200_OK

@@ -1,5 +1,6 @@
 import httpx
 import random
+import time
 
 from app.config.settings import settings
 from app.constant import Condition
@@ -59,16 +60,19 @@ async def seed_book():
     ]
 
     counter = 0
+    st = time.time()
     for payload in data:
         payload['authors'] = [authors[random.randint(0, len(authors) - 1)]]
         payload['categories'] = [categories[random.randint(0, len(categories) - 1)]]
         payload['publisher'] = publishers[random.randint(0, len(publishers) - 1)]
         payload['tags'] = [tags[random.randint(0, len(tags) - 1)]]
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(f"{settings.BASE_URL}/book", json=payload)
             if response.status_code != 201:
                 print(response.json())
             else:
                 counter += 1
     print(f"{counter}/{len(data)} books seeded successfully")
+    if counter:
+        print('Average time taken {} sec'.format(round((time.time() - st)/counter, 2)))

@@ -1,48 +1,77 @@
-import app.pydantic_schema.order as schema
-import app.controller.order as order_service
-from fastapi import APIRouter, Depends, Query, Path, Response, HTTPException
-from typing import List
+from fastapi import APIRouter, status, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+from fastapi_filter import FilterDepends
 
+
+# from app.filter_schema.order import OrderFilter
+from app.controller.exception import bad_request_exception
+from app.controller.auth import AccessToken
+import app.pydantic_schema.order as schema
 from app.config.database import get_db
+import app.controller.order as order_service
+import app.controller.email as email_service
 
-router = APIRouter()
+router = APIRouter(prefix='/order')
 
-# # Admin | Customer(creator) : GET order by id
-# @router.get('/order/{id}', response_model=schema.ReadOrder)
-# async def get_order_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
-#     return await order_service.get_order_by_id(id, db)
 
-# # Admin: GET all orders
-# @router.get('/orders/', response_model=List[schema.ReadOrder])
-# async def get_all_orders(*, page: int = Query(1, ge=1), per_page: int = Query(10, ge=1, le=100), db: AsyncSession = Depends(get_db),  response: Response):
-#     orders = await order_service.get_all_orders(page, per_page, db)
-#     total_books = await order_service.count_order(db)
+@router.get('/id/{id}', response_model=schema.OrderOut)
+async def get_order_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
+    return await order_service.get_order_by_id(id, db)
 
-#     response.headers['X-Total-Count'] = str(total_books)
-#     response.headers['X-Total-Pages'] = str(-(-total_books // per_page))
-#     response.headers['X-Current-Page'] = str(page)
-#     response.headers['X-Per-Page'] = str(per_page)
 
-#     return orders
+@router.get('/admin/id/{id}', response_model=schema.OrderOutAdmin)
+async def get_order_by_id_admin(id: UUID, db: AsyncSession = Depends(get_db)):
+    return await order_service.get_order_by_id(id, db)
 
-# Customer: CREATE order
-@router.post('/order/')
-async def create_order(payload: schema.CreateOrder, db: AsyncSession = Depends(get_db)):
-    return await order_service.create_order(payload, db)
 
-# # Admin: UPDATE order
-# @router.put('/order/{id}', response_model=schema.ReadOrder)
-# async def update_order(id: UUID, payload: schema.UpdateOrder, db: AsyncSession = Depends(get_db)):
-#     return await order_service.update_order(id, payload, db)
+@router.get('/admin/all', response_model=list[schema.OrderOutAdmin])
+async def get_all_orders(*, 
+                        page: int = Query(1, ge=1), 
+                        per_page: int = Query(10, ge=1, le=100), 
+                        # order_filter: OrderFilter = FilterDepends(OrderFilter),
+                        db: AsyncSession = Depends(get_db),  
+                        response: Response):
+    orders = await order_service.get_all_orders(page, per_page, db)
+    total_orders = await order_service.count_orders(db)
 
-# # Admin: DELETE order
-# @router.delete('/order/{id}', response_model=schema.DeleteOrder)
-# async def delete_order(id: UUID, db: AsyncSession = Depends(get_db)):
-#     return await order_service.delete_order(id, db)
+    response.headers['X-Total-Count'] = str(total_orders)
+    response.headers['X-Total-Pages'] = str(-(-total_orders // per_page))
+    response.headers['X-Current-Page'] = str(page)
+    response.headers['X-Per-Page'] = str(per_page)
 
-# # Admin: Search order
-# @router.get('/order/search/{q}', response_model=List[schema.ReadOrder])
-# async def search_order(q: str = Path(..., min_length=3), db: AsyncSession = Depends(get_db)):
-#     return await order_service.search_orders(q, db)
+    return orders
+
+
+@router.post('/new', response_model=schema.OrderOut, status_code=status.HTTP_201_CREATED)
+async def create_order(payload: schema.CreateOrder, token: AccessToken, db: AsyncSession = Depends(get_db)):
+    data = {
+        **payload.model_dump(),
+        'customer_id': token['id']
+    }
+    return await order_service.create_order(data, db)
+
+
+@router.post('/admin/new', response_model=schema.OrderOutAdmin, status_code=status.HTTP_201_CREATED)
+async def create_order_by_admin(payload: schema.CreateOrderAdmin, db: AsyncSession = Depends(get_db)):
+    return await order_service.create_order(payload.model_dump(), db)
+
+
+@router.patch('/{id}', response_model=schema.OrderOutAdmin)
+async def update_order(id: UUID, payload: schema.UpdateOrder, db: AsyncSession = Depends(get_db)):
+    return await order_service.update_order(id, payload.model_dump(exclude_unset=True), db)
+
+
+@router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_order(id: UUID, db: AsyncSession = Depends(get_db)):
+    await order_service.delete_order(id, db)
+
+
+@router.post('/{id}/invoice')
+async def send_invoice_email(id: UUID, db: AsyncSession = Depends(get_db)):
+    order = await order_service.get_order_by_id(id, db)
+    customer = await order.awaitable_attrs.customer
+    if customer:
+        return await email_service.send_invoice_email(order)
+    else:
+        raise bad_request_exception(str(id), 'Guest order does not have email address')

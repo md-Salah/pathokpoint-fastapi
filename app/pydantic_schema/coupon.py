@@ -77,8 +77,8 @@ class CouponBase(BaseModel):
     expiry_date: FutureDatetime | None = None
 
     discount_type: DiscountType
-    discount_old: float = 0
-    discount_new: float = 0
+    discount_old: float
+    discount_new: float
     max_discount_old: float = -1
     max_discount_new: float = -1
     min_spend_old: float = 0
@@ -122,7 +122,8 @@ class CreateCoupon(CouponBase):
 class UpdateCoupon(CreateCoupon):
     code: str | None = Field(None, min_length=3, max_length=20)
     discount_type: DiscountType | None = None
-
+    discount_old: float | None = None
+    discount_new: float | None = None
 
 class CouponOut(CouponBase, IdTimestampMixin):
     include_books: list[BookOut] = []

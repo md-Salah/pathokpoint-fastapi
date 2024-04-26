@@ -7,14 +7,15 @@ class Status(Enum):
     order_confirmed = 'order-confirmed'
 
     processing = 'processing'
-    pending_customer_confirmation = 'pending-customer-confirmation'
-    customer_confirmed = 'customer-confirmed'
+    pending_condition_confirmation = 'pending-condition-confirmation' # Video has been sent to customer, waiting for confirmation
+    customer_confirmed = 'customer-confirmed' # Customer has confirmed the condition
     packaging_completed = 'packaging-completed'
     on_delivery = 'on-delivery'
     delivered = 'delivered'
     cancelled = 'cancelled'
 
     # Additional status
-    returned = 'returned'
-    on_hold = 'on hold'
+    completed = 'completed' # Order has been completed, COD has been received
+    returned = 'returned' 
+    on_hold = 'on-hold'
     trash = 'trash'

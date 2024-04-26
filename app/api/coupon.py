@@ -13,6 +13,10 @@ router = APIRouter()
 async def get_coupon_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
     return await coupon_service.get_coupon_by_id(id, db)
 
+@router.get('/coupon/admin/id/{id}', response_model=coupon_schema.CouponOutAdmin)
+async def get_coupon_by_id_admin(id: UUID, db: AsyncSession = Depends(get_db)):
+    return await coupon_service.get_coupon_by_id(id, db)
+
 
 @router.get('/coupons', response_model=list[coupon_schema.CouponOut])
 async def get_all_coupons(*, page: int = Query(1, ge=1),

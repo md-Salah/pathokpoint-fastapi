@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, update
 from uuid import UUID
@@ -67,7 +68,7 @@ async def count_books(db: AsyncSession, book_filter: BookFilter,
                       publishers: str | None,
                       translators: str | None,
                       tags: str | None) -> int:
-    query = select(func.count(Book.id.distinct()))
+    query = select(func.count(Book.id))
     query = book_filter.filter(query)
 
     if authors:
@@ -129,18 +130,63 @@ async def delete_book(id: UUID, db: AsyncSession) -> None:
     await db.commit()
 
 
+# async def build_relationships(payload: dict, db: AsyncSession) -> dict:
+#     if payload.get('publisher'):
+#         payload['publisher'] = await db.get(Publisher, payload['publisher'])
+#     if payload.get('authors'):
+#         payload['authors'] = [await db.get(Author, author_id) for author_id in payload['authors']]
+#     if payload.get('translators'):
+#         payload['translators'] = [await db.get(Author, translator_id) for translator_id in payload['translators']]
+#     if payload.get('categories'):
+#         payload['categories'] = [await db.get(Category, category_id) for category_id in payload['categories']]
+#     if payload.get('images'):
+#         payload['images'] = [await db.get(Image, image_id) for image_id in payload['images']]
+#     if payload.get('tags'):
+#         payload['tags'] = [await db.get(Tag, tag_id) for tag_id in payload['tags']]
+
+#     return payload
+
 async def build_relationships(payload: dict, db: AsyncSession) -> dict:
+    tasks = []
+
     if payload.get('publisher'):
-        payload['publisher'] = await db.get(Publisher, payload['publisher'])
+        tasks.append(db.get(Publisher, payload['publisher']))
+
     if payload.get('authors'):
-        payload['authors'] = [await db.get(Author, author_id) for author_id in payload['authors']]
+        tasks += [db.get(Author, author_id) for author_id in payload['authors']]
+
     if payload.get('translators'):
-        payload['translators'] = [await db.get(Author, translator_id) for translator_id in payload['translators']]
+        tasks += [db.get(Author, translator_id) for translator_id in payload['translators']]
+
     if payload.get('categories'):
-        payload['categories'] = [await db.get(Category, category_id) for category_id in payload['categories']]
+        tasks += [db.get(Category, category_id) for category_id in payload['categories']]
+
     if payload.get('images'):
-        payload['images'] = [await db.get(Image, image_id) for image_id in payload['images']]
+        tasks += [db.get(Image, image_id) for image_id in payload['images']]
+
     if payload.get('tags'):
-        payload['tags'] = [await db.get(Tag, tag_id) for tag_id in payload['tags']]
+        tasks += [db.get(Tag, tag_id) for tag_id in payload['tags']]
+
+    results = await asyncio.gather(*tasks)
+
+    # Now, map the results back to the payload, noting that the results order matches the tasks order
+    iterator = iter(results)
+    if payload.get('publisher'):
+        payload['publisher'] = next(iterator)
+
+    if payload.get('authors'):
+        payload['authors'] = [next(iterator) for _ in payload['authors']]
+
+    if payload.get('translators'):
+        payload['translators'] = [next(iterator) for _ in payload['translators']]
+
+    if payload.get('categories'):
+        payload['categories'] = [next(iterator) for _ in payload['categories']]
+
+    if payload.get('images'):
+        payload['images'] = [next(iterator) for _ in payload['images']]
+
+    if payload.get('tags'):
+        payload['tags'] = [next(iterator) for _ in payload['tags']]
 
     return payload

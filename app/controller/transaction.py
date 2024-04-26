@@ -7,6 +7,9 @@ from uuid import UUID
 
 from app.models.transaction import Transaction
 from app.models import PaymentGateway, Order, User
+import app.controller.user as user_service
+import app.controller.payment_gateway as gateway_service
+from app.controller.exception import not_found_exception, bad_request_exception
 
 query = select(Transaction).options(
     joinedload(Transaction.gateway),
@@ -30,12 +33,30 @@ async def get_all_transactions(page: int, per_page: int, db: AsyncSession) -> Se
 
 async def create_transaction(payload: dict, db: AsyncSession) -> Transaction:
     if await db.scalar(select(Transaction).filter(Transaction.transaction_id == payload['transaction_id'])):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Transaction with transaction id ({}) already exists'.format(payload['transaction_id']))
-
-    payload = await build_relationship(payload, db)
+        raise bad_request_exception(str(payload['transaction_id']), 'Duplicate transaction id')
 
     transaction = Transaction(**payload)
+
+    # Payment gateway
+    gateway = await db.get(PaymentGateway, payload['gateway_id'])
+    if not gateway:
+        raise not_found_exception(str(payload['gateway_id']), 'Payment gateway not found')
+    transaction.gateway = gateway
+    
+    # Order (optional for now)
+    if payload.get('order_id'):
+        order = await db.get(Order, payload['order_id'])
+        if not order:
+            raise not_found_exception(str(payload['order_id']), 'Order not found')
+        transaction.order = order
+
+    # Refunded by (optional)
+    if payload.get('refunded_by_id'):
+        refunded_by = await db.get(User, payload['refunded_by_id'])
+        if not refunded_by:
+            raise not_found_exception(str(payload['refunded_by_id']), 'Refunded by user not found')
+        transaction.refunded_by = refunded_by
+    
     db.add(transaction)
     await db.commit()
     return transaction
@@ -51,25 +72,4 @@ async def count_transaction(db: AsyncSession) -> int:
     return result.scalar_one()
 
 
-async def build_relationship(payload: dict, db: AsyncSession) -> dict:
-    gateway = await db.get(PaymentGateway, payload['gateway'])
-    if not gateway:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Payment gateway with id ({}) not found'.format(payload['gateway']))
-    payload['gateway'] = gateway
-
-    if payload.get('order'):
-        order = await db.get(Order, payload['order'])
-        if not order:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail='Order with id ({}) not found'.format(payload['order']))
-
-    if payload.get('refunded_by'):
-        refunded_by = await db.get(User, payload['refunded_by'])
-        if not refunded_by:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail='User with id ({}) not found'.format(payload['refunded_by']))
-        payload['refunded_by'] = refunded_by
-    
-    return payload
 
