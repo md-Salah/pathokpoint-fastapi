@@ -21,10 +21,12 @@ from app.api.transaction import router as transaction_route
 from app.config.database import create_tables, drop_tables
 from app.config.settings import settings
 from app.config.redis import get_redis, get_cache
+from app.config.logging_conf import configure_logging
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup
+    configure_logging()
     app.state.redis = await get_redis()
 
     
@@ -49,7 +51,8 @@ app = FastAPI(
     license_info={
         'name': 'MIT'
     },
-    lifespan=lifespan
+    lifespan=lifespan,
+    root_path='/api/v1'
 )
 
 
