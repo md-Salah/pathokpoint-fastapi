@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from asgi_correlation_id import CorrelationIdMiddleware
 
 from app.api.root import router as root_route
 from app.api.auth import router as auth_route
@@ -54,7 +55,7 @@ app = FastAPI(
     lifespan=lifespan,
     root_path='/api/v1'
 )
-
+app.add_middleware(CorrelationIdMiddleware)
 
 app.include_router(root_route, tags=['Root'])
 app.include_router(auth_route, tags=['Auth'])
