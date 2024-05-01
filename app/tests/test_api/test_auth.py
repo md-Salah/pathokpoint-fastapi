@@ -3,6 +3,7 @@ from httpx import AsyncClient
 from starlette import status
 from unittest.mock import patch, AsyncMock
 import app.controller.auth as auth_service
+from app.constant.role import Role
 
 pytestmark = pytest.mark.asyncio
 
@@ -100,7 +101,7 @@ async def test_reset_password_with_wrong_email(client: AsyncClient):
 
 async def test_set_new_password(client: AsyncClient, user_in_db: dict):
     reset_token = auth_service.create_jwt_token(
-        user_in_db['user']['id'], user_in_db['user']['role'], "reset_password")
+        user_in_db['user']['id'], Role.customer, "reset_password")
     payload = {"token": reset_token, "new_password": "newPassword1234#"}
 
     response = await client.post("/set-new-password", json=payload)
@@ -111,7 +112,7 @@ async def test_set_new_password(client: AsyncClient, user_in_db: dict):
 
 async def test_set_new_password_with_wrong_token_type(client: AsyncClient, user_in_db: dict):
     reset_token = auth_service.create_jwt_token(
-        user_in_db['user']['id'], user_in_db['user']['role'], "access")
+        user_in_db['user']['id'], Role.customer, "access")
     payload = {"token": reset_token, "new_password": "newPassword1234#"}
 
     response = await client.post("/set-new-password", json=payload)
@@ -135,14 +136,14 @@ async def test_request_email_verification(mock_send_email, client: AsyncClient, 
 
 async def test_verify_email(client: AsyncClient, user_in_db: dict):
     token = auth_service.create_jwt_token(
-        user_in_db['user']['id'], user_in_db['user']['role'], "verification")
+        user_in_db['user']['id'], Role.customer, "verification")
     response = await client.get(f"/verify-email/{token}")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Email has been verified successfully."}
     
 async def test_verify_email_with_wrong_token_type(client: AsyncClient, user_in_db: dict):
     token = auth_service.create_jwt_token(
-        user_in_db['user']['id'], user_in_db['user']['role'], "access")
+        user_in_db['user']['id'], Role.customer, "access")
     response = await client.get(f"/verify-email/{token}")
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json() == {'detail': 'Invalid token'}

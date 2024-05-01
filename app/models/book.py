@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, Float, Boolean, ForeignKey, Enum, Identity
+from sqlalchemy import Integer, String, Float, Boolean, ForeignKey, Enum, Identity, Table, Column
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, List
 
 from app.models.mixins import TimestampMixin
 from app.constant import Condition, StockLocation, Country, Cover, Language
+from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models import Author, Publisher, Category, Image, Tag
@@ -70,9 +71,17 @@ class Book(TimestampMixin):
     categories: Mapped[List['Category']] = relationship(
         secondary='book_category_link', back_populates='books')
     
-    images: Mapped[List['Image']] = relationship(secondary='book_image_link', back_populates='books')
+    images: Mapped[List['Image']] = relationship(secondary='book_image_link', backref='books', cascade='all, delete')
     tags: Mapped[List['Tag']] = relationship(secondary='book_tag_link', back_populates='books')
     
 
     def __repr__(self):
         return f'<Book (name={self.name}, slug={self.slug})>'
+
+
+book_image_link = Table(
+    'book_image_link',
+    Base.metadata,
+    Column('book_id', UUID(as_uuid=True), ForeignKey('books.id', ondelete='CASCADE'), primary_key=True),
+    Column('image_id', UUID(as_uuid=True), ForeignKey('images.id'), primary_key=True)
+)

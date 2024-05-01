@@ -8,7 +8,7 @@ from app.constant.role import Role
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models import Order, Address
+    from app.models import Order, Address, Review
 
 class User(TimestampMixin):
     __tablename__ = 'users'
@@ -30,6 +30,7 @@ class User(TimestampMixin):
     
     orders: Mapped[list["Order"]] = relationship(back_populates='customer')
     addresses: Mapped[list["Address"]] = relationship(back_populates='user', cascade='all, delete-orphan')
+    reviews: Mapped[list["Review"]] = relationship(back_populates='user')
     
     def __repr__(self):
         return f'<User (username={self.username}, email={self.email})>'

@@ -1,6 +1,7 @@
 *.db
 alembic.ini
 confusion.txt
+alembic/versions/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

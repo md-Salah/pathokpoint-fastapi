@@ -53,5 +53,8 @@ def configure_logging() -> None:
                 'level': 'INFO' if settings.PRODUCTION else 'DEBUG',
                 'handlers': ['default', 'rotating_file'],
             },
+            "sqlalchemy": {
+                "handlers": ["default", "rotating_file"],
+            }
         }
     })

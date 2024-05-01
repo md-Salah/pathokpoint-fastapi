@@ -6,31 +6,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
-from typing import Literal, Annotated
+from typing import Literal, Annotated, TypedDict
 
 from app.config.database import get_db
 from app.constant.role import Role
 from app.config.settings import settings
 from app.models.user import User
+from app.controller.exception import UnauthorizedException
 
 oauth_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-def unauthorized_exception(detail: str) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail={
-            "message": detail,
-        },
-        headers={"WWW-Authenticate": "Bearer"},
-    )
 
 
 def create_jwt_token(id: UUID, role: Role, type: Literal['access', 'refresh', 'reset_password', 'verification'], minutes: int | None = None) -> str:
     minutes = minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
     payload = {
         "id": str(id),
-        'role': str(role),
+        'role': role.value,
         "expires": (datetime.now(timezone.utc) + timedelta(minutes=minutes)).timestamp(),
         "type": type
     }
@@ -49,13 +40,14 @@ def verify_token(token: str) -> dict:
         if current_time > expire_time:
             raise jwt.ExpiredSignatureError
 
+        payload['id'] = UUID(payload['id'])
         return payload
     except jwt.ExpiredSignatureError:
-        raise unauthorized_exception("Token has expired")
+        raise UnauthorizedException("Token has expired")
     except jwt.InvalidSignatureError:
-        raise unauthorized_exception("Invalid token")
+        raise UnauthorizedException("Invalid token")
     except Exception:
-        raise unauthorized_exception("Could not validate")
+        raise UnauthorizedException("Could not validate")
 
 
 def get_hashed_password(password: str) -> str:
@@ -80,7 +72,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
             headers={"WWW-Authenticate": "Bearer"}
         )
     elif not verify_password(password, user.password):
-        raise unauthorized_exception("Incorrect email or password")
+        raise UnauthorizedException("Incorrect email or password")
 
     return user
 
@@ -89,29 +81,40 @@ def valid_access_token(token: str = Depends(oauth_scheme)):
     data = verify_token(token)
     if data.get('type') == 'access':
         return data
-    raise unauthorized_exception("Invalid token")
+    raise UnauthorizedException("Invalid token")
+
 
 def valid_admin_token(token: dict = Depends(valid_access_token)):
     if token.get('role') == Role.admin.value:
         return token
-    raise unauthorized_exception("Unauthorized access")
+    raise UnauthorizedException("Unauthorized access")
+
 
 async def current_user(token: dict = Depends(valid_access_token), db: AsyncSession = Depends(get_db)) -> User:
     if token.get('id'):
         user = await db.scalar(select(User).where(User.id == token.get('id')))
         if user:
             return user
-    raise unauthorized_exception("User not found")
+    raise UnauthorizedException("User not found")
+
 
 async def current_admin(token: dict = Depends(valid_admin_token), db: AsyncSession = Depends(get_db)) -> User:
     if token.get('id'):
         user = await db.scalar(select(User).where(User.id == token.get('id')))
         if user:
             return user
-    raise unauthorized_exception("User not found")
+    raise UnauthorizedException("User not found")
+
+
+class Token(TypedDict):
+    id: UUID
+    role: str
+    expires: datetime
+    type: Literal['access', 'refresh', 'reset_password', 'verification']
+
 
 CurrentUser = Annotated[User, Depends(current_user)]
 CurrentAdmin = Annotated[User, Depends(current_admin)]
-AccessToken = Annotated[dict, Depends(valid_access_token)]
-ValidAdminToken = Annotated[dict, Depends(valid_admin_token)]
-
+AccessToken = Annotated[Token, Depends(valid_access_token)]
+ValidAdminToken = Annotated[Token, Depends(valid_admin_token)]
+AdminAccessToken = Annotated[Token, Depends(valid_admin_token)]

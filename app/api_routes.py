@@ -10,6 +10,7 @@ from app.api.author import router as author_route
 from app.api.publisher import router as publisher_route
 from app.api.category import router as category_route
 from app.api.order import router as order_route
+from app.api.review import router as review_route
 from app.api.courier import router as courier_route
 from app.api.address import router as address_route
 from app.api.coupon import router as coupon_route
@@ -28,6 +29,7 @@ router.include_router(author_route, tags=['Author'])
 router.include_router(publisher_route, tags=['Publisher'])
 router.include_router(category_route, tags=['Category'])
 router.include_router(order_route, tags=['Order'])
+router.include_router(review_route, tags=['Review'])
 router.include_router(courier_route, tags=['Courier'])
 router.include_router(address_route, tags=['Address'])
 router.include_router(coupon_route, tags=['Coupon'])

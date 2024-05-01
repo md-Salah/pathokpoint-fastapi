@@ -4,11 +4,13 @@ from sqlalchemy import select, func, delete
 from typing import Sequence
 from uuid import UUID, uuid4
 import os
+import logging
 
 from app.models.image import Image
 
 from app.library import upload_file_to_cloudinary, delete_file_from_cloudinary
 
+logger = logging.getLogger(__name__)
 
 async def get_image_by_id(id: UUID, db: AsyncSession) -> Image:
     image = await db.get(Image, id)
@@ -49,6 +51,15 @@ async def delete_image(id: UUID, db: AsyncSession) -> None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail='Image delete failed')
 
+async def delete_image_bulk(ids: Sequence[UUID], db: AsyncSession) -> None:
+    for image_id in ids:
+        success = delete_file_from_cloudinary(str(image_id))
+        if not success:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail='Image delete failed')
+    
+    await db.execute(delete(Image).where(Image.id.in_(ids)))
+    await db.commit()
 
 async def count_image(db: AsyncSession) -> int:
     result = await db.execute(select(func.count()).select_from(Image))

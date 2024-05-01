@@ -16,8 +16,8 @@ class BookFilter(Filter):
     sale_price__lte: float | None = None
     sale_price__gte: float | None = None
     in_stock: bool | None = None
-    quantity_lte: int | None = None
-    quantity_gte: int | None = None
+    quantity__lte: int | None = None
+    quantity__gte: int | None = None
     pre_order: bool | None = None
     cover: Cover | None = None
     language: Language | None = None

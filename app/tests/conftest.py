@@ -20,9 +20,12 @@ async def session_fixture():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-
+        
     async with session_factory() as session:
         yield session
+        
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 
@@ -209,3 +212,33 @@ async def create_payment_gateway(client: AsyncClient):
     })
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
+
+
+@pytest_asyncio.fixture(name="review_in_db")
+async def create_review(client: AsyncClient, image_in_db: dict, book_in_db: dict, user_in_db: dict):
+    response = await client.post("/review/new", json={
+        "product_rating": 5,
+        "time_rating": 5,
+        "delivery_rating": 5,
+        "website_rating": 5,
+        "comment": "Great book I have ever read!",
+        "book_id": book_in_db["id"],
+        "images": [image_in_db["id"]],
+    }, headers={"Authorization": f"Bearer {user_in_db["token"]['access_token']}"})
+    assert response.status_code == status.HTTP_201_CREATED
+    return {**response.json(), 'access_token': user_in_db["token"]['access_token']}
+
+
+@pytest_asyncio.fixture(name="access_token")
+async def get_access_token(user_in_db: dict):
+    return user_in_db["token"]["access_token"]
+
+@pytest_asyncio.fixture(name="admin_access_token")
+async def get_admin_access_token(client: AsyncClient, admin_in_db: dict):
+    response = await client.post("/token", data={
+        "username": admin_in_db["email"],
+        "password": "testPassword2235#",
+    })
+    assert response.status_code == status.HTTP_200_OK
+    return response.json()["access_token"]
+
