@@ -1,7 +1,3 @@
-payload = {
-    "approved": True,
-    "images": []
-}
+import pyotp
 
-if payload.get('images'):
-    print('Has images')
+print(pyotp.random_base32())

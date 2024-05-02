@@ -13,22 +13,26 @@ simple_user = {
     "username": "testUser1"
 }
 
+
 async def test_get_user_by_id(client: AsyncClient, user_in_db: dict):
     id = user_in_db['user']['id']
     response = await client.get(f"/user/id/{id}")
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= user_in_db['user'].items()
 
+
 async def test_get_all_users(client: AsyncClient, user_in_db: dict):
     response = await client.get("/user/all")
     assert len(response.json()) == 1
     assert response.json()[0].items() >= user_in_db['user'].items()
-    
+
+
 async def test_get_all_users_with_phone_number(client: AsyncClient, user_in_db: dict):
     response = await client.get("/user/all?q=01311701123")
     assert len(response.json()) == 1
     assert response.json()[0].items() >= user_in_db['user'].items()
-    
+
+
 async def test_get_all_users_with_role(client: AsyncClient, user_in_db: dict, admin_in_db: dict):
     response = await client.get("/user/all?role=admin")
     assert len(response.json()) == 1
@@ -41,7 +45,8 @@ async def test_create_user(client: AsyncClient):
     assert response.status_code == status.HTTP_201_CREATED
     payload.pop('password')
     assert response.json().items() >= payload.items()
-    
+
+
 async def test_create_user_with_only_email_pass(client: AsyncClient):
     payload = {
         "email": simple_user['email'],
@@ -53,6 +58,7 @@ async def test_create_user_with_only_email_pass(client: AsyncClient):
     assert response.json().items() >= payload.items()
     assert response.json()['username'] == simple_user['email'].split('@')[0]
 
+
 async def test_create_user_for_same_username(client: AsyncClient):
     payload = {
         "email": "testuser@gmail.com",
@@ -61,11 +67,12 @@ async def test_create_user_for_same_username(client: AsyncClient):
     response = await client.post("/user", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()['username'] == "testuser"
-    
+
     payload['email'] = "testuser@yahoo.com"
     response = await client.post("/user", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()['username'] == "testuser-1"
+
 
 async def test_update_user(client: AsyncClient, user_in_db: dict):
     payload = {
@@ -74,17 +81,18 @@ async def test_update_user(client: AsyncClient, user_in_db: dict):
     response = await client.patch(f"/user/profile/{user_in_db['user']['id']}", json=payload)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= payload.items()
-    
+
+
 async def test_update_user_password(client: AsyncClient, user_in_db: dict):
     payload = {
         'password': 'newPassword2235#7666778',
     }
     response = await client.patch(f"/user/profile/{user_in_db['user']['id']}", json=payload)
     assert response.status_code == status.HTTP_200_OK
-    
-    response = await client.post("/token", data={"username": user_in_db['user']['email'], "password": payload['password']})
+
+    response = await client.post("/auth/token", data={"username": user_in_db['user']['email'], "password": payload['password']})
     assert response.status_code == status.HTTP_200_OK
-    
+
 
 async def test_update_user_by_admin(client: AsyncClient, user_in_db: dict):
     payload = {
@@ -94,6 +102,7 @@ async def test_update_user_by_admin(client: AsyncClient, user_in_db: dict):
     response = await client.patch(f"/user/{user_in_db['user']['id']}", json=payload)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= payload.items()
+
 
 async def test_delete_user(client: AsyncClient, user_in_db: dict):
     id = user_in_db['user']['id']

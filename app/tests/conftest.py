@@ -9,7 +9,8 @@ from app.main import app
 from app.config.database import get_db, Base
 from app.config.settings import settings
 from app.constant import Country
-
+from app.controller.auth import create_jwt_token
+from app.constant.role import Role
 
 @pytest_asyncio.fixture(name="session")
 async def session_fixture():
@@ -116,16 +117,23 @@ async def create_book(client: AsyncClient):
 
 @pytest_asyncio.fixture(name="user_in_db")
 async def create_user(client: AsyncClient):
-    response = await client.post("/signup", json={
+    response = await client.post("/user", json={
         "email": "testuser@gmail.com",
         "password": "testPassword2235#",
         "phone_number": "+8801311701123",
         "first_name": "test",
         "last_name": "user",
-        "username": "testUser1"
+        "username": "testUser1",
+        "role": "customer"
     })
     assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
+    user = response.json()
+    return {
+        'user': user,
+        'token': {
+            'access_token': create_jwt_token(user['id'], Role.customer, 'access'),
+        }
+    }
 
 
 @pytest_asyncio.fixture(name="admin_in_db")
@@ -235,7 +243,7 @@ async def get_access_token(user_in_db: dict):
 
 @pytest_asyncio.fixture(name="admin_access_token")
 async def get_admin_access_token(client: AsyncClient, admin_in_db: dict):
-    response = await client.post("/token", data={
+    response = await client.post("/auth/token", data={
         "username": admin_in_db["email"],
         "password": "testPassword2235#",
     })

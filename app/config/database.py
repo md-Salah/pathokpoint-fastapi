@@ -33,3 +33,4 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 Session = Annotated[AsyncSession, Depends(get_db)]
+

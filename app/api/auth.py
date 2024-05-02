@@ -1,92 +1,102 @@
-from fastapi import Depends, HTTPException, APIRouter, status
+from fastapi import Depends, APIRouter, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
+import logging
+import json
 
-from app.config.database import get_db, AsyncSession
 import app.pydantic_schema.user as user_schema
 import app.pydantic_schema.auth as auth_schema
 import app.controller.user as user_service
 import app.controller.auth as auth_service
 import app.controller.email as email_service
+from app.config.database import Session
 from app.controller.auth import AccessToken
+from app.controller.redis import get_redis, set_redis
+from app.controller.exception import BadRequestException
+from app.controller.otp import generate_otp
 
+logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix='/auth')
 
 
 @router.post("/token", response_model=auth_schema.TokenResponse)
-async def login_for_access_token(req: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login_for_access_token(db: Session, req: OAuth2PasswordRequestForm = Depends()):
     # we are using email as username
     user = await auth_service.authenticate_user(db, req.username, req.password)
     token = auth_service.create_jwt_token(user.id, user.role, 'access')
     return {"access_token": token, "token_type": "bearer"}
 
 
-@router.post('/signup', response_model=auth_schema.UserOutWithToken, status_code=status.HTTP_201_CREATED)
-async def user_signup(user: user_schema.CreateUser, db: AsyncSession = Depends(get_db)):
+@router.post('/signup')
+async def user_signup(user: user_schema.CreateUser, request: Request, background_tasks: BackgroundTasks, db: Session):
     if await user_service.is_user_exist(user.email, db):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Email is already registered, Try login or forget password.")
+        raise BadRequestException(
+            "Email is already registered, Try login or forget password.")
 
-    new_user = await user_service.create_user(user.model_dump(), db)
-    token = auth_service.create_jwt_token(new_user.id, new_user.role, 'access')
+    payload = user.model_dump()
+    payload['password'] = auth_service.get_hashed_password(
+        payload['password'].get_secret_value())
 
-    return {
-        'user': new_user,
-        'token': {
-            'access_token': token,
-            'token_type': 'bearer'
-        }
-    }
+    otp = generate_otp()
+    expiry_min = 10
+    expiry_sec = 60 * expiry_min
+
+    background_tasks.add_task(
+        set_redis, request, user.email, json.dumps({
+            'payload': payload,
+            'otp': otp
+        }), expiry_sec)
+
+    background_tasks.add_task(
+        email_service.send_signup_otp, user.email, otp, expiry_min)
+
+    return {"detail": {"message": "OTP has been sent to your email. Please verify within {} minutes.".format(expiry_min)
+                       }}
+
+
+@router.post('/verify-otp', response_model=user_schema.UserOut, status_code=status.HTTP_201_CREATED)
+async def verify_otp(payload: auth_schema.VerifyOTP, request: Request, db: Session):
+    data = await get_redis(request, payload.email)
+    if not data:
+        raise BadRequestException("OTP expired, SignUp again.")
+
+    data = json.loads(data)
+    if data['otp'] == payload.otp:
+        return await user_service.create_user(data['payload'], db)
+    else:
+        raise BadRequestException("Invalid OTP, Try again.")
 
 
 @router.post('/reset-password')
-async def reset_password(payload: auth_schema.ResetPassword, db: AsyncSession = Depends(get_db)):
+async def reset_password(payload: auth_schema.ResetPassword, request: Request, background_tasks: BackgroundTasks, db: Session):
     user = await user_service.get_user_by_email(payload.email, db)
 
-    reset_token = auth_service.create_jwt_token(
-        user.id, user.role, 'reset_password', 10)
-    reset_url = 'http://localhost:8000/reset-password?token={}'.format(
-        reset_token)
+    otp = generate_otp()
+    expiry_min = 10
 
-    return await email_service.send_reset_password_email(user.first_name or user.username, user.email, reset_url)
+    background_tasks.add_task(
+        set_redis, request, payload.email, otp, expiry_min * 60)
+    background_tasks.add_task(
+        email_service.send_reset_password_otp, user.email, otp, expiry_min)
+
+    return {"detail": {"message": "OTP has been sent to your email. Please reset your password within {} minutes.".format(expiry_min)}}
 
 
 @router.post('/set-new-password')
-async def set_new_password(payload: auth_schema.SetNewPassword, db: AsyncSession = Depends(get_db)):
-    decoded_token = auth_service.verify_token(payload.token)
-    if decoded_token['type'] != 'reset_password':
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
+async def set_new_password(payload: auth_schema.SetNewPassword, request: Request, db: Session):
+    user = await user_service.get_user_by_email(payload.email, db)
+    otp = await get_redis(request, payload.email)
+    if not otp:
+        raise BadRequestException("OTP expired, Try again.")
 
-    await user_service.update_user(decoded_token['id'], {'password': payload.new_password}, db)
+    if otp != payload.otp:
+        raise BadRequestException("Invalid OTP, Try again.")
+
+    await user_service.update_user(user.id, {'password': payload.new_password}, db)
+
     return {"message": "Password has been updated successfully."}
 
 
-@router.post('/request-email-verification')
-async def request_email_verification(decoded_token: AccessToken, db: AsyncSession = Depends(get_db)):
-    user = await user_service.get_user_by_id(decoded_token['id'], db)
-    if user.is_verified:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Email is already verified.")
-
-    confirmation_token = auth_service.create_jwt_token(
-        user.id, user.role, 'verification', 10)
-    confirmation_url = 'http://localhost:8000/confirm-email?token={}'.format(
-        confirmation_token)
-
-    return await email_service.send_verification_email(user.first_name or user.username, user.email, confirmation_url)
-
-
-@router.get('/verify-email/{token}')
-async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
-    decoded_token = auth_service.verify_token(token)
-    if decoded_token['type'] != 'verification':
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token")
-    await user_service.update_user(decoded_token['id'], {'is_verified': True}, db)
-    return {"message": "Email has been verified successfully."}
-
-
 @router.get('/get-private-data')
-def test_get_private_data(token: AccessToken):
+def test_get_private_data(_: AccessToken):
     return {"message": "You are accessing private data because you have the access token."}

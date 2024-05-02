@@ -1,12 +1,16 @@
+import logging
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, update, delete
+from sqlalchemy import select, func, or_, delete
 from uuid import UUID
 from typing import Sequence
+from pydantic import SecretStr
 
 from app.models.user import User
 import app.controller.auth as auth_service
 from app.constant import Role
+
+logger = logging.getLogger(__name__)
 
 
 async def is_user_exist(email: str, db: AsyncSession) -> bool:
@@ -49,13 +53,16 @@ async def create_user(payload: dict, db: AsyncSession) -> User:
                             detail='User with email ({}) already exists'.format(payload['email']))
 
     payload['username'] = await generate_unique_username(payload, db)
-    payload['password'] = auth_service.get_hashed_password(
-        payload['password'].get_secret_value())
+    
+    if isinstance(payload['password'], SecretStr):
+        payload['password'] = auth_service.get_hashed_password(
+            payload['password'].get_secret_value())
 
     user = User(**payload)
     db.add(user)
     await db.commit()
 
+    logger.info(f'User created successfully, username: {user.username}')
     return user
 
 
@@ -66,12 +73,14 @@ async def update_user(id: UUID, payload: dict, db: AsyncSession) -> User:
     if payload.get('username'):
         payload['username'] = await generate_unique_username(payload, db)
     if payload.get('password'):
-        payload['password'] = auth_service.get_hashed_password(
-            payload['password'].get_secret_value())
+        if isinstance(payload['password'], SecretStr):
+            payload['password'] = auth_service.get_hashed_password(
+                payload['password'].get_secret_value())
 
     [setattr(user, key, value) for key, value in payload.items()]
     await db.commit()
     return user
+
 
 async def delete_user(id: UUID, db: AsyncSession) -> None:
     await db.execute(delete(User).where(User.id == id))

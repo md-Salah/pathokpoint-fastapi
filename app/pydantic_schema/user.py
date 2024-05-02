@@ -11,7 +11,6 @@ example_user = {
     "username": "md_abdullah",
     "email": "abdullah2024@gmail.com",
     "phone_number": "+8801712345678",
-    "image": "https://example.com/image.png"
 }
 
 example_user_in = {
@@ -39,7 +38,6 @@ class UserBase(BaseModel):
     username: str | None = Field(None, min_length=5, max_length=50, pattern=r'^[a-zA-Z0-9_-]+$')
     email: EmailStr
     phone_number: str | None = Field(None, min_length=14, max_length=14, pattern=r'^\+\d{13}$')
-    image: UUID4 | None = None
 
 
 class CreateUser(UserBase):

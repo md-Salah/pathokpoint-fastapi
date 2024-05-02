@@ -4,20 +4,27 @@ import bcrypt
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from fastapi import HTTPException, status, Depends
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from typing import Literal, Annotated, TypedDict
 
-from app.config.database import get_db
+from app.config.database import Session
 from app.constant.role import Role
 from app.config.settings import settings
 from app.models.user import User
-from app.controller.exception import UnauthorizedException
+from app.controller.exception import UnauthorizedException, NotFoundException
 
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
-def create_jwt_token(id: UUID, role: Role, type: Literal['access', 'refresh', 'reset_password', 'verification'], minutes: int | None = None) -> str:
+class Token(TypedDict):
+    id: UUID
+    role: str
+    expires: datetime
+    type: Literal['access', 'refresh']
+
+
+def create_jwt_token(id: UUID, role: Role, type: Literal['access', 'refresh'], minutes: int | None = None) -> str:
     minutes = minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
     payload = {
         "id": str(id),
@@ -66,11 +73,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
+        raise NotFoundException("User not found")
     elif not verify_password(password, user.password):
         raise UnauthorizedException("Incorrect email or password")
 
@@ -90,7 +93,7 @@ def valid_admin_token(token: dict = Depends(valid_access_token)):
     raise UnauthorizedException("Unauthorized access")
 
 
-async def current_user(token: dict = Depends(valid_access_token), db: AsyncSession = Depends(get_db)) -> User:
+async def current_user(db: Session, token: dict = Depends(valid_access_token)) -> User:
     if token.get('id'):
         user = await db.scalar(select(User).where(User.id == token.get('id')))
         if user:
@@ -98,7 +101,7 @@ async def current_user(token: dict = Depends(valid_access_token), db: AsyncSessi
     raise UnauthorizedException("User not found")
 
 
-async def current_admin(token: dict = Depends(valid_admin_token), db: AsyncSession = Depends(get_db)) -> User:
+async def current_admin(db: Session, token: dict = Depends(valid_admin_token)) -> User:
     if token.get('id'):
         user = await db.scalar(select(User).where(User.id == token.get('id')))
         if user:
@@ -106,15 +109,7 @@ async def current_admin(token: dict = Depends(valid_admin_token), db: AsyncSessi
     raise UnauthorizedException("User not found")
 
 
-class Token(TypedDict):
-    id: UUID
-    role: str
-    expires: datetime
-    type: Literal['access', 'refresh', 'reset_password', 'verification']
-
-
+AccessToken = Annotated[Token, Depends(valid_access_token)]
+AdminAccessToken = Annotated[Token, Depends(valid_admin_token)]
 CurrentUser = Annotated[User, Depends(current_user)]
 CurrentAdmin = Annotated[User, Depends(current_admin)]
-AccessToken = Annotated[Token, Depends(valid_access_token)]
-ValidAdminToken = Annotated[Token, Depends(valid_admin_token)]
-AdminAccessToken = Annotated[Token, Depends(valid_admin_token)]

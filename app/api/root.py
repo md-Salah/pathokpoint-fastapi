@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from fastapi import APIRouter
-from fastapi import Request
+
+from app.pydantic_schema.user import UserOut
+from app.controller.auth import CurrentUser
 
 router = APIRouter()
 
@@ -8,9 +10,12 @@ class SayHello(BaseModel):
     msg: str
 
 @router.get('/', response_model=SayHello)
-def say_hello():
+async def say_hello():
     return {'msg': 'Hello! Welcome to PATHOK POINT!'}
 
+@router.get('/whoami', response_model=UserOut)
+async def who_am_i(user: CurrentUser):
+    return user
 
 # @router.post('/set-to-redis')
 # async def set_to_redis(msg: str, request: Request):
