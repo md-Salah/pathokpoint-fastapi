@@ -5,6 +5,7 @@ from sqlalchemy import select, func, or_, delete
 from uuid import UUID
 from typing import Sequence
 from pydantic import SecretStr
+import re
 
 from app.models.user import User
 import app.controller.auth as auth_service
@@ -94,7 +95,7 @@ async def generate_unique_username(payload, db: AsyncSession) -> str:
         username_base = payload['first_name'] + payload['last_name']
     else:
         username_base = payload['email'].split('@')[0]
-    username_base = username_base.replace(' ', '-')
+    username_base = re.sub(r'[^a-zA-Z0-9_.-]', '-', username_base)
     if len(username_base) < 5:
         username_base += 'user'
     elif len(username_base) > 20:

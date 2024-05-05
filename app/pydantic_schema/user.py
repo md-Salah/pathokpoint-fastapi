@@ -31,11 +31,12 @@ example_user_out = {
     "role": Role.customer,
 }
 
+username_pattern = r'^[a-zA-Z0-9_.-]+$'
 
 class UserBase(BaseModel):
     first_name: str | None = Field(None, min_length=2, max_length=50, pattern=r'^[a-zA-Z ]+$')
     last_name: str | None = Field(None, min_length=2, max_length=50, pattern=r'^[a-zA-Z ]+$')
-    username: str | None = Field(None, min_length=5, max_length=50, pattern=r'^[a-zA-Z0-9_-]+$')
+    username: str | None = Field(None, min_length=5, max_length=50, pattern=username_pattern)
     email: EmailStr
     phone_number: str | None = Field(None, min_length=14, max_length=14, pattern=r'^\+\d{13}$')
 
@@ -69,7 +70,7 @@ class UpdateUserByAdmin(CreateUserByAdmin):
 
 
 class UserOut(UserBase, IdTimestampMixin):
-    username: str = Field(min_length=5, max_length=50, pattern=r'^[a-zA-Z0-9_-]+$')
+    username: str = Field(min_length=5, max_length=50, pattern=username_pattern)
     is_verified: bool
     role: Role
 
