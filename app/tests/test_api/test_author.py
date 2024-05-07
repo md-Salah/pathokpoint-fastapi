@@ -49,31 +49,54 @@ async def test_get_all_authors(client: AsyncClient, author_in_db: dict, query_st
     assert response.headers.get("x-total-count") == "1"
 
 
-async def test_create_author(client: AsyncClient, image_in_db: dict):
+async def test_create_author(client: AsyncClient, image_in_db: dict, admin_auth_headers: dict):
     payload = {
         **simple_author,
-        "image": image_in_db['id'],
-        'banner': image_in_db['id']
+        "image_id": image_in_db['id'],
+        'banner_id': image_in_db['id']
     }
-    response = await client.post("/author", json=payload)
+    response = await client.post("/author", json=payload, headers=admin_auth_headers)
     assert response.status_code == 201
-    payload['image'] = image_in_db
-    payload['banner'] = image_in_db
+    payload.update({'image': image_in_db, 'banner': image_in_db})
     assert response.json().items() >= payload.items()
 
 
-async def test_update_author(client: AsyncClient, author_in_db: dict):
+async def test_update_author(client: AsyncClient, author_in_db: dict, image_in_db: dict, admin_auth_headers: dict):
     payload = {
         "name": "Updated Author",
+        "image_id": image_in_db['id'],
     }
-    response = await client.patch(f"/author/{author_in_db['id']}", json=payload)
+    response = await client.patch(f"/author/{author_in_db['id']}", json=payload, headers=admin_auth_headers)
     assert response.status_code == 200
     author_in_db.update(payload)
     author_in_db.pop('updated_at')
+    author_in_db.update({'image': image_in_db})
     assert response.json().items() >= author_in_db.items()
 
 
-async def test_delete_author(client: AsyncClient, author_in_db: dict):
-    response = await client.delete(f"/author/{author_in_db['id']}")
+async def test_delete_author(client: AsyncClient, author_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete(f"/author/{author_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    
+
+
+async def test_follow_author(client: AsyncClient, author_in_db: dict, user_in_db: dict):
+    headers = {'Authorization': 'Bearer {}'.format(
+        user_in_db["token"]["access_token"])}
+    response = await client.post('/author/follow/{}'.format(author_in_db['id']), headers=headers)
+    assert response.status_code == 200
+    assert response.json()['followers_count'] == 1
+
+
+async def test_unfollow_author(client: AsyncClient, author_in_db: dict, user_in_db: dict):
+    headers = {'Authorization': 'Bearer {}'.format(
+        user_in_db["token"]["access_token"])}
+
+    # Follow
+    response = await client.post('/author/follow/{}'.format(author_in_db['id']), headers=headers)
+    assert response.status_code == 200
+    assert response.json()['followers_count'] == 1
+
+    # Unfollow
+    response = await client.post('/author/unfollow/{}'.format(author_in_db['id']), headers=headers)
+    assert response.status_code == 200
+    assert response.json()['followers_count'] == 0

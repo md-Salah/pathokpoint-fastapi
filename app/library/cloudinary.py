@@ -17,6 +17,8 @@ def upload_file_to_cloudinary(file, filename: str, public_id: str) -> str | None
     try:
         response = cloudinary.uploader.upload(
             file, public_id=public_id, filename=filename)
+        # status code, https://cloudinary.com/documentation/admin_api
+        # handle other errors
         return response['secure_url']
     except Exception as err:
         logger.error(err)

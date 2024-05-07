@@ -74,3 +74,10 @@ class ForbiddenException(HTTPException):
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"resource_id": resource_id, "message": message},
         )
+
+class ConflictException(HTTPException):
+    def __init__(self, message: str, resource_id: str | None = None):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"resource_id": resource_id, "message": message},
+        )

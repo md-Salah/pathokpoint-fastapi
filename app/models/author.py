@@ -1,4 +1,4 @@
-from sqlalchemy import String, Column, Table, ForeignKey, Boolean
+from sqlalchemy import String, Column, Table, ForeignKey, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
@@ -10,7 +10,7 @@ from app.models.base import Base
 from app.models.book import Book
 from app.models.image import Image
 from app.constant import Country
-
+from app.models.user import User
 
 class Author(TimestampMixin):
     __tablename__ = 'authors'
@@ -30,6 +30,7 @@ class Author(TimestampMixin):
     is_popular: Mapped[bool] = mapped_column(Boolean, default=False)
     is_big_sale: Mapped[bool] = mapped_column(Boolean, default=False)
 
+
     # Relationship
     books: Mapped[List['Book']] = relationship(
         secondary='book_author_link', back_populates='authors')
@@ -42,6 +43,10 @@ class Author(TimestampMixin):
     banner_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey('images.id'))
     banner: Mapped['Image'] = relationship(foreign_keys=[banner_id])
+
+    followers_count: Mapped[int] = mapped_column(Integer, default=0)
+    followers: Mapped[List['User']] = relationship(
+        secondary='author_follower_link', back_populates='following_authors')
 
     def __repr__(self):
         return f'<Author (name={self.name}, slug={self.slug})>'
@@ -63,4 +68,13 @@ book_translator_link = Table(
            ForeignKey('books.id'), primary_key=True),
     Column("translator_id", UUID(as_uuid=True),
            ForeignKey('authors.id'), primary_key=True),
+)
+
+author_follower_link = Table(
+    "author_follower_link",
+    Base.metadata,
+    Column("author_id", UUID(as_uuid=True),
+           ForeignKey('authors.id'), primary_key=True),
+    Column("user_id", UUID(as_uuid=True),
+           ForeignKey('users.id'), primary_key=True),
 )

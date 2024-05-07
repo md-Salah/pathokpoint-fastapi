@@ -58,7 +58,7 @@ async def create_image(upload_file, client: AsyncClient):
 
 
 @pytest_asyncio.fixture(name="author_in_db")
-async def create_author(client: AsyncClient, image_in_db: dict):
+async def create_author(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/author", json={
         "birth_date": "1948-11-13",
         "book_published": 200,
@@ -68,10 +68,8 @@ async def create_author(client: AsyncClient, image_in_db: dict):
         "description": "বাংলাদেশের প্রখ্যাত লেখক",
         "is_popular": True,
         "name": "হুমায়ূন আহমেদ",
-        "slug": "humayun-ahmed",
-        "image": image_in_db["id"],
-        "banner": image_in_db['id'],
-    })
+        "slug": "humayun-ahmed"
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 

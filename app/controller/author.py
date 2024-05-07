@@ -1,43 +1,47 @@
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, delete
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import joinedload
 from typing import Sequence
 from uuid import UUID
+import logging
 
-from app.models import Author, Image
+from app.models import Author, User
 from app.filter_schema.author import AuthorFilter
+from app.controller.exception import NotFoundException, ConflictException
+from app.controller.image import attach_image, delete_image_bulk
 
-query = select(Author).options(joinedload(Author.image), joinedload(Author.banner))
+logger = logging.getLogger(__name__)
+
+query = select(Author).options(joinedload(
+    Author.image), joinedload(Author.banner))
+
 
 async def get_author_by_id(id: UUID, db: AsyncSession) -> Author:
     author = await db.scalar(query.filter(Author.id == id))
     if not author:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Author with id {id} not found')
+        raise NotFoundException('Author not found', str(id))
     return author
 
 
 async def get_author_by_slug(slug: str, db: AsyncSession) -> Author:
     author = await db.scalar(query.filter(Author.slug == slug))
     if not author:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Author with slug {slug} not found')
+        raise NotFoundException('Author not found')
     return author
 
 
-async def get_all_authors(page: int, per_page: int, db: AsyncSession, author_filter: AuthorFilter) -> Sequence[Author]:
+async def get_all_authors(filter: AuthorFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Author]:
     offset = (page - 1) * per_page
 
-    stmt = author_filter.filter(query)
+    stmt = filter.filter(query)
     stmt = stmt.offset(offset).limit(per_page)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
-async def count_author(db: AsyncSession, author_filter: AuthorFilter) -> int:
+async def count_author(filter: AuthorFilter, db: AsyncSession) -> int:
     stmt = select(func.count(Author.id))
-    stmt = author_filter.filter(stmt)
+    stmt = filter.filter(stmt)
     result = await db.execute(stmt)
     return result.scalar_one()
 
@@ -46,26 +50,22 @@ async def create_author(payload: dict, db: AsyncSession) -> Author:
     _author = await db.scalar(select(Author).filter(or_(Author.name == payload['name'], Author.slug == payload['slug'])))
     if _author:
         if _author.name == payload['name']:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail={
-                                    'msg': 'Author with name {} already exists'.format(payload["name"]),
-                                    'resource_id': f'{_author.id}'
-                                })
+            raise ConflictException('Author with name {} already exists'.format(
+                payload["name"]), str(_author.id))
         else:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail={
-                                    'msg': 'Author with slug {} already exists'.format(payload["slug"]),
-                                    'resource_id': f'{_author.id}'
-                                })
+            raise ConflictException('Author with slug {} already exists'.format(
+                payload["slug"]), str(_author.id))
 
-    if payload.get('image'):
-        payload['image'] = await db.get(Image, payload['image'])
-    if payload.get('banner'):
-        payload['banner'] = await db.get(Image, payload['banner'])
+    if 'image_id' in payload:
+        payload['image'] = await attach_image(payload.pop('image_id'), None, db)
+    if 'banner_id' in payload:
+        payload['banner'] = await attach_image(payload.pop('banner_id'), None, db)
 
     author = Author(**payload)
     db.add(author)
     await db.commit()
+
+    logger.info(f'Author created: {author}')
     return author
 
 
@@ -74,29 +74,77 @@ async def update_author(id: UUID, payload: dict, db: AsyncSession) -> Author:
     if payload.get('name') and author.name != payload['name']:
         _author = await db.scalar(select(Author).filter(Author.name == payload['name']))
         if _author:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail={
-                                    'msg': 'Author with name {} already exists'.format(payload["name"]),
-                                    'resource_id': f'{_author.id}'
-                                })
+            raise ConflictException('Author with name {} already exists'.format(
+                payload["name"]), str(_author.id))
     if payload.get('slug') and author.slug != payload['slug']:
         _author = await db.scalar(select(Author).filter(Author.slug == payload['slug']))
         if _author:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail={
-                                    'msg': 'Author with slug {} already exists'.format(payload["slug"]),
-                                    'resource_id': f'{_author.id}'
-                                })
-    if payload.get('image'):
-        payload['image'] = await db.get(Image, payload['image'])
-    if payload.get('banner'):
-        payload['banner'] = await db.get(Image, payload['banner'])
+            raise ConflictException('Author with slug {} already exists'.format(
+                payload["slug"]), str(_author.id))
+
+    if 'image_id' in payload:
+        payload['image'] = await attach_image(payload.pop('image_id'), author.image_id, db)
+    if 'banner_id' in payload:
+        payload['banner'] = await attach_image(payload.pop('banner_id'), author.banner_id, db)
 
     [setattr(author, key, value) for key, value in payload.items()]
     await db.commit()
+
+    logger.info(f'Author updated: {author}')
+    return author
+
+
+async def follow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> Author:
+    author = await get_author_by_id(author_id, db)
+    user = await db.scalar(select(User).filter(User.id == user_id))
+    if not user:
+        raise NotFoundException('User not found', str(user_id))
+
+    if user not in await author.awaitable_attrs.followers:
+        author.followers.append(user)
+        author.followers_count += 1
+        await db.commit()
+        logger.info(f'User {user} followed author {author}')
+    else:
+        raise ConflictException(
+            'You are already following the author', str(author_id))
+
+    return author
+
+
+async def unfollow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> Author:
+    author = await get_author_by_id(author_id, db)
+    user = await db.scalar(select(User).filter(User.id == user_id))
+    if not user:
+        raise NotFoundException('User not found', str(user_id))
+
+    if user not in await author.awaitable_attrs.followers:
+        raise ConflictException(
+            'You are not following the author', str(author_id))
+    else:
+        author.followers.remove(user)
+        author.followers_count -= 1
+        await db.commit()
+        logger.info(f'User {user} unfollowed author {author}')
+
     return author
 
 
 async def delete_author(id: UUID, db: AsyncSession) -> None:
-    await db.execute(delete(Author).where(Author.id == id))
+    image_ids = []
+    author = await db.get(Author, id)
+    if not author:
+        raise NotFoundException('Author not found', str(id))
+
+    if author.image_id:
+        image_ids.append(author.image_id)
+    if author.banner_id:
+        image_ids.append(author.banner_id)
+
+    if image_ids:
+        await delete_image_bulk(image_ids, db)
+
+    await db.delete(author)
     await db.commit()
+
+    logger.info(f'Author deleted: {author}')
