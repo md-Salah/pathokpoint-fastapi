@@ -1,5 +1,4 @@
 import logging
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from uuid import UUID
@@ -67,8 +66,7 @@ async def create_user(payload: dict, db: AsyncSession) -> User:
     db.add(user)
     await db.commit()
 
-    logger.info(f'User created successfully, username: {
-                user.username}, role: {user.role.value}')
+    logger.info(f'User created successfully, {user}')
     return user
 
 

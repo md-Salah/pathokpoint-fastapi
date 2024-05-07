@@ -100,7 +100,7 @@ async def create_category(client: AsyncClient):
 
 
 @pytest_asyncio.fixture(name="book_in_db")
-async def create_book(client: AsyncClient):
+async def create_book(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/book", json={
         "sku": "99-5432",
         "name": "The Alchemist",
@@ -112,7 +112,7 @@ async def create_book(client: AsyncClient):
         "is_used": True,
         "condition": "old-like-new",
         "is_popular": True,
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 

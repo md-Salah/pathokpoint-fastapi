@@ -35,6 +35,6 @@ class User(TimestampMixin):
     reviews: Mapped[list["Review"]] = relationship(back_populates='user')
     
     def __repr__(self):
-        return f'<User (username={self.username})>'
+        return f'<User (username={self.username}, role={self.role})>'
     
     

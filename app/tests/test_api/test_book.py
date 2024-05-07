@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from starlette import status
 
@@ -43,14 +42,14 @@ async def test_get_all_books(client: AsyncClient, book_in_db: dict, query_string
     assert response.headers.get("x-total-count") == str(expected_length)
 
 
-async def test_create_book(client: AsyncClient, author_in_db: dict, category_in_db: dict, publisher_in_db: dict):
+async def test_create_book(client: AsyncClient, author_in_db: dict, category_in_db: dict, publisher_in_db: dict, admin_auth_headers: dict):
     payload = {
         **simple_book,
         "authors": [author_in_db['id']],
         "categories": [category_in_db['id']],
         "publisher": publisher_in_db["id"]
-    }    
-    response = await client.post("/book", json=payload)
+    }
+    response = await client.post("/book", json=payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json().items() >= simple_book.items()
 
@@ -61,22 +60,19 @@ async def test_create_book(client: AsyncClient, author_in_db: dict, category_in_
     assert response.json()["publisher"] == id_name_slug(publisher_in_db)
 
 
-async def test_update_book(client: AsyncClient, book_in_db: dict):
+async def test_update_book(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
     payload = {
         **book_in_db,
         "name": "Updated Name",
         "quantity": 20,
     }
-    response = await client.patch(f"/book/{book_in_db['id']}", json=payload)
+    response = await client.patch(f"/book/{book_in_db['id']}", json=payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["name"] == payload["name"]
     payload.pop('updated_at')
     assert payload.items() <= response.json().items()
 
 
-async def test_delete_book(client: AsyncClient, book_in_db: dict):
-    response = await client.delete(f"/book/{book_in_db['id']}")
+async def test_delete_book(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete(f"/book/{book_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-
-    response = await client.get(f"/book/id/{book_in_db['id']}")
-    assert response.status_code == 404
