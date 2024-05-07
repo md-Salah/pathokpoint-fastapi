@@ -5,12 +5,14 @@ from typing import AsyncGenerator
 from fastapi import status
 from unittest.mock import patch
 
+import uuid
 from app.main import app
 from app.config.database import get_db, Base
 from app.config.settings import settings
 from app.constant import Country
 from app.controller.auth import create_jwt_token
 from app.constant.role import Role
+
 
 @pytest_asyncio.fixture(name="session")
 async def session_fixture():
@@ -21,10 +23,10 @@ async def session_fixture():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-        
+
     async with session_factory() as session:
         yield session
-        
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -116,16 +118,15 @@ async def create_book(client: AsyncClient):
 
 
 @pytest_asyncio.fixture(name="user_in_db")
-async def create_user(client: AsyncClient):
+async def create_user_by_admin(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/user", json={
         "email": "testuser@gmail.com",
         "password": "testPassword2235#",
         "phone_number": "+8801311701123",
         "first_name": "test",
         "last_name": "user",
-        "username": "testUser1",
         "role": "customer"
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     user = response.json()
     return {
@@ -137,16 +138,15 @@ async def create_user(client: AsyncClient):
 
 
 @pytest_asyncio.fixture(name="admin_in_db")
-async def create_admin(client: AsyncClient):
+async def create_admin_by_admin(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/user", json={
         "email": "testadmin@gmail.com",
         "password": "testPassword2235#",
-        "phone_number": "+8801311701123",
+        "phone_number": "+8801478639075",
         "first_name": "test",
         "last_name": "user",
-        "username": "testadmin",
         "role": "admin"
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
@@ -237,16 +237,25 @@ async def create_review(client: AsyncClient, image_in_db: dict, book_in_db: dict
     return {**response.json(), 'access_token': user_in_db["token"]['access_token']}
 
 
-@pytest_asyncio.fixture(name="access_token")
-async def get_access_token(user_in_db: dict):
-    return user_in_db["token"]["access_token"]
+@pytest_asyncio.fixture(name="customer_access_token")
+async def get_access_token():
+    return create_jwt_token(uuid.uuid4(), Role.customer, 'access')
+
 
 @pytest_asyncio.fixture(name="admin_access_token")
-async def get_admin_access_token(client: AsyncClient, admin_in_db: dict):
-    response = await client.post("/auth/token", data={
-        "username": admin_in_db["email"],
-        "password": "testPassword2235#",
-    })
-    assert response.status_code == status.HTTP_200_OK
-    return response.json()["access_token"]
+async def get_admin_access_token():
+    return create_jwt_token(uuid.uuid4(), Role.admin, 'access')
 
+
+@pytest_asyncio.fixture(name='admin_auth_headers')
+async def get_admin_auth_headers_with_bearer_token(admin_access_token: str):
+    return {
+        'Authorization': f'Bearer {admin_access_token}'
+    }
+
+
+@pytest_asyncio.fixture(name='customer_auth_headers')
+async def get_auth_headers_with_bearer_token(customer_access_token: str):
+    return {
+        'Authorization': f'Bearer {customer_access_token}'
+    }

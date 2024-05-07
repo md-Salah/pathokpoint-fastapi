@@ -9,7 +9,7 @@ import app.controller.user as user_service
 import app.controller.auth as auth_service
 import app.controller.email as email_service
 from app.config.database import Session
-from app.controller.auth import AccessToken
+from app.controller.auth import AccessToken, CurrentUser
 from app.controller.redis import get_redis, set_redis
 from app.controller.exception import BadRequestException
 from app.controller.otp import generate_otp
@@ -24,6 +24,7 @@ async def login_for_access_token(db: Session, req: OAuth2PasswordRequestForm = D
     # we are using email as username
     user = await auth_service.authenticate_user(db, req.username, req.password)
     token = auth_service.create_jwt_token(user.id, user.role, 'access')
+    logger.info(f'{user.username} logged in successfully')
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -94,6 +95,15 @@ async def set_new_password(payload: auth_schema.SetNewPassword, request: Request
 
     await user_service.update_user(user.id, {'password': payload.new_password}, db)
 
+    return {"message": "Password has been updated successfully."}
+
+
+@router.post('/change-password')
+async def change_password(payload: auth_schema.ChangePassword, user: CurrentUser, db: Session):
+    if not auth_service.verify_password(payload.current_password.get_secret_value(), user.password):
+        raise BadRequestException("Password is incorrect.")
+
+    await user_service.update_user(user.id, {'password': payload.new_password}, db)
     return {"message": "Password has been updated successfully."}
 
 

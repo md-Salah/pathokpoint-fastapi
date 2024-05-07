@@ -28,3 +28,7 @@ class SetNewPassword(BaseModel):
 class UserOutWithToken(BaseModel):
     user: UserOut
     token: TokenResponse
+
+class ChangePassword(BaseModel):
+    current_password: SecretStr
+    new_password: SecretStr

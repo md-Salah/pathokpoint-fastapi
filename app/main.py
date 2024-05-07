@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from asgi_correlation_id import CorrelationIdMiddleware
+import logging
 
 from app.config.database import create_tables, drop_tables
 from app.config.settings import settings
@@ -9,14 +10,21 @@ from app.config.logging_conf import configure_logging
 
 from app.api_routes import router as api_router
 
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup
     configure_logging()
     app.state.redis = await get_redis()
 
-    # await drop_tables()
-    await create_tables()
+    try:
+        # await drop_tables()
+        await create_tables()
+    except Exception as err:
+        logger.error('Failed to connect database')
+        logger.error(f'{err.__class__}: {err}')
+    
 
     yield
     # shutdown

@@ -9,104 +9,75 @@ simple_user = {
     "password": "testPassword2235#",
     "phone_number": "+8801311701123",
     "first_name": "test",
-    "last_name": "user",
-    "username": "testUser1"
+    "last_name": "user"
 }
 
 
-async def test_get_user_by_id(client: AsyncClient, user_in_db: dict):
+async def test_get_user_by_id(client: AsyncClient, user_in_db: dict, admin_auth_headers: dict):
     id = user_in_db['user']['id']
-    response = await client.get(f"/user/id/{id}")
+    response = await client.get(f"/user/id/{id}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= user_in_db['user'].items()
 
 
-async def test_get_all_users(client: AsyncClient, user_in_db: dict):
-    response = await client.get("/user/all")
-    assert len(response.json()) == 1
-    assert response.json()[0].items() >= user_in_db['user'].items()
+@pytest.mark.parametrize(
+    "query_param, expected_count, modify_query_string",
+    [
+        ("", 1, lambda qs, _: qs),
+        ("q={}", 1, lambda qs, user: qs.format(user['phone_number'][2:])),
+        ("username={}", 1, lambda qs, user: qs.format(user['username'])),
+        ("email={}", 1, lambda qs, user: qs.format(user['email'])),
+        ("phone_number={}", 1, lambda qs, user: qs.format(
+            user['phone_number'].replace('+', '%2B'))),
+        ("role=admin", 0, lambda qs, _: qs),
+        ("role=customer", 1, lambda qs, _: qs),
+    ]
+)
+async def test_get_all_users_by_admin(client: AsyncClient, user_in_db: dict, admin_auth_headers: dict, query_param: str, expected_count: int, modify_query_string):
+    query = modify_query_string(query_param, user_in_db['user'])
+    response = await client.get(f"/user/all?{query}", headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.headers['X-Total-Count'] == str(expected_count)
+    assert len(response.json()) == expected_count
 
 
-async def test_get_all_users_with_phone_number(client: AsyncClient, user_in_db: dict):
-    response = await client.get("/user/all?q=01311701123")
-    assert len(response.json()) == 1
-    assert response.json()[0].items() >= user_in_db['user'].items()
-
-
-async def test_get_all_users_with_role(client: AsyncClient, user_in_db: dict, admin_in_db: dict):
-    response = await client.get("/user/all?role=admin")
-    assert len(response.json()) == 1
-    assert response.json()[0].items() >= admin_in_db.items()
-
-
-async def test_create_user(client: AsyncClient):
+async def test_create_user_by_admin(client: AsyncClient, admin_auth_headers: dict):
     payload = simple_user.copy()
-    response = await client.post("/user", json=payload)
+    response = await client.post("/user", json=payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     payload.pop('password')
     assert response.json().items() >= payload.items()
 
 
-async def test_create_user_with_only_email_pass(client: AsyncClient):
-    payload = {
-        "email": simple_user['email'],
-        "password": simple_user['password']
-    }
-    response = await client.post("/user", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    payload.pop('password')
-    assert response.json().items() >= payload.items()
-    assert response.json()['username'] == simple_user['email'].split('@')[0]
-
-
-async def test_create_user_for_same_username(client: AsyncClient):
-    payload = {
-        "email": "testuser@gmail.com",
-        "password": "testPassword2235#",
-    }
-    response = await client.post("/user", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    assert response.json()['username'] == "testuser"
-
-    payload['email'] = "testuser@yahoo.com"
-    response = await client.post("/user", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    assert response.json()['username'] == "testuser-1"
-
-
-async def test_update_user(client: AsyncClient, user_in_db: dict):
+async def test_update_me(client: AsyncClient, user_in_db: dict):
     payload = {
         'first_name': 'updated first name',
     }
-    response = await client.patch(f"/user/profile/{user_in_db['user']['id']}", json=payload)
+    response = await client.patch("/user/me", json=payload,
+                                  headers={'Authorization': f"Bearer {user_in_db['token']['access_token']}"})
     assert response.status_code == status.HTTP_200_OK
-    assert response.json().items() >= payload.items()
+    user_in_db['user']['first_name'] = payload['first_name']
+    user_in_db['user']['updated_at'] = response.json()['updated_at']
+    assert response.json().items() >= user_in_db['user'].items()
 
 
-async def test_update_user_password(client: AsyncClient, user_in_db: dict):
-    payload = {
-        'password': 'newPassword2235#7666778',
-    }
-    response = await client.patch(f"/user/profile/{user_in_db['user']['id']}", json=payload)
-    assert response.status_code == status.HTTP_200_OK
-
-    response = await client.post("/auth/token", data={"username": user_in_db['user']['email'], "password": payload['password']})
-    assert response.status_code == status.HTTP_200_OK
-
-
-async def test_update_user_by_admin(client: AsyncClient, user_in_db: dict):
+async def test_update_user_by_admin(client: AsyncClient, user_in_db: dict, admin_auth_headers: dict):
     payload = {
         'first_name': 'updated first name',
         'role': 'admin'
     }
-    response = await client.patch(f"/user/{user_in_db['user']['id']}", json=payload)
+    response = await client.patch(f"/user/id/{user_in_db['user']['id']}", json=payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= payload.items()
 
 
-async def test_delete_user(client: AsyncClient, user_in_db: dict):
-    id = user_in_db['user']['id']
-    response = await client.delete(f"/user/{id}")
+async def test_delete_me(client: AsyncClient, user_in_db: dict):
+    headers = {"Authorization":
+               "Bearer {}".format(user_in_db['token']['access_token'])}
+    response = await client.delete("/user/me", headers=headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    response = await client.get(f"/user/id/{id}")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_delete_user_by_admin(client: AsyncClient, user_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete(f"/user/id/{user_in_db['user']['id']}", headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_204_NO_CONTENT

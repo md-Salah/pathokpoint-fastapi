@@ -34,7 +34,7 @@ async def test_get_all_reviews(client: AsyncClient, review_in_db: dict):
     assert response.json()[0].items() >= review_in_db.items()
 
 
-async def test_create_book_review(client: AsyncClient, book_in_db: dict, access_token: str):
+async def test_create_book_review(client: AsyncClient, book_in_db: dict, user_in_db: dict):
     payload = {
         **simple_review,
         "book_id": book_in_db['id'],
@@ -42,7 +42,7 @@ async def test_create_book_review(client: AsyncClient, book_in_db: dict, access_
     response = await client.post("/review/new", json=payload)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    response = await client.post("/review/new", json=payload, headers={"Authorization": f"Bearer {access_token}"})
+    response = await client.post("/review/new", json=payload, headers={"Authorization": "Bearer {}".format(user_in_db['token']['access_token'])})
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json().items() >= payload.items()
 

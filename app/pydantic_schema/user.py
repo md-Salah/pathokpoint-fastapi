@@ -1,77 +1,80 @@
-from pydantic import EmailStr, ConfigDict, Field, SecretStr, UUID4
+from pydantic import EmailStr, ConfigDict, Field, SecretStr, PastDate
 
+from app.constant.gender import Gender
 from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
+from app.pydantic_schema.field import PhoneNumberField, UsernameField, PasswordField, FirstLastNameField
 
 from app.constant.role import Role
 
-example_user = {
+base_user = {
     "first_name": "Md",
     "last_name": "Abdullah",
-    "username": "md_abdullah",
-    "email": "abdullah2024@gmail.com",
     "phone_number": "+8801712345678",
+    "date_of_birth": "1948-11-13",
+    "gender": Gender.male
 }
 
 example_user_in = {
-    **example_user,
-    "password": "********",
+    **base_user,
+    "email": "abdullah2024@gmail.com",
+    "password": "secret-password",
 }
 
 example_user_in_by_admin = {
     **example_user_in,
-    "is_verified": False,
     "role": Role.customer
 }
 
 example_user_out = {
-    **example_user,
+    **base_user,
     **IdTimestampMixin._example,
-    "is_verified": True,
+    "username": "md-abdullah",
+    'email': 'user@example.com',
     "role": Role.customer,
 }
 
-username_pattern = r'^[a-zA-Z0-9_.-]+$'
 
 class UserBase(BaseModel):
-    first_name: str | None = Field(None, min_length=2, max_length=50, pattern=r'^[a-zA-Z ]+$')
-    last_name: str | None = Field(None, min_length=2, max_length=50, pattern=r'^[a-zA-Z ]+$')
-    username: str | None = Field(None, min_length=5, max_length=50, pattern=username_pattern)
-    email: EmailStr
-    phone_number: str | None = Field(None, min_length=14, max_length=14, pattern=r'^\+\d{13}$')
-
+    first_name: str = FirstLastNameField()
+    last_name: str = FirstLastNameField()
+    phone_number: str | None = PhoneNumberField(None)
+    date_of_birth: PastDate | None = None
+    gender: Gender | None = None
 
 class CreateUser(UserBase):
-    password: SecretStr = Field(..., min_length=8, max_length=100)
+    email: EmailStr
+    password: SecretStr = PasswordField()
 
     model_config = ConfigDict(
-        json_schema_extra={"example": example_user_in},  # type: ignore
-        str_to_lower=False,
-        str_strip_whitespace=False,
-        )  
-
-
-class UpdateUser(CreateUser):
-    email: EmailStr = Field(None)
-    password: SecretStr = Field(None, min_length=8, max_length=100)
+        json_schema_extra={"example": {**example_user_in}})
 
 
 class CreateUserByAdmin(CreateUser):
-    is_verified: bool = False
     role: Role = Role.customer
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_user_in_by_admin})
 
 
+class UpdateMe(UserBase):
+    first_name: str = FirstLastNameField(None)
+    last_name: str = FirstLastNameField(None)
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {**base_user}})
+
+
 class UpdateUserByAdmin(CreateUserByAdmin):
+    first_name: str = FirstLastNameField(None)
+    last_name: str = FirstLastNameField(None)
     email: EmailStr = Field(None)
-    password: SecretStr = Field(None, min_length=8, max_length=100)
+    password: SecretStr = PasswordField(None)
 
 
 class UserOut(UserBase, IdTimestampMixin):
-    username: str = Field(min_length=5, max_length=50, pattern=username_pattern)
-    is_verified: bool
+    username: str = UsernameField()
+    email: EmailStr
     role: Role
 
     model_config = ConfigDict(

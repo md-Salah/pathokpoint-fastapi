@@ -1,11 +1,9 @@
 import pytest
 from httpx import AsyncClient
 from starlette import status
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 import json
 
-import app.controller.auth as auth_service
-from app.constant.role import Role
 
 pytestmark = pytest.mark.asyncio
 
@@ -14,8 +12,7 @@ simple_user = {
     "password": "testPassword2235#",
     "phone_number": "+8801311701123",
     "first_name": "test",
-    "last_name": "user",
-    "username": "testUser1"
+    "last_name": "user"
 }
 
 
@@ -24,10 +21,12 @@ def send_signup_otp():
     with patch("app.api.auth.email_service.send_signup_otp") as send_signup_otp:
         yield send_signup_otp
 
+
 @pytest.fixture
 def send_reset_password_otp():
     with patch("app.api.auth.email_service.send_reset_password_otp") as send_reset_password_otp:
         yield send_reset_password_otp
+
 
 @pytest.fixture
 def set_redis():
@@ -133,24 +132,25 @@ async def test_get_private_data_without_token(client: AsyncClient):
 async def test_reset_password(send_reset_password_otp, set_redis, client: AsyncClient, user_in_db: dict):
     send_reset_password_otp.return_value = None
     set_redis.return_value = None
-    
+
     payload = {"email": user_in_db['user']['email']}
     response = await client.post("/auth/reset-password", json=payload)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()['detail']['message'] == "OTP has been sent to your email. Please reset your password within {} minutes.".format(10)
-
+    assert response.json()[
+        'detail']['message'] == "OTP has been sent to your email. Please reset your password within {} minutes.".format(10)
 
 
 async def test_set_new_password(get_redis, client: AsyncClient, user_in_db: dict):
     get_redis.return_value = "123456"
-    
-    payload = {"otp": "123456", 'email': user_in_db['user']['email'], "new_password": "newPassword1234#"}
+
+    payload = {"otp": "123456",
+               'email': user_in_db['user']['email'], "new_password": "newPassword1234#"}
 
     response = await client.post("/auth/set-new-password", json=payload)
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
         "message": "Password has been updated successfully."}
-    
+
     # Login with new password
     payload = {
         "username": user_in_db['user']['email'],
@@ -159,11 +159,13 @@ async def test_set_new_password(get_redis, client: AsyncClient, user_in_db: dict
     response = await client.post('/auth/token', data=payload)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().get("access_token") is not None
-    
+
+
 async def test_reset_password_with_wrong_email(client: AsyncClient):
     payload = {"email": "fakeemail@gmail.com"}
     response = await client.post("/auth/reset-password", json=payload)
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
 
 @pytest.mark.parametrize("otp, msg", [
     ("123456", "Invalid OTP, Try again."),
@@ -171,9 +173,37 @@ async def test_reset_password_with_wrong_email(client: AsyncClient):
 ])
 async def test_set_new_password_with_wrong_otp(get_redis, client: AsyncClient, user_in_db: dict, otp: str, msg: str):
     get_redis.return_value = otp
-    payload = {"otp": "654321", 'email': user_in_db['user']['email'], "new_password": "newPassword1234#"}
-    
+    payload = {"otp": "654321",
+               'email': user_in_db['user']['email'], "new_password": "newPassword1234#"}
+
     response = await client.post("/auth/set-new-password", json=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()['detail']['message'] == msg
-    
+
+
+@pytest.mark.parametrize(
+    "current_password, new_password",
+    [("testPassword2235#", "newPassword2235#"),
+     ("testPassword2235#", "newPassword2235#7666778")]
+)
+async def test_change_password(client: AsyncClient, user_in_db: dict, current_password: str, new_password: str):
+    payload = {
+        'current_password': current_password,
+        'new_password': new_password,
+    }
+    response = await client.post("/auth/change-password", json=payload,
+                                 headers={'Authorization': f"Bearer {user_in_db['token']['access_token']}"})
+    assert response.status_code == status.HTTP_200_OK
+
+    response = await client.post("/auth/token", data={"username": user_in_db['user']['email'], "password": payload['new_password']})
+    assert response.status_code == status.HTTP_200_OK
+
+
+async def test_change_password_with_wrong_password(client: AsyncClient, user_in_db: dict):
+    payload = {
+        'current_password': "wrongpassword",
+        'new_password': "newPassword2235#",
+    }
+    response = await client.post("/auth/change-password", json=payload,
+                                 headers={'Authorization': f"Bearer {user_in_db['token']['access_token']}"})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
