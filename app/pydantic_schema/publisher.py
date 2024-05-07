@@ -19,13 +19,13 @@ example_publisher = {
 
 example_publisher_in = {
     **example_publisher,
-    'image': '5b36385d-27bf-47dd-9126-df04bccfc773',
-    'banner': '5b36385d-27bf-47dd-9126-df04bccfc773',
+    'image_id': 'valid-uuid4',
+    'banner_id': 'valid-uuid4',
 }
 
 example_publisher_out = {
     **IdTimestampMixin._example,
-    **example_publisher,
+    **example_publisher_in,
     'image': ImageOut._example,
     'banner': ImageOut._example,
 }
@@ -43,8 +43,8 @@ class PublisherBase(NameSlugMixin):
 
 
 class CreatePublisher(PublisherBase):
-    image: UUID4 | None = None
-    banner: UUID4 | None = None
+    image_id: UUID4 | None = None
+    banner_id: UUID4 | None = None
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_publisher_in})
@@ -54,7 +54,7 @@ class UpdatePublisher(NameSlugMixinOptional, CreatePublisher):
     pass
 
 
-class PublisherOut(PublisherBase, IdTimestampMixin):
+class PublisherOut(CreatePublisher, IdTimestampMixin):
     image: ImageOut | None = None
     banner: ImageOut | None = None
 

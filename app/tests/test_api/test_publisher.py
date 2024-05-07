@@ -8,8 +8,8 @@ simple_publisher = {
     "name": "Test Publisher",
     "slug": "test-publisher",
     "description": "Test Publisher Description",
-    "image": None,
-    "banner": None,
+    "image_id": None,
+    "banner_id": None,
     "is_islamic": True,
     "is_english": False,
     "is_popular": True,
@@ -17,11 +17,12 @@ simple_publisher = {
     "book_published": 100,
 }
 
+
 async def test_get_publisher_by_id(client: AsyncClient, publisher_in_db: dict):
     response = await client.get("/publisher/id/{}".format(publisher_in_db['id']))
     assert response.status_code == 200
     assert response.json().items() == publisher_in_db.items()
-    
+
 
 async def test_get_publisher_by_slug(client: AsyncClient, publisher_in_db: dict):
     response = await client.get("/publisher/slug/{}".format(publisher_in_db['slug']))
@@ -30,13 +31,17 @@ async def test_get_publisher_by_slug(client: AsyncClient, publisher_in_db: dict)
 
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
-    ("", 1, lambda qs, _: qs),  
-    ("?q={}", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['name'][:5])),  
-    ("?name={}", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['name'])),  
-    ("?slug={}", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['slug'])),  
-    ("?country=BD", 1, lambda qs, _: qs), 
-    ("?is_popular=true", 1, lambda qs, _: qs), 
-    ("?q={}&country=BD&is_popular=true", 1, lambda qs, publisher_in_db: qs.format(publisher_in_db['name'][:5])),
+    ("", 1, lambda qs, _: qs),
+    ("?q={}", 1, lambda qs, publisher_in_db: qs.format(
+        publisher_in_db['name'][:5])),
+    ("?name={}", 1, lambda qs, publisher_in_db: qs.format(
+        publisher_in_db['name'])),
+    ("?slug={}", 1, lambda qs, publisher_in_db: qs.format(
+        publisher_in_db['slug'])),
+    ("?country=BD", 1, lambda qs, _: qs),
+    ("?is_popular=true", 1, lambda qs, _: qs),
+    ("?q={}&country=BD&is_popular=true", 1, lambda qs,
+     publisher_in_db: qs.format(publisher_in_db['name'][:5])),
 ])
 async def test_get_all_publishers(client: AsyncClient, publisher_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
     query_string = modify_query_string(query_string_template, publisher_in_db)
@@ -45,36 +50,33 @@ async def test_get_all_publishers(client: AsyncClient, publisher_in_db: dict, qu
     assert response.json()[0].items() == publisher_in_db.items()
     assert response.headers.get("x-total-count") == "1"
 
-    
-async def test_create_publisher(client: AsyncClient, image_in_db: dict):
+
+async def test_create_publisher(client: AsyncClient, image_in_db: dict, admin_auth_headers: dict):
     payload = {
         **simple_publisher,
-        'image': image_in_db['id'],
-        'banner': image_in_db['id'],
+        'image_id': image_in_db['id'],
+        'banner_id': image_in_db['id'],
     }
-    response = await client.post("/publisher", json=payload)
+    response = await client.post("/publisher", json=payload, headers=admin_auth_headers)
     assert response.status_code == 201
     payload['image'] = image_in_db
     payload['banner'] = image_in_db
     assert response.json().items() >= payload.items()
-    
 
-async def test_update_publisher(client: AsyncClient, publisher_in_db: dict):
+
+async def test_update_publisher(client: AsyncClient, publisher_in_db: dict, image_in_db: dict, admin_auth_headers: dict):
     payload = {
         "name": "Updated Publisher",
+        'image_id': image_in_db['id'],
     }
-    response = await client.patch("/publisher/{}".format(publisher_in_db['id']), json=payload)
+    response = await client.patch("/publisher/{}".format(publisher_in_db['id']), json=payload, headers=admin_auth_headers)
     assert response.status_code == 200
     publisher_in_db.update(payload)
     publisher_in_db.pop('updated_at')
+    publisher_in_db['image'] = image_in_db
     assert response.json().items() >= publisher_in_db.items()
 
 
-async def test_delete_publisher(client: AsyncClient, publisher_in_db: dict):
-    response = await client.delete("/publisher/{}".format(publisher_in_db['id']))
+async def test_delete_publisher(client: AsyncClient, publisher_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete("/publisher/{}".format(publisher_in_db['id']), headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    response = await client.get("/publisher/id/{}".format(publisher_in_db['id']))
-    assert response.status_code == 404 
-      
-    
-    

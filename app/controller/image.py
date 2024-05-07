@@ -61,8 +61,9 @@ async def delete_image_bulk(ids: Sequence[UUID], db: AsyncSession) -> None:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 detail='Image delete failed')
 
-    await db.execute(delete(Image).where(Image.id.in_(ids)))
-    await db.commit()
+    if ids:
+        await db.execute(delete(Image).where(Image.id.in_(ids)))
+        await db.commit()
 
 
 async def count_image(db: AsyncSession) -> int:
@@ -70,7 +71,15 @@ async def count_image(db: AsyncSession) -> int:
     return result.scalar_one()
 
 
+
+# Additional functions for attaching and detaching images from other models
 async def attach_image(id: UUID | None, previous_id: UUID | None, db: AsyncSession) -> Image | None:
     if previous_id and previous_id != id:
         await delete_image(previous_id, db)
     return await db.get(Image, id) if id else None
+
+
+async def detach_images(db, *ids) -> None:
+    image_ids = [id for id in ids if id]
+    if image_ids:
+        await delete_image_bulk(image_ids, db)

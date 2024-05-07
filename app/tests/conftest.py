@@ -75,24 +75,24 @@ async def create_author(client: AsyncClient, admin_auth_headers: dict):
 
 
 @pytest_asyncio.fixture(name="publisher_in_db")
-async def create_publisher(client: AsyncClient):
+async def create_publisher(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/publisher", json={
         "name": "Rupa Publications",
         "slug": "rupa-publications",
         "is_popular": True,
         "country": Country.BD.value,
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
 
 @pytest_asyncio.fixture(name="category_in_db")
-async def create_category(client: AsyncClient):
+async def create_category(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/category", json={
         "name": "Fiction",
         "slug": "fiction",
         'is_popular': True,
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 

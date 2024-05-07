@@ -14,8 +14,8 @@ simple_author = {
     "is_popular": True,
     "name": "হুমায়ূন আহমেদ",
     "slug": "humayun-ahmed",
-    "image": None,
-    "banner": None,
+    "image_id": None,
+    "banner_id": None,
 }
 
 

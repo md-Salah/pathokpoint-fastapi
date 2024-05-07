@@ -8,7 +8,7 @@ import logging
 from app.models import Author, User
 from app.filter_schema.author import AuthorFilter
 from app.controller.exception import NotFoundException, ConflictException
-from app.controller.image import attach_image, delete_image_bulk
+from app.controller.image import attach_image, detach_images
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +51,10 @@ async def create_author(payload: dict, db: AsyncSession) -> Author:
     if _author:
         if _author.name == payload['name']:
             raise ConflictException('Author with name {} already exists'.format(
-                payload["name"]), str(_author.id))
+                _author.name), str(_author.id))
         else:
             raise ConflictException('Author with slug {} already exists'.format(
-                payload["slug"]), str(_author.id))
+                _author.slug), str(_author.id))
 
     if 'image_id' in payload:
         payload['image'] = await attach_image(payload.pop('image_id'), None, db)
@@ -131,19 +131,8 @@ async def unfollow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> A
 
 
 async def delete_author(id: UUID, db: AsyncSession) -> None:
-    image_ids = []
-    author = await db.get(Author, id)
-    if not author:
-        raise NotFoundException('Author not found', str(id))
-
-    if author.image_id:
-        image_ids.append(author.image_id)
-    if author.banner_id:
-        image_ids.append(author.banner_id)
-
-    if image_ids:
-        await delete_image_bulk(image_ids, db)
-
+    author = await get_author_by_id(id, db)
+    await detach_images(db, author.image_id, author.banner_id)
     await db.delete(author)
     await db.commit()
 

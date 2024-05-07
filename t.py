@@ -1,6 +1,8 @@
-# try:
-#     x = 5/0
-# except Exception as err:
-#     print(err.__class__)
-#     print(err)
-
+def detach_image(*kwargs):
+    _list = [x for x in kwargs if x is not None]
+    
+    print(_list)
+    
+detach_image('valid-uuid4', 'valid-uuid4')
+detach_image(None, 'valid-uuid4')
+detach_image(None, None)

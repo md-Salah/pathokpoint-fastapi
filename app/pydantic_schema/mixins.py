@@ -29,3 +29,4 @@ class NameSlugMixinOptional(BaseModel):
     
 class IdNameSlugMixin(NameSlugMixin):
     id: UUID
+  
