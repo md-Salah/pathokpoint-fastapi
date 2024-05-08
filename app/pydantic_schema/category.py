@@ -21,13 +21,14 @@ example_category = {
 
 example_category_in = {
     **example_category,
-    'image': '5b36385d-27bf-47dd-9126-df04bccfc773',
-    'banner': '5b36385d-27bf-47dd-9126-df04bccfc773',
+    'image_id': '5b36385d-27bf-47dd-9126-df04bccfc773',
+    'banner_id': '5b36385d-27bf-47dd-9126-df04bccfc773',
     'parent': ['5b36385d-27bf-47dd-9126-df04bccfc773'],
+    'children': ['5b36385d-27bf-47dd-9126-df04bccfc773', '5b36385d-27bf-47dd-9126-df04bccfc773'],
 }
 
 example_category_out = {
-    **example_category,
+    **example_category_in,
     **IdTimestampMixin._example,
     'image': ImageOut._example,
     'banner': ImageOut._example,
@@ -50,8 +51,8 @@ class CategoryBase(NameSlugMixin):
 class CreateCategory(CategoryBase):
     parent: List[UUID4] = []
     children: List[UUID4] = []
-    image: UUID4 | None = None
-    banner: UUID4 | None = None
+    image_id: UUID4 | None = None
+    banner_id: UUID4 | None = None
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_category_in})
@@ -60,7 +61,7 @@ class CreateCategory(CategoryBase):
 class UpdateCategory(NameSlugMixinOptional, CreateCategory):
     pass
 
-class CategoryOut(CategoryBase, IdTimestampMixin):
+class CategoryOut(CreateCategory, IdTimestampMixin):
     image: ImageOut | None = None
     banner: ImageOut | None = None
     parent: list[ParentChildCategory] | None = None

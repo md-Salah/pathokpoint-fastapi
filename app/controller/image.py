@@ -79,7 +79,7 @@ async def attach_image(id: UUID | None, previous_id: UUID | None, db: AsyncSessi
     return await db.get(Image, id) if id else None
 
 
-async def detach_images(db, *ids) -> None:
+async def detach_images(db: AsyncSession, *ids: UUID | None) -> None:
     image_ids = [id for id in ids if id]
     if image_ids:
         await delete_image_bulk(image_ids, db)

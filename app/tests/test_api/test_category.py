@@ -50,30 +50,32 @@ async def test_get_all_categories(client: AsyncClient, category_in_db: dict, que
     assert response.headers.get("x-total-count") == "1"
 
 
-async def test_create_category(client: AsyncClient, image_in_db: dict):
+async def test_create_category(client: AsyncClient, image_in_db: dict, admin_auth_headers: dict):
     payload = {
         **simple_category,
-        'image': image_in_db['id'],
-        'banner': image_in_db['id'],
+        'image_id': image_in_db['id'],
+        'banner_id': image_in_db['id'],
     }
-    response = await client.post("/category", json=payload)
+    response = await client.post("/category", json=payload, headers=admin_auth_headers)
     assert response.status_code == 201
     payload['image'] = image_in_db
     payload['banner'] = image_in_db
     assert response.json().items() >= payload.items()
 
 
-async def test_update_category(client: AsyncClient, category_in_db: dict):
+async def test_update_category(client: AsyncClient, category_in_db: dict, image_in_db: dict, admin_auth_headers: dict):
     payload = {
         "name": "Updated Category",
+        'image_id': image_in_db['id'],
     }
-    response = await client.patch("/category/{}".format(category_in_db['id']), json=payload)
+    response = await client.patch("/category/{}".format(category_in_db['id']), json=payload, headers=admin_auth_headers)
     assert response.status_code == 200
     category_in_db.update(payload)
     category_in_db.pop('updated_at')
+    category_in_db['image'] = image_in_db
     assert response.json().items() >= category_in_db.items()
 
 
-async def test_delete_category(client: AsyncClient, category_in_db: dict):
-    response = await client.delete("/category/{}".format(category_in_db['id']))
+async def test_delete_category(client: AsyncClient, category_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete("/category/{}".format(category_in_db['id']), headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
