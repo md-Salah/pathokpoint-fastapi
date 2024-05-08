@@ -5,8 +5,7 @@ from fastapi_filter import FilterDepends
 
 from app.filter_schema.review import ReviewFilter
 from app.config.database import Session
-from app.controller.auth import AccessToken, AdminAccessToken, Role
-from app.controller.exception import ForbiddenException
+from app.controller.auth import AccessToken, AdminAccessToken
 import app.controller.review as review_service
 import app.pydantic_schema.review as schema
 
@@ -46,11 +45,7 @@ async def create_review(payload: schema.CreateReview, token: AccessToken, db: Se
 
 @router.patch('/{id}', response_model=schema.ReviewOut)
 async def update_review(id: UUID, payload: schema.UpdateReview, token: AccessToken, db: Session):
-    review = await review_service.get_review_by_id(id, db)
-    if review.user_id == token['id']:
-        return await review_service.update_review(id, payload.model_dump(exclude_unset=True), db)
-
-    raise ForbiddenException('You are not allowed to update this review.')
+    return await review_service.update_review(id, token['id'], payload.model_dump(exclude_unset=True), db)
 
 
 @router.patch('/approve/{id}', response_model=schema.ReviewOut)
@@ -60,15 +55,4 @@ async def approve_review(id: UUID, _: AdminAccessToken, db: Session):
 
 @router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_review(id: UUID, token: AccessToken, db: Session):
-
-    if token['role'] == Role.admin.value:
-        logger.info('Admin is deleting review')
-        return await review_service.delete_review(id, db)
-    else:
-        review = await review_service.get_review_by_id(id, db)
-        if review.user_id == token['id']:
-            logger.info('User is deleting his review')
-            return await review_service.delete_review(id, db)
-
-    raise ForbiddenException(
-        'You are not allowed to delete this review.', str(id))
+    return await review_service.delete_review(id, token['id'], token['role'], db)

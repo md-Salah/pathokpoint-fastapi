@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload, selectinload
 from typing import Sequence
 from uuid import UUID
@@ -7,12 +7,12 @@ import logging
 
 from app.filter_schema.review import ReviewFilter
 from app.models.review import Review, review_image_link
-from app.models.image import Image
 from app.models.book import Book
 from app.models.order import Order
-from app.controller.exception import not_found_exception, forbidden_exception
+from app.controller.exception import NotFoundException, ForbiddenException
 from app.controller.user import get_user_by_id
-import app.controller.image as image_service
+from app.controller.image import handle_multiple_image_attachment
+from app.controller.auth import Role
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ async def get_review_by_id(id: UUID, db: AsyncSession) -> Review:
 
     review = await db.scalar(stmt)
     if not review:
-        raise not_found_exception(str(id), 'Review not found')
+        raise NotFoundException('Review not found', str(id))
     return review
 
 
@@ -51,24 +51,22 @@ async def create_review(payload: dict, db: AsyncSession) -> Review:
 
     # Associate review with book or order
     if book_id := payload.pop('book_id', None):
-        stmt = select(Book).filter(Book.id == book_id)
-
-        payload['book'] = await db.scalar(stmt)
+        book = await db.scalar(select(Book).filter(Book.id == book_id))
+        if not book:
+            raise NotFoundException('Book not found', str(book_id))
+        payload['book'] = book
     elif order_id := payload.pop('order_id', None):
-        stmt = select(Order).filter(Order.id == order_id)
-
-        order = await db.scalar(stmt)
+        order = await db.scalar(select(Order).filter(Order.id == order_id))
         if not order:
-            raise not_found_exception(str(order_id), 'Order not found')
+            raise NotFoundException('Order not found', str(order_id))
         elif order.customer_id != payload['user_id']:
-            raise forbidden_exception(
-                str(order_id), 'You are not allowed to review this order')
+            raise ForbiddenException(
+                'You are not allowed to review this order', str(order_id))
         payload['order'] = order
 
-    if payload['images']:
-        stmt = select(Image).filter(Image.id.in_(payload['images']))
-
-        payload['images'] = (await db.scalars(stmt)).all()
+    if 'images' in payload:
+        # payload['images'] = await attach_images(payload['images'], [], db)
+        payload['images'] = await handle_multiple_image_attachment(payload['images'], [], db, review_image_link)
 
     payload['average_rating'] = (payload['product_rating'] + payload['delivery_rating'] +
                                  payload['time_rating'] + payload['website_rating']) / 4
@@ -77,40 +75,30 @@ async def create_review(payload: dict, db: AsyncSession) -> Review:
     review = Review(**payload)
     db.add(review)
     await db.commit()
+    logger.info(f'Review created {review} by {review.user}')
     return review
 
 
-async def update_review(id: UUID, payload: dict, db: AsyncSession) -> Review:
+async def update_review(id: UUID, user_id: UUID, payload: dict, db: AsyncSession) -> Review:
     review = await get_review_by_id(id, db)
+    if review.user_id != user_id:
+        raise ForbiddenException('You are not allowed to update this review.')
 
     if 'images' in payload:
-        logger.debug('updating review images')
-        if image_ids := payload.pop('images'):
-            existing_ids = [image.id for image in review.images]
-
-            stmt = select(Image).filter(Image.id.in_(
-                [id for id in image_ids if id not in existing_ids]))
-            review.images.extend((await db.scalars(stmt)).all())
-
-            remove_list = [id for id in existing_ids if id not in image_ids]
-            if remove_list:
-                await image_service.delete_image_bulk(remove_list, db)
-        else:
-            exitsting_ids = [image.id for image in review.images]
-            if exitsting_ids:
-                await image_service.delete_image_bulk(exitsting_ids, db)
-            review.images = []
+        previous_ids = [image.id for image in review.images]
+        # payload['images'] = await attach_images(payload['images'], previous_ids, db, review_image_link)
+        payload['images'] = await handle_multiple_image_attachment(payload['images'], previous_ids, db, review_image_link)
 
     logger.debug(payload)
     [setattr(review, key, value)
      for key, value in payload.items()]
 
-    # Recalculate average rating
     review.average_rating = (review.product_rating + review.delivery_rating +
                              review.time_rating + review.website_rating) / 4
     review.is_approved = False
 
     await db.commit()
+    logger.info(f'Review updated {review}')
     return review
 
 
@@ -118,12 +106,21 @@ async def approve_review(id: UUID, db: AsyncSession) -> Review:
     review = await get_review_by_id(id, db)
     review.is_approved = True
     await db.commit()
+    logger.info(f'Review approved {review}')
     return review
 
 
-async def delete_review(id: UUID, db: AsyncSession) -> None:
-    image_ids = (await db.scalars(select(review_image_link.c.image_id).where(review_image_link.c.review_id == id))).all()
-    if image_ids:
-        await image_service.delete_image_bulk(image_ids, db)
-    await db.execute(delete(Review).where(Review.id == id))
+async def delete_review(id: UUID, user_id: UUID, user_role: str, db: AsyncSession) -> None:
+    review = await db.get(Review, id)
+    if not review:
+        raise NotFoundException('Review not found', str(id))
+    
+    if user_id != review.user_id and user_role != Role.admin.value:
+        raise ForbiddenException('You are not allowed to delete this review.')
+    
+    image_ids = [image.id for image in await review.awaitable_attrs.images]
+    await handle_multiple_image_attachment([], image_ids, db, review_image_link)
+    await db.delete(review)
     await db.commit()
+
+    logger.info(f'Review deleted {review}')

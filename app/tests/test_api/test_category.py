@@ -62,6 +62,17 @@ async def test_create_category(client: AsyncClient, image_in_db: dict, admin_aut
     payload['banner'] = image_in_db
     assert response.json().items() >= payload.items()
 
+async def test_create_category_with_parent_category(client: AsyncClient, category_in_db:dict, admin_auth_headers: dict):
+    payload = {
+        'name': 'Sub Category',
+        'slug': 'sub-category',
+        'parent': [category_in_db['id']]
+    }
+    response = await client.post("/category", json=payload, headers=admin_auth_headers)
+    assert response.status_code == 201
+    assert response.json()['parent'][0].items() <= category_in_db.items()
+    payload.pop('parent')
+    assert response.json().items() >= payload.items()
 
 async def test_update_category(client: AsyncClient, category_in_db: dict, image_in_db: dict, admin_auth_headers: dict):
     payload = {

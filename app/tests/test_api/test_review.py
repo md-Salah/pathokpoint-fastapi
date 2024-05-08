@@ -16,7 +16,7 @@ simple_review = {
 
 @pytest.fixture
 def mock_delete_file():
-    with patch("app.controller.review.image_service.delete_file_from_cloudinary") as mock_delete_file:
+    with patch("app.controller.image.delete_file_from_cloudinary") as mock_delete_file:
         yield mock_delete_file
 
 
@@ -48,8 +48,7 @@ async def test_create_book_review(client: AsyncClient, book_in_db: dict, user_in
 
 
 async def test_create_order_review(client: AsyncClient, book_in_db: dict, user_in_db: dict):
-    headers = {"Authorization": f"Bearer {
-        user_in_db['token']['access_token']}"}
+    headers = {"Authorization": "Bearer {}".format(user_in_db['token']['access_token'])}
     response = await client.post('/order/new', json={
         "order_items": [
             {

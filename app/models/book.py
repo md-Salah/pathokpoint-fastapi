@@ -71,7 +71,7 @@ class Book(TimestampMixin):
     categories: Mapped[List['Category']] = relationship(
         secondary='book_category_link', back_populates='books')
     
-    images: Mapped[List['Image']] = relationship(secondary='book_image_link', backref='books', cascade='all, delete')
+    images: Mapped[List['Image']] = relationship(secondary='book_image_link', backref='books')
     tags: Mapped[List['Tag']] = relationship(secondary='book_tag_link', back_populates='books')
     
 
@@ -82,6 +82,7 @@ class Book(TimestampMixin):
 book_image_link = Table(
     'book_image_link',
     Base.metadata,
-    Column('book_id', UUID(as_uuid=True), ForeignKey('books.id', ondelete='CASCADE'), primary_key=True),
+    Column('book_id', UUID(as_uuid=True), ForeignKey('books.id'), primary_key=True),
     Column('image_id', UUID(as_uuid=True), ForeignKey('images.id'), primary_key=True)
 )
+

@@ -1,13 +1,15 @@
 from starlette.concurrency import run_in_threadpool
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, Table
 from typing import Sequence
 from uuid import UUID, uuid4
 import os
 import logging
+from typing import Any
 
 from app.models.image import Image
+from app.controller.exception import NotFoundException
 
 from app.library import upload_file_to_cloudinary, delete_file_from_cloudinary
 
@@ -55,15 +57,15 @@ async def delete_image(id: UUID, db: AsyncSession) -> None:
 
 
 async def delete_image_bulk(ids: Sequence[UUID], db: AsyncSession) -> None:
+    await db.execute(delete(Image).where(Image.id.in_(ids)))
+
     for image_id in ids:
         success = await run_in_threadpool(delete_file_from_cloudinary, str(image_id))
         if not success:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 detail='Image delete failed')
 
-    if ids:
-        await db.execute(delete(Image).where(Image.id.in_(ids)))
-        await db.commit()
+    await db.commit()
 
 
 async def count_image(db: AsyncSession) -> int:
@@ -77,6 +79,31 @@ async def attach_image(id: UUID | None, previous_id: UUID | None, db: AsyncSessi
     if previous_id and previous_id != id:
         await delete_image(previous_id, db)
     return await db.get(Image, id) if id else None
+
+
+async def handle_multiple_image_attachment(ids: list[UUID], previous_ids: list[UUID], db: AsyncSession, link_table: Table | None = None) -> list[Image]:
+    images = []
+    if ids:
+        stmt = select(Image).filter(Image.id.in_(ids))        
+        images = list((await db.scalars(stmt)).all())
+        
+        not_found = [id for id in ids if id not in [image.id for image in images]]
+        if not_found:
+            raise NotFoundException('Image not found', ','.join(str(id) for id in not_found))
+        
+    to_remove = [id for id in previous_ids if id not in ids]
+    if to_remove:
+        if isinstance(link_table, Table):
+            await db.execute(link_table.delete().where(link_table.c.image_id.in_(previous_ids)))
+        
+        await db.execute(delete(Image).where(Image.id.in_(to_remove)))
+        for image_id in to_remove:
+            success = await run_in_threadpool(delete_file_from_cloudinary, str(image_id))
+            if not success:
+                logger.error(f'Failed to delete image {image_id}')
+
+    # logger.debug(f'Images found: {images}')
+    return images
 
 
 async def detach_images(db: AsyncSession, *ids: UUID | None) -> None:

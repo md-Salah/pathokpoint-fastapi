@@ -29,7 +29,7 @@ class Review(TimestampMixin):
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationship
-    images: Mapped[List['Image']] = relationship(secondary='review_image_link', backref='reviews', cascade='all, delete')
+    images: Mapped[List['Image']] = relationship(secondary='review_image_link', backref='reviews')
     
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'))
     user: Mapped['User'] = relationship(back_populates='reviews')
@@ -41,13 +41,13 @@ class Review(TimestampMixin):
     book: Mapped['Book'] = relationship(backref='reviews')
 
     def __repr__(self):
-        return f'<Review (id={self.id})>'
+        return f'<Review (id={self.id}, comment={self.comment[:20]})>'
 
 
 review_image_link = Table(
     'review_image_link',
     Base.metadata,
-    Column('review_id', UUID(as_uuid=True), ForeignKey('reviews.id', ondelete='CASCADE'), primary_key=True),
-    Column('image_id', UUID(as_uuid=True), ForeignKey('images.id', ondelete='CASCADE'), primary_key=True)
+    Column('review_id', UUID(as_uuid=True), ForeignKey('reviews.id'), primary_key=True),
+    Column('image_id', UUID(as_uuid=True), ForeignKey('images.id'), primary_key=True, unique=True)
 )
 

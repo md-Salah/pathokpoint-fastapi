@@ -86,7 +86,7 @@ class ReviewOut(CreateReview, IdTimestampMixin):
     average_rating: PositiveFloat = Field(ge=1, le=5)
     is_approved: bool
     user: UserOut
-    images: list[ImageOut]
+    images: list[ImageOut] = []
 
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_review_out})

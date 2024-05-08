@@ -15,4 +15,4 @@ class Image(TimestampMixin):
     alt: Mapped[str]
 
     def __repr__(self):
-        return f'<Image (name={self.name})>'
+        return f'<Image (name={self.name}, src={self.src})>'
