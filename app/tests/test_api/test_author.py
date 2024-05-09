@@ -40,6 +40,7 @@ async def test_get_author_by_slug(client: AsyncClient, author_in_db: dict):
     ("?is_popular=true", 1, lambda qs, _: qs),
     ("?q={}&country=BD&is_popular=true", 1, lambda qs,
      author_in_db: qs.format(author_in_db['name'][:5])),
+    ("?followers_count__lte=1", 1, lambda qs, _: qs),
 ])
 async def test_get_all_authors(client: AsyncClient, author_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
     query_string = modify_query_string(query_string_template, author_in_db)

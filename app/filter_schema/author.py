@@ -11,10 +11,12 @@ class AuthorFilter(Filter):
     slug: str | None = None
     country: Country | None = None
     is_popular: bool | None = None
-    follower_count__gte: int | None = None
-    follower_count__lte: int | None = None
+    followers_count__lte: int | None = None
+    followers_count__gte: int | None = None
 
     class Constants(Filter.Constants):
         model = Author
         search_field_name = 'q'
         search_model_fields = ['name', 'slug']
+        
+        
