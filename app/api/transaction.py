@@ -1,26 +1,30 @@
-from fastapi import APIRouter, Depends, status, Query, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, status, Query, Response
 from uuid import UUID
+from fastapi_filter import FilterDepends
 
-from app.config.database import get_db
-import app.controller.transaction as transaction_service
-import app.pydantic_schema.transaction as transaction_schema
+from app.filter_schema.transaction import TransactionFilter
+from app.config.database import Session
+import app.controller.transaction as service
+import app.pydantic_schema.transaction as schema
+from app.controller.auth import AdminAccessToken, AccessToken
 
-router = APIRouter()
-
-
-@router.get('/transaction/id/{id}', response_model=transaction_schema.TransactionOut)
-async def get_transaction_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
-    transaction = await transaction_service.get_transaction_by_id(id, db)
-    return transaction
+router = APIRouter(prefix='/transaction')
 
 
-@router.get('/transactions', response_model=list[transaction_schema.TransactionOut])
+@router.get('/id/{id}', response_model=schema.TransactionOut)
+async def get_transaction_by_id(id: UUID, token: AccessToken, db: Session):
+    return await service.get_transaction_by_id(id, token['id'], token['role'], db)
+
+
+@router.get('/all', response_model=list[schema.TransactionOut])
 async def get_all_transactions(*, page: int = Query(1, ge=1),
                                per_page: int = Query(10, ge=1, le=100),
-                               db: AsyncSession = Depends(get_db),  response: Response):
-    transactions = await transaction_service.get_all_transactions(page, per_page, db)
-    total_transactions = await transaction_service.count_transaction(db)
+                               filter: TransactionFilter = FilterDepends(
+                                   TransactionFilter),
+                               _: AdminAccessToken,
+                               db: Session,  response: Response):
+    transactions = await service.get_all_transactions(filter, page, per_page, db)
+    total_transactions = await service.count_transaction(filter, db)
 
     response.headers['X-Total-Count'] = str(total_transactions)
     response.headers['X-Total-Pages'] = str(-(-total_transactions // per_page))
@@ -30,18 +34,31 @@ async def get_all_transactions(*, page: int = Query(1, ge=1),
     return transactions
 
 
-@router.post('/transaction', response_model=transaction_schema.TransactionOut, status_code=status.HTTP_201_CREATED)
-async def create_transaction(payload: transaction_schema.CreateTransaction, db: AsyncSession = Depends(get_db)):
-    transaction = await transaction_service.create_transaction(payload.model_dump(), db)
-    return transaction
+@router.post('/add-manual-payment', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
+async def create_manual_transaction_by_admin(payload: schema.CreateTransaction, _: AdminAccessToken, db: Session):
+    return await service.create_transaction({
+        **payload.model_dump(),
+        'is_manual': True,
+        'is_refund': False,
+    }, db)
 
 
-@router.post('/refund', response_model=transaction_schema.TransactionOut, status_code=status.HTTP_201_CREATED)
-async def create_refund(payload: transaction_schema.CreateRefundTransaction, db: AsyncSession = Depends(get_db)):
-    transaction = await transaction_service.create_transaction(payload.model_dump(), db)
-    return transaction
+@router.post('/make-payment', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
+async def create_transaction_by_payment_gateway(payload: schema.CreateTransaction, db: Session):
+    return await service.create_transaction({
+        **payload.model_dump(),
+        'is_refund': False,
+    }, db)
 
 
-@router.delete('/transaction/{id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_transaction(id: UUID, db: AsyncSession = Depends(get_db)):
-    await transaction_service.delete_transaction(id, db)
+@router.post('/refund', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
+async def create_refund(payload: schema.CreateRefundTransaction, _: AdminAccessToken, db: Session):
+    return await service.create_transaction({
+        **payload.model_dump(),
+        'is_refund': True,
+    }, db)
+
+
+@router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_transaction(id: UUID, _: AdminAccessToken, db: Session):
+    await service.delete_transaction(id, db)

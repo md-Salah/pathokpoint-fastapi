@@ -1,24 +1,23 @@
-from fastapi import APIRouter, Depends, status, Query, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, status, Query, Response
 from uuid import UUID
 
-from app.config.database import get_db
+from app.config.database import Session
+from app.controller.auth import AdminAccessToken
 import app.controller.courier as courier_service
 import app.pydantic_schema.courier as courier_schema
 
-router = APIRouter()
+router = APIRouter(prefix='/courier')
 
 
-@router.get('/courier/id/{id}', response_model=courier_schema.CourierOut)
-async def get_courier_by_id(id: UUID, db: AsyncSession = Depends(get_db)):
-    courier = await courier_service.get_courier_by_id(id, db)
-    return courier_schema.CourierOut.model_validate(courier)
+@router.get('/id/{id}', response_model=courier_schema.CourierOut)
+async def get_courier_by_id(id: UUID, db: Session):
+    return await courier_service.get_courier_by_id(id, db)
 
 
-@router.get('/couriers', response_model=list[courier_schema.CourierOut])
+@router.get('/all', response_model=list[courier_schema.CourierOut])
 async def get_all_couriers(*, page: int = Query(1, ge=1),
                            per_page: int = Query(10, ge=1, le=100),
-                           db: AsyncSession = Depends(get_db),  response: Response):
+                           db: Session,  response: Response):
     couriers = await courier_service.get_all_couriers(page, per_page, db)
     total_couriers = await courier_service.count_courier(db)
 
@@ -27,21 +26,19 @@ async def get_all_couriers(*, page: int = Query(1, ge=1),
     response.headers['X-Current-Page'] = str(page)
     response.headers['X-Per-Page'] = str(per_page)
 
-    return [courier_schema.CourierOut.model_validate(courier) for courier in couriers]
+    return couriers
 
 
-@router.post('/courier', response_model=courier_schema.CourierOut, status_code=status.HTTP_201_CREATED)
-async def create_courier(payload: courier_schema.CreateCourier, db: AsyncSession = Depends(get_db)):
-    courier = await courier_service.create_courier(payload.model_dump(), db)
-    return courier_schema.CourierOut.model_validate(courier)
+@router.post('', response_model=courier_schema.CourierOut, status_code=status.HTTP_201_CREATED)
+async def create_courier(payload: courier_schema.CreateCourier, _: AdminAccessToken, db: Session):
+    return await courier_service.create_courier(payload.model_dump(), db)
 
 
-@router.patch('/courier/{id}', response_model=courier_schema.CourierOut)
-async def update_courier(id: UUID, payload: courier_schema.UpdateCourier, db: AsyncSession = Depends(get_db)):
-    courier = await courier_service.update_courier(id, payload.model_dump(exclude_unset=True), db)
-    return courier_schema.CourierOut.model_validate(courier)
+@router.patch('/{id}', response_model=courier_schema.CourierOut)
+async def update_courier(id: UUID, payload: courier_schema.UpdateCourier, _: AdminAccessToken, db: Session):
+    return await courier_service.update_courier(id, payload.model_dump(exclude_unset=True), db)
 
 
-@router.delete('/courier/{id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_courier(id: UUID, db: AsyncSession = Depends(get_db)):
+@router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_courier(id: UUID, _: AdminAccessToken, db: Session):
     await courier_service.delete_courier(id, db)

@@ -150,7 +150,7 @@ async def create_admin_by_admin(client: AsyncClient, admin_auth_headers: dict):
 
 
 @pytest_asyncio.fixture(name="courier_in_db")
-async def create_courier(client: AsyncClient):
+async def create_courier(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/courier", json={
         "method_name": "Delivery Tiger - Inside Dhaka",
         "company_name": "Delivery Tiger",
@@ -160,7 +160,7 @@ async def create_courier(client: AsyncClient):
         "include_country": ["BD"],
         "include_city": ["dhaka"],
         "exclude_city": [],
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
@@ -210,12 +210,28 @@ async def create_order(client: AsyncClient, book_in_db: dict):
 
 
 @pytest_asyncio.fixture(name="payment_gateway_in_db")
-async def create_payment_gateway(client: AsyncClient):
+async def create_payment_gateway(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/payment_gateway", json={
         "name": "Bkash",
         "description": "Bkash Payment Gateway",
         "is_enabled": True
-    })
+    }, headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json()
+
+
+@pytest_asyncio.fixture(name="transaction_in_db")
+async def create_transaction(client: AsyncClient, payment_gateway_in_db: dict, order_in_db: dict):
+    payload = {
+        "amount": 150.0,
+        "transaction_id": "some-transaction-id",
+        "reference": "abdul kadir",
+        "account_number": "+8801234567890",
+        "is_manual": False,
+        "gateway_id": payment_gateway_in_db["id"],
+        "order_id": order_in_db["id"],
+    }
+    response = await client.post("/transaction/make-payment", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 

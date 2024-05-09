@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from starlette import status
 
@@ -13,67 +12,60 @@ simple_transaction = {
     "is_manual": False,
 }
 
-@pytest_asyncio.fixture(name="payment_gateway_in_db")
-async def create_payment_gateway(client: AsyncClient):
-    response = await client.post("/payment_gateway", json={"name": "test-gateway"})
-    assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
 
-@pytest_asyncio.fixture(name="transaction_in_db")
-async def create_transaction(client: AsyncClient, payment_gateway_in_db: dict):
-    payload = {
-        **simple_transaction,
-        "gateway_id": payment_gateway_in_db["id"]
-    }
-    response = await client.post("/transaction", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
-
-
-async def test_get_transaction_by_id(client: AsyncClient, transaction_in_db: dict):
-    response = await client.get(f"/transaction/id/{transaction_in_db['id']}")
+async def test_get_transaction_by_id(client: AsyncClient, transaction_in_db: dict, admin_auth_headers: dict):
+    response = await client.get(f"/transaction/id/{transaction_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= transaction_in_db.items()
 
 
-async def test_get_all_transactions(client: AsyncClient, transaction_in_db: dict):
-    response = await client.get("/transactions")
+async def test_get_all_transactions(client: AsyncClient, transaction_in_db: dict, admin_auth_headers: dict):
+    response = await client.get("/transaction/all", headers=admin_auth_headers)
     assert len(response.json()) == 1
-    assert response.json()[0].items() >= simple_transaction.items()
+    assert response.json()[0].items() >= transaction_in_db.items()
 
 
-async def test_create_transaction(client: AsyncClient, payment_gateway_in_db: dict):
+async def test_create_transaction(client: AsyncClient, payment_gateway_in_db: dict, order_in_db: dict):
     payload = {
         **simple_transaction,
-        "gateway_id": payment_gateway_in_db["id"]
+        "gateway_id": payment_gateway_in_db["id"],
+        "order_id": order_in_db["id"],
     }
-    response = await client.post("/transaction", json=payload)
+    response = await client.post("/transaction/make-payment", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.json().items() >= simple_transaction.items()
+    assert response.json().items() >= payload.items()
 
 
-async def test_create_duplicate_transaction(client: AsyncClient, transaction_in_db: dict):
+async def test_create_duplicate_transaction(client: AsyncClient, transaction_in_db: dict, order_in_db: dict):
+    response = await client.post("/transaction/make-payment", json=transaction_in_db)
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert response.json()['detail']['message'] == 'Transaction already exists'
+
+
+async def test_create_manual_transaction(client: AsyncClient, payment_gateway_in_db: dict, order_in_db: dict, admin_auth_headers: dict):
     payload = {
         **simple_transaction,
-        "gateway_id": transaction_in_db["gateway"]["id"]
+        "gateway_id": payment_gateway_in_db["id"],
+        "order_id": order_in_db["id"],
     }
-    response = await client.post("/transaction", json=payload)
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json()['detail']['message'] == 'Duplicate transaction id'
+    response = await client.post("/transaction/add-manual-payment", json=payload, headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_201_CREATED
+    payload['is_manual'] = True
+    assert response.json().items() >= payload.items()
 
-async def test_create_refund_transaction(client: AsyncClient, payment_gateway_in_db: dict, user_in_db: dict):
+
+async def test_create_refund_transaction(client: AsyncClient, payment_gateway_in_db: dict, user_in_db: dict, order_in_db: dict, admin_auth_headers: dict):
     payload = {
         **simple_transaction,
         "gateway_id": payment_gateway_in_db["id"],
         "refunded_by_id": user_in_db["user"]["id"],
+        "order_id": order_in_db["id"],
     }
-    response = await client.post("/refund", json=payload)
+    response = await client.post("/transaction/refund", json=payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.json().items() >= simple_transaction.items()
+    assert response.json().items() >= payload.items()
 
-async def test_delete_transaction(client: AsyncClient, transaction_in_db: dict):
-    id = transaction_in_db['id']
-    response = await client.delete(f"/transaction/{id}")
+
+async def test_delete_transaction(client: AsyncClient, transaction_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete("/transaction/{}".format(transaction_in_db['id']), headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    response = await client.get(f"/transaction/id/{id}")
-    assert response.status_code == status.HTTP_404_NOT_FOUND

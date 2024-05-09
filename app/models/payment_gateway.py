@@ -17,5 +17,5 @@ class PaymentGateway(TimestampMixin):
     transactions: Mapped[list['Transaction']] = relationship(back_populates='gateway')
         
     def __repr__(self):
-        return f'<PaymentGateway (name={self.name})>'
+        return f'<PaymentGateway (name={self.name}, is_enabled={self.is_enabled})>'
     

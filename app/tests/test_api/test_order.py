@@ -159,7 +159,7 @@ async def test_update_order_status(client: AsyncClient, order_in_db: dict):
     assert len(response.json()['order_status']) == 2
 
 async def test_update_order_payment(client: AsyncClient, order_in_db: dict, payment_gateway_in_db: dict):
-    response = await client.post("/transaction", json={
+    response = await client.post("/transaction/make-payment", json={
         "amount": 150,
         "transaction_id": '123456',
         'account_number': '+8801234567890',

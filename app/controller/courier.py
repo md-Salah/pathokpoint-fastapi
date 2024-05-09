@@ -1,17 +1,19 @@
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 from typing import Sequence
 from uuid import UUID
+import logging
 
 from app.models.courier import Courier
+from app.controller.exception import NotFoundException, ConflictException
+
+logger = logging.getLogger(__name__)
 
 
 async def get_courier_by_id(id: UUID, db: AsyncSession) -> Courier:
     courier = await db.scalar(select(Courier).filter(Courier.id == id))
     if not courier:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Courier not found')
+        raise NotFoundException('Courier not found')
     return courier
 
 
@@ -21,30 +23,43 @@ async def get_all_couriers(page: int, per_page: int, db: AsyncSession) -> Sequen
     return result.scalars().all()
 
 
-async def create_courier(payload: dict, db: AsyncSession) -> Courier:
-    if await db.scalar(select(Courier).filter(Courier.method_name == payload['method_name'])):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Courier with method name ({payload["method_name"]}) already exists')
+async def count_courier(db: AsyncSession) -> int:
+    result = await db.execute(select(func.count()).select_from(Courier))
+    return result.scalar_one()
 
+
+async def create_courier(payload: dict, db: AsyncSession) -> Courier:
+    _courier = await db.scalar(select(Courier).filter(Courier.method_name == payload['method_name']))
+    if _courier:
+        raise ConflictException('Courier with name {} already exists'.format(
+            _courier.method_name), str(_courier.id))
+
+    logger.debug('Creating courier with payload: %s', payload)
     courier = Courier(**payload)
     db.add(courier)
     await db.commit()
+
+    logger.info(f'Courier created {courier}')
     return courier
 
 
 async def update_courier(id: UUID, payload: dict, db: AsyncSession) -> Courier:
     courier = await get_courier_by_id(id, db)
+
+    logger.debug('Updating courier with payload: %s', payload)
     [setattr(courier, key, value)
      for key, value in payload.items()]
     await db.commit()
+
+    logger.info(f'Courier updated {courier}')
     return courier
 
 
 async def delete_courier(id: UUID, db: AsyncSession) -> None:
-    await db.execute(delete(Courier).where(Courier.id == id))
+    courier = await db.get(Courier, id)
+    if not courier:
+        raise NotFoundException('Courier not found')
+    await db.delete(courier)
     await db.commit()
 
-
-async def count_courier(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count()).select_from(Courier))
-    return result.scalar_one()
+    logger.info(f'Courier deleted {courier}')

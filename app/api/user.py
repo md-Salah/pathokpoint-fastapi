@@ -51,8 +51,6 @@ async def update_me(payload: user_schema.UpdateMe, db: Session, user: CurrentUse
 async def update_user_by_admin(id: UUID, _: AdminAccessToken, payload: user_schema.UpdateUserByAdmin, db: Session):
     return await user_service.update_user(id, payload.model_dump(exclude_unset=True), db)
 
-# upload profile picture
-
 
 @router.delete('/me', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_me(user: CurrentUser, db: Session):

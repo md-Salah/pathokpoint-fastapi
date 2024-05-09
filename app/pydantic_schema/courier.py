@@ -43,14 +43,14 @@ class CreateCourier(CourierBase):
 
 
 
-class UpdateCourier(CourierBase):
-    method_name: str | None = None
-    company_name: str | None = None
-    base_charge: NonNegativeFloat | None = None
-    weight_charge_per_kg: NonNegativeFloat | None = None
-    allow_cash_on_delivery: bool | None = None
+class UpdateCourier(CreateCourier):
+    method_name: str = Field(None, min_length=3)
+    company_name: str = Field(None, min_length=3)
+    base_charge: NonNegativeFloat = Field(None, le=10000)
+    weight_charge_per_kg: NonNegativeFloat = Field(None, le=1000)
+    allow_cash_on_delivery: bool = True
 
 
-class CourierOut(CourierBase, IdTimestampMixin):
+class CourierOut(CreateCourier, IdTimestampMixin):
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_courier_out})

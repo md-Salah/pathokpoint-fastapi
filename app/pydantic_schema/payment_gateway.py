@@ -20,7 +20,7 @@ example_payment_gateway_out = {
 
 
 class PaymentGatewayBase(BaseModel):
-    name: str = Field(..., min_length=3, max_length=100)
+    name: str = Field(..., min_length=3, max_length=20)
     description: str | None = Field(None, min_length=3, max_length=100)
     is_enabled: bool = True
 
@@ -31,9 +31,9 @@ class CreatePaymentGateway(PaymentGatewayBase):
 
 
 class UpdatePaymentGateway(CreatePaymentGateway):
-    name: str | None = Field(None, min_length=3, max_length=100)
+    name: str = Field(None, min_length=3, max_length=20)
 
 
-class PaymentGatewayOut(PaymentGatewayBase, IdTimestampMixin):
+class PaymentGatewayOut(CreatePaymentGateway, IdTimestampMixin):
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_payment_gateway_out})

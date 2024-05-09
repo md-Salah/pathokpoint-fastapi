@@ -29,4 +29,4 @@ class Courier(TimestampMixin):
     orders: Mapped[List['Order']] = relationship(back_populates='courier')
 
     def __repr__(self):
-        return f'<Courier (name={self.method_name}, Charge={self.base_charge})>'
+        return f'<Courier (method_name={self.method_name}, base_charge={self.base_charge})>'
