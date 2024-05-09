@@ -13,8 +13,8 @@ simple_tag = {
 
 
 @pytest_asyncio.fixture(name="tag_in_db")
-async def create_tag(client: AsyncClient):
-    response = await client.post("/tag", json=simple_tag)
+async def create_tag(client: AsyncClient, admin_auth_headers: dict):
+    response = await client.post("/tag", json=simple_tag, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
@@ -31,20 +31,20 @@ async def test_get_all_tags(client: AsyncClient, tag_in_db: dict):
     assert response.json()[0].items() >= tag_in_db.items()
 
 
-async def test_create_tag(client: AsyncClient):
-    response = await client.post("/tag", json=simple_tag)
+async def test_create_tag(client: AsyncClient, admin_auth_headers: dict):
+    response = await client.post("/tag", json=simple_tag, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json().items() >= simple_tag.items()
 
 
-async def test_update_tag(client: AsyncClient, tag_in_db: dict):
+async def test_update_tag(client: AsyncClient, tag_in_db: dict, admin_auth_headers: dict):
     tag_in_db['name'] = 'tag2'
     tag_in_db.pop('updated_at')
-    response = await client.patch(f"/tag/{tag_in_db['id']}", json=tag_in_db)
+    response = await client.patch(f"/tag/{tag_in_db['id']}", json=tag_in_db, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= tag_in_db.items()
 
 
-async def test_delete_tag(client: AsyncClient, tag_in_db: dict):
-    response = await client.delete("/tag/{}".format(tag_in_db['id']))
+async def test_delete_tag(client: AsyncClient, tag_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete("/tag/{}".format(tag_in_db['id']), headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT

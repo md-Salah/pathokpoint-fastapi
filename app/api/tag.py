@@ -6,6 +6,7 @@ from app.config.database import Session
 import app.controller.tag as tag_service
 import app.pydantic_schema.tag as tag_schema
 from app.filter_schema.tag import TagFilter
+from app.controller.auth import AdminAccessToken
 
 router = APIRouter(prefix='/tag')
 
@@ -33,15 +34,15 @@ async def get_all_tags(*,
 
 
 @router.post('', response_model=tag_schema.TagOut, status_code=status.HTTP_201_CREATED)
-async def create_tag(payload: tag_schema.CreateTag, db: Session):
+async def create_tag(payload: tag_schema.CreateTag, _: AdminAccessToken, db: Session):
     return await tag_service.create_tag(payload.model_dump(), db)
 
 
 @router.patch('/{id}', response_model=tag_schema.TagOut)
-async def update_tag(id: UUID, payload: tag_schema.UpdateTag, db: Session):
+async def update_tag(id: UUID, payload: tag_schema.UpdateTag, _: AdminAccessToken, db: Session):
     return await tag_service.update_tag(id, payload.model_dump(exclude_unset=True), db)
 
 
 @router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_tag(id: UUID, db: Session):
+async def delete_tag(id: UUID, _: AdminAccessToken, db: Session):
     await tag_service.delete_tag(id, db)
