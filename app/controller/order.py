@@ -13,7 +13,7 @@ from app.constant.orderstatus import Status
 import app.controller.coupon as coupon_service
 import app.controller.courier as courier_service
 import app.controller.user as user_service
-import app.controller.address as address_service
+from app.models import Address
 from app.controller.exception import not_found_exception, bad_request_exception
 
 order_query = select(Order).options(
@@ -344,7 +344,9 @@ async def validate_payment(order_id: UUID, trans_ids: List[UUID], db: AsyncSessi
 
 
 async def handle_shipping(address_id: UUID, courier_id: UUID, weight_kg: float, db: AsyncSession):
-    address = await address_service.get_address_by_id(address_id, db)
+    address = await db.get(Address, address_id)
+    if not address:
+        raise not_found_exception(str(address_id), 'Address not found')
     courier = await courier_service.get_courier_by_id(courier_id, db)
 
     if courier.include_country and address.country not in courier.include_country:

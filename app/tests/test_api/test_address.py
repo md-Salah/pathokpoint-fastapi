@@ -13,35 +13,64 @@ simple_address = {
     "country": "BD",
 }
 
+
 async def test_get_address_by_id(client: AsyncClient, address_in_db: dict):
-    response = await client.get(f"/address/id/{address_in_db['id']}")
+    headers = {"Authorization": "Bearer {}".format(
+        address_in_db['user']['token']['access_token'])}
+    response = await client.get(f"/address/id/{address_in_db['address']['id']}", headers=headers)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json().items() >= address_in_db.items()
+    assert response.json().items() >= address_in_db['address'].items()
 
 
-async def test_get_all_addresss(client: AsyncClient, address_in_db: dict):
-    response = await client.get(f"/addresss/{address_in_db['user_id']}")
+async def test_get_address_by_id_by_admin(client: AsyncClient, address_in_db: dict, admin_auth_headers: dict):
+    response = await client.get(f"/address/id/{address_in_db['address']['id']}", headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json().items() >= address_in_db['address'].items()
+
+
+async def test_get_all_addresses_by_user_id(client: AsyncClient, address_in_db: dict):
+    headers = {"Authorization": "Bearer {}".format(
+        address_in_db['user']['token']['access_token'])}
+    response = await client.get("/address/user/{}/all".format(address_in_db['user']['user']['id']), headers=headers)
     assert len(response.json()) == 1
-    assert response.json()[0].items() >= simple_address.items()
+    assert response.json()[0].items() >= address_in_db['address'].items()
 
 
 async def test_create_address(client: AsyncClient, user_in_db: dict):
-    response = await client.post(f"/address/{user_in_db['user']['id']}", json=simple_address)
+    payload = simple_address.copy()
+    response = await client.post("/address", json=payload,
+                                 headers={'Authorization': "Bearer {}".format(
+                                     user_in_db['token']['access_token'])}
+                                 )
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.json().items() >= simple_address.items()
+    assert response.json().items() >= payload.items()
 
 
 async def test_update_address(client: AsyncClient, address_in_db: dict):
-    address_in_db['city'] = 'chattogram'
-    address_in_db.pop('updated_at')
-    response = await client.patch(f"/address/{address_in_db['id']}", json=address_in_db)
+    payload = {
+        'city': 'feni'
+    }
+    response = await client.patch(f"/address/{address_in_db['address']['id']}", json=payload, headers={
+        'Authorization': "Bearer {}".format(address_in_db['user']['token']['access_token'])
+    })
     assert response.status_code == status.HTTP_200_OK
-    assert response.json().items() >= address_in_db.items()
+    address_in_db['address'].update(payload)
+    address_in_db['address'].pop('updated_at')
+    assert response.json().items() >= address_in_db['address'].items()
 
 
-async def test_delete_address(client: AsyncClient, address_in_db: dict):
-    id = address_in_db['id']
-    response = await client.delete(f"/address/{id}")
+async def test_delete_my_address(client: AsyncClient, address_in_db: dict):
+    response = await client.delete("/address/{}".format(address_in_db['address']['id']), headers={
+        'Authorization': "Bearer {}".format(address_in_db['user']['token']['access_token'])
+    })
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    response = await client.get(f"/address/id/{id}")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def test_delete_address_by_admin(client: AsyncClient, address_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete("/address/{}".format(address_in_db['address']['id']), headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+
+async def test_delete_address_by_other_customer(client: AsyncClient, address_in_db: dict, customer_auth_headers: dict):
+    response = await client.delete("/address/{}".format(address_in_db['address']['id']), headers=customer_auth_headers)
+    assert response.status_code == status.HTTP_403_FORBIDDEN

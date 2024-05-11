@@ -1,58 +1,80 @@
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete 
+from sqlalchemy import select, func
 from typing import Sequence
 from uuid import UUID
+import logging
 
 from app.models.address import Address
 from app.models.user import User
+from app.controller.exception import NotFoundException, ForbiddenException
+from app.constant.role import Role
+
+logger = logging.getLogger(__name__)
 
 
-async def get_address_by_id(id: UUID, db: AsyncSession) -> Address:
+async def get_address_by_id(id: UUID, user_id: UUID, role: str, db: AsyncSession) -> Address:
     address = await db.scalar(select(Address).filter(Address.id == id))
     if not address:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Address with id ({id}) not found')
-    return address
+        raise NotFoundException('Address not found')
+    if address.user_id == user_id or role == Role.admin.value:
+        return address
+    raise ForbiddenException('You are not allowed to access this address')
 
 
-async def get_all_addresss(user_id, page: int, per_page: int, db: AsyncSession) -> Sequence[Address]:
+async def get_all_addresss(user_id: UUID, page: int, per_page: int, db: AsyncSession) -> Sequence[Address]:
     user = await db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'User with id ({user_id}) not found')
+        raise NotFoundException('User not found')
 
     offset = (page - 1) * per_page
     result = await db.execute(select(Address).where(Address.user == user).offset(offset).limit(per_page))
     return result.scalars().all()
 
 
-async def create_address(user_id, payload: dict, db: AsyncSession) -> Address:
+async def count_address(user_id: UUID, db: AsyncSession) -> int:
+    result = await db.execute(select(func.count()).where(Address.user_id == user_id).select_from(Address))
+    return result.scalar_one()
+
+
+async def create_address(user_id: UUID, payload: dict, db: AsyncSession) -> Address:
     user = await db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'User with id ({user_id}) not found')
-    
+        raise NotFoundException('User not found')
+
+    logger.debug(f'Creating address for user {user} with payload {payload}')
     address = Address(**payload)
     address.user = user
     db.add(address)
     await db.commit()
+    logger.info(f'Address {address} created, user {user}')
     return address
 
 
-async def update_address(id: UUID, payload: dict, db: AsyncSession) -> Address:
-    address = await get_address_by_id(id, db)
+async def update_address(id: UUID, user_id: UUID, payload: dict, db: AsyncSession) -> Address:
+    address = await db.get(Address, id)
+    if not address:
+        raise NotFoundException('Address not found')
+    if address.user_id != user_id:
+        raise ForbiddenException('You are not allowed to update this address')
+
+    logger.debug(f'Updating address {address} with payload {payload}')
     [setattr(address, key, value)
      for key, value in payload.items()]
     await db.commit()
+    logger.info(f'Address {address} updated')
     return address
 
 
-async def delete_address(id: UUID, db: AsyncSession) -> None:
-    await db.execute(delete(Address).where(Address.id == id))
-    await db.commit()
+async def delete_address(id: UUID, user_id: UUID, role: str, db: AsyncSession) -> None:
+    address = await db.get(Address, id)
+    if not address:
+        raise NotFoundException('Address not found')
 
+    if address.user_id == user_id or role == Role.admin.value:
+        await db.delete(address)
+        await db.commit()
+        logger.info(f'Address {address} deleted')
+        return
 
-async def count_address(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count()).select_from(Address))
-    return result.scalar_one()
+    logger.debug(f'User {user_id} is not allowed to delete address {address}')
+    raise ForbiddenException('You are not allowed to delete this address')

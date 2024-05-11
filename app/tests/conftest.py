@@ -167,16 +167,22 @@ async def create_courier(client: AsyncClient, admin_auth_headers: dict):
 
 @pytest_asyncio.fixture(name="address_in_db")
 async def create_address(client: AsyncClient, user_in_db: dict):
-    response = await client.post(f"/address/{user_in_db['user']['id']}", json={
+    response = await client.post("/address", json={
         "phone_number": "+8801710002000",
         "alternative_phone_number": "+8801710000001",
         "address": "House 1, Road 1, Block A, Dhaka",
         "thana": "dhanmondi",
         "city": "dhaka",
         "country": "BD",
-    })
+    },
+        headers={"Authorization": "Bearer {}".format(
+            user_in_db["token"]['access_token'])}
+    )
     assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
+    return {
+        'address': response.json(),
+        'user': user_in_db,
+    }
 
 
 @pytest_asyncio.fixture(name="coupon_in_db")

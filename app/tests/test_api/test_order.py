@@ -25,7 +25,7 @@ async def test_get_all_orders(client: AsyncClient, order_in_db: dict):
 async def test_create_order(client: AsyncClient, user_in_db:dict, book_in_db: dict, coupon_in_db: dict, address_in_db: dict, courier_in_db: dict, quantity: int):
     payload = {
         "coupon_id": coupon_in_db["id"],
-        "address_id": address_in_db["id"],
+        "address_id": address_in_db['address']["id"],
         "courier_id": courier_in_db["id"],
         "order_items": [
             {
