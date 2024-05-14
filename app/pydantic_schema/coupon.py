@@ -47,7 +47,7 @@ example_coupon_in = {
 
 example_coupon_out = {
     **IdTimestampMixin._example,
-    **example_coupon_base,
+    **example_coupon_in,
     'include_books': [BookOut._example],
     'include_authors': [AuthorOut._example],
     'include_categories': [CategoryOut._example],
@@ -120,12 +120,12 @@ class CreateCoupon(CouponBase):
 
 
 class UpdateCoupon(CreateCoupon):
-    code: str | None = Field(None, min_length=3, max_length=20)
-    discount_type: DiscountType | None = None
-    discount_old: float | None = None
-    discount_new: float | None = None
+    code: str = Field(None, min_length=3, max_length=20)
+    discount_type: DiscountType = Field(None)
+    discount_old: float = 0
+    discount_new: float = 0
 
-class CouponOut(CouponBase, IdTimestampMixin):
+class CouponOut(CreateCoupon, IdTimestampMixin):
     include_books: list[BookOut] = []
     include_authors: list[AuthorOut] = []
     include_categories: list[CategoryOut] = []
@@ -151,3 +151,13 @@ class CouponOutAdmin(CouponOut):
 
     model_config = ConfigDict(json_schema_extra={
                               "example": example_coupon_out_admin})
+
+
+class CouponOutBulk(CouponBase, IdTimestampMixin):
+    pass
+
+class CouponOutAdminBulk(CouponBase, IdTimestampMixin):
+    use_count: int
+    discount_given_old: float
+    discount_given_new: float
+

@@ -1,8 +1,8 @@
-from sqlalchemy import Integer, String, ARRAY, Date, Column, Table, ForeignKey, Boolean, DateTime, Enum
+from sqlalchemy import Integer, String, ARRAY, Column, Table, ForeignKey, Boolean, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from typing import List, TYPE_CHECKING
 
 from app.models.mixins import TimestampMixin
@@ -61,7 +61,7 @@ class Coupon(TimestampMixin):
     orders: Mapped[List['Order']] = relationship(back_populates='coupon')
 
     def __repr__(self):
-        return f'<Coupon (code={self.code})>'
+        return f'<Coupon (code={self.code}, is_active={self.is_active})>'
 
 coupon_book_include_link = Table(
     'coupon_book_include_link',

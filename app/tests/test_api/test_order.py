@@ -85,14 +85,14 @@ async def test_create_order_without_shipping(client: AsyncClient, book_in_db: di
     assert response.json()['total'] == book_in_db['sale_price']
 
 @pytest.mark.parametrize('quantity', [1, 2])
-async def test_create_order_with_fixed_discount(client: AsyncClient, book_in_db: dict, quantity: int):
+async def test_create_order_with_fixed_discount(client: AsyncClient, book_in_db: dict, quantity: int, admin_auth_headers: dict):
     response = await client.post("/coupon", json={
         'code': 'FIXED',
         'discount_type': 'fixed-amount',
         'discount_old': 100, # 100 tk off on order above 300
         'discount_new': 0,
         'min_spend_old': 300,
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     coupon_in_db = response.json()
     
@@ -116,14 +116,14 @@ async def test_create_order_with_fixed_discount(client: AsyncClient, book_in_db:
         
         
 @pytest.mark.parametrize('quantity', [1, 2])
-async def test_create_order_with_flat_discount(client: AsyncClient, book_in_db: dict, quantity: int):
+async def test_create_order_with_flat_discount(client: AsyncClient, book_in_db: dict, quantity: int, admin_auth_headers: dict):
     response = await client.post("/coupon", json={
         'code': 'Flat Sale',
         'discount_type': 'flat-rate',
         'discount_old': 100, # all items at 100 tk
         'discount_new': 0,
         'min_spend_old': 300,
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     coupon_in_db = response.json()
     

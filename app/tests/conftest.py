@@ -189,17 +189,17 @@ async def create_address(client: AsyncClient, user_in_db: dict):
 
 
 @pytest_asyncio.fixture(name="coupon_in_db")
-async def create_coupon(client: AsyncClient):
+async def create_coupon(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/coupon", json={
         "code": "NewYear",
         "short_description": "New year coupon",
-        "expiry_date": "2024-12-31T00:00:00",
+        "expiry_date": "2040-12-31T00:00:00",
         "discount_type": "percentage",
         "discount_old": 15,
         "discount_new": 0,
         "min_spend_old": 499,
         "min_spend_new": 0,
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 
