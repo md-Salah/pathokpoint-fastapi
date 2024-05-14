@@ -1,7 +1,6 @@
-import enum
+from enum import Enum
 
-
-class DiscountType(enum.Enum):
+class DiscountType(str, Enum):
     fixed_amount = 'fixed-amount'
     percentage = 'percentage'
     flat_rate = 'flat-rate'

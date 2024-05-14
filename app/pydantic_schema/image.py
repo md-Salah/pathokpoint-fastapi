@@ -4,13 +4,14 @@ from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
 
 example_image = {
-    'name': 'cover photo',
+    'name': 'cover-photo.jpg',
     'alt': 'cover photo',
 }
 example_image_out = {
     **example_image,
     **IdTimestampMixin._example,
     'src' : 'https://example.com/image.jpg',
+    'public_id': 'image-public-id'
 }
 
 class ImageBase(BaseModel):
@@ -20,5 +21,6 @@ class ImageBase(BaseModel):
 
 class ImageOut(ImageBase, IdTimestampMixin):
     src: AnyUrl
+    public_id: str
     model_config = ConfigDict(json_schema_extra={"example": example_image_out}) # type: ignore
 

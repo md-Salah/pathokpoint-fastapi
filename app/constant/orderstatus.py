@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class Status(Enum):
+class Status(str, Enum):
     # initial status
     pending_payment = 'pending-payment'
     order_confirmed = 'order-confirmed'

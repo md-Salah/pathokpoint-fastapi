@@ -1,7 +1,7 @@
-import enum
+from enum import Enum
 
-class Role(enum.Enum):
+class Role(str, Enum):
     customer = 'customer'
-    staff = 'staff'
     admin = 'admin'
     super_admin = 'super-admin'
+    staff = 'staff'

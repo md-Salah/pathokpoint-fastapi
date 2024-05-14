@@ -46,12 +46,15 @@ async def client_fixture(session: AsyncSession) -> AsyncGenerator[AsyncClient, N
 # In DB fixtures
 @pytest_asyncio.fixture(name="image_in_db")
 @patch("app.controller.image.upload_file_to_cloudinary")
-async def create_image(upload_file, client: AsyncClient):
-    upload_file.return_value = 'https://res.cloudinary.com/dummy/image/upload/v1629780000/test.jpg'
+async def create_image(upload_file, client: AsyncClient, admin_auth_headers: dict):
+    upload_file.return_value = {
+        'public_id': 'dummy',
+        'secure_url': 'https://res.cloudinary.com/dummy/image/upload/v1631234567/dummy/test.jpg',
+    }
 
     with open("dummy/test.jpg", "rb") as f:
         response = await client.post("/image",
-                                     files={"file": ("image.jpg", f, "image/jpeg")}, data={'alt': 'test-image'})
+                                     files={"file": ("image.jpg", f, "image/jpeg")}, data={'alt': 'test-image'}, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     upload_file.assert_called_once()
     return response.json()

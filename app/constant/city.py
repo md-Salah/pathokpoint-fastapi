@@ -1,6 +1,6 @@
 from enum import Enum
 
-class City(Enum):
+class City(str, Enum):
     bagerhat = 'bagerhat'
     bandarban = 'bandarban'
     barguna = 'barguna'

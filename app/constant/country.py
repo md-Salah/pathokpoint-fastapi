@@ -1,6 +1,6 @@
 from enum import Enum
 
-class Country(Enum):
+class Country(str, Enum):
     # ISO 3166-1 alpha-2 code
     AD="AD"
     AE="AE"

@@ -81,3 +81,10 @@ class ConflictException(HTTPException):
             status_code=status.HTTP_409_CONFLICT,
             detail={"resource_id": resource_id, "message": message},
         )
+        
+class ServerErrorException(HTTPException):
+    def __init__(self, message: str, resource_id: str | None = None):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"resource_id": resource_id, "message": message},
+        )

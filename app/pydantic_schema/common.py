@@ -63,11 +63,13 @@ class ImageOut(IdTimestampMixin):
     name: str
     alt: str
     src: AnyUrl
+    public_id: str
     
     _example: ClassVar = {
         'name': 'cover photo.jpg',
         'alt': 'Cover Photo',
         'src': 'https://example.com/cover-photo.jpg',
+        'public_id': 'book/cover-photo_xyakw',
         **IdTimestampMixin._example,
     }
     
