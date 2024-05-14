@@ -232,7 +232,7 @@ async def apply_coupon(coupon_id: UUID, items: List[OrderItem], shipping_charge:
         raise bad_request_exception(
             str(coupon_id), "Coupon '{}' has expired".format(coupon.code))
 
-    if coupon.use_limit != -1 and coupon.use_limit <= coupon.use_count:
+    if coupon.use_limit and coupon.use_limit <= coupon._use_count:
         raise bad_request_exception(
             str(coupon_id), "Coupon '{}' has reached its limit".format(coupon.code))
 
@@ -277,11 +277,11 @@ async def apply_coupon(coupon_id: UUID, items: List[OrderItem], shipping_charge:
     if old_applicable and coupon.discount_old:
 
         if coupon.discount_type == DiscountType.percentage:
-            if coupon.max_discount_old == -1:  # no limit
-                discount = old_book_total * coupon.discount_old / 100
-            else:
+            if coupon.max_discount_old:
                 discount = min(
                     old_book_total * coupon.discount_old / 100, coupon.max_discount_old)
+            else:
+                discount = old_book_total * coupon.discount_old / 100
 
         elif coupon.discount_type == DiscountType.fixed_amount:
             discount = coupon.discount_old
@@ -294,29 +294,30 @@ async def apply_coupon(coupon_id: UUID, items: List[OrderItem], shipping_charge:
     new_applicable = new_book_total >= coupon.min_spend_new
     if new_applicable and coupon.discount_new:
         if coupon.discount_type == DiscountType.percentage:
-            if coupon.max_discount_new == -1:
-                discount += new_book_total * coupon.discount_new / 100  # x% off
-            else:
+            if coupon.max_discount_new:
                 discount += min((new_book_total * coupon.discount_new / 100),
                                 coupon.max_discount_new)  # x% off upto y Tk
+            else:
+                discount += new_book_total * coupon.discount_new / 100  # x% off
         elif coupon.discount_type == DiscountType.fixed_amount:
             discount += coupon.discount_new    # 60 Tk discount
         elif coupon.discount_type == DiscountType.flat_rate:
             flat_price = sum([min(item.sold_price, coupon.discount_new)
                              * item.quantity for item in items if not item.book.is_used])
             discount += new_book_total - flat_price   # Stock clearance, 99 Tk flat rate
-
-    if new_applicable and coupon.free_shipping:
-        coupon.discount_given_new += shipping_charge
-        shipping_charge = 0
-    elif old_applicable and coupon.free_shipping:
-        coupon.discount_given_old += shipping_charge
-        shipping_charge = 0
-
     discount = round(discount, 2)
+    coupon._discount_applied_new += discount # consider old also
 
-    coupon.use_count += 1
-    coupon.discount_given_new += discount
+
+    if coupon.max_shipping_charge and shipping_charge > coupon.max_shipping_charge:
+        if new_applicable:
+            coupon._discount_applied_new += (shipping_charge - coupon.max_shipping_charge)
+            shipping_charge = coupon.max_shipping_charge
+        elif old_applicable:
+            coupon._discount_applied_new += (shipping_charge - coupon.max_shipping_charge)
+            shipping_charge = coupon.max_shipping_charge
+
+    coupon._use_count += 1
 
     return discount, coupon, shipping_charge
 

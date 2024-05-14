@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, Field, UUID4, field_validator, FutureDatetime, ValidationInfo
+from pydantic import ConfigDict, Field, UUID4, field_validator, FutureDatetime, ValidationInfo, NonNegativeFloat, NonNegativeInt, PositiveInt
 from datetime import datetime, timedelta
 
 from app.pydantic_schema.mixins import IdTimestampMixin
@@ -9,22 +9,21 @@ from app.constant.discount_type import DiscountType
 from app.constant.condition import Condition
 
 example_coupon_base = {
-    'code': 'new-user',
-    'short_description': 'New User Discount',
+    'code': 'welcome25',
+    'short_description': 'New User 25% Discount',
     'expiry_date': datetime.now() + timedelta(days=30),
     'discount_type': DiscountType.percentage,
-    'discount_old': 10,
+    'discount_old': 25,
     'discount_new': 25,
-    'max_discount_old': -1,
+    'max_discount_old': None,
     'max_discount_new': 200,
     'min_spend_old': 499,
     'min_spend_new': 1499,
 
-    'use_limit': 100,
+    'use_limit': None,
     'use_limit_per_user': 1,
-    'individual_use': True,
     'is_active': True,
-    'free_shipping': False,
+    'max_shipping_charge': 25,
     'include_conditions': [Condition.old_like_new],
 }
 
@@ -65,9 +64,9 @@ example_coupon_out = {
 
 example_coupon_out_admin = {
     **example_coupon_out,
-    'use_count': 0,
-    'discount_given_old': 0,
-    'discount_given_new': 0,
+    '_use_count': 0,
+    '_discount_applied_old': 0,
+    '_discount_applied_new': 0,
 }
 
 
@@ -77,28 +76,27 @@ class CouponBase(BaseModel):
     expiry_date: FutureDatetime | None = None
 
     discount_type: DiscountType
-    discount_old: float
-    discount_new: float
-    max_discount_old: float = -1
-    max_discount_new: float = -1
-    min_spend_old: float = 0
-    min_spend_new: float = 0
+    discount_old: NonNegativeFloat = 0
+    discount_new: NonNegativeFloat = 0
+    max_discount_old: NonNegativeFloat | None = None
+    max_discount_new: NonNegativeFloat | None = None
+    min_spend_old: NonNegativeFloat = 0
+    min_spend_new: NonNegativeFloat = 0
 
-    use_limit: int = -1
-    use_limit_per_user: int = -1
-    individual_use: bool = False
+    use_limit: PositiveInt | None = None
+    use_limit_per_user: PositiveInt | None = None
     is_active: bool = True
-    free_shipping: bool = False
+    max_shipping_charge: NonNegativeFloat | None = None
     include_conditions: list[Condition] = []
 
     @field_validator('discount_old', 'discount_new')
     @classmethod
-    def validate_percentage_discount(cls, v: float, info: ValidationInfo):
+    def validate_percentage_discount(cls, value: float, info: ValidationInfo):
         if info.data['discount_type'] == DiscountType.percentage:
-            if not 0 <= v <= 100:
+            if not 0 <= value <= 100:
                 raise ValueError(
                     'Discount must be between 0 and 100 for percent type.')
-        return v
+        return value
 
 
 class CreateCoupon(CouponBase):
@@ -122,8 +120,7 @@ class CreateCoupon(CouponBase):
 class UpdateCoupon(CreateCoupon):
     code: str = Field(None, min_length=3, max_length=20)
     discount_type: DiscountType = Field(None)
-    discount_old: float = 0
-    discount_new: float = 0
+
 
 class CouponOut(CreateCoupon, IdTimestampMixin):
     include_books: list[BookOut] = []
@@ -145,9 +142,9 @@ class CouponOut(CreateCoupon, IdTimestampMixin):
 
 
 class CouponOutAdmin(CouponOut):
-    use_count: int
-    discount_given_old: float
-    discount_given_new: float
+    _use_count: NonNegativeInt
+    _discount_applied_old: NonNegativeFloat
+    _discount_applied_new: NonNegativeFloat
 
     model_config = ConfigDict(json_schema_extra={
                               "example": example_coupon_out_admin})
@@ -156,8 +153,8 @@ class CouponOutAdmin(CouponOut):
 class CouponOutBulk(CouponBase, IdTimestampMixin):
     pass
 
-class CouponOutAdminBulk(CouponBase, IdTimestampMixin):
-    use_count: int
-    discount_given_old: float
-    discount_given_new: float
 
+class CouponOutAdminBulk(CouponBase, IdTimestampMixin):
+    _use_count: NonNegativeInt
+    _discount_applied_old: NonNegativeFloat
+    _discount_applied_new: NonNegativeFloat
