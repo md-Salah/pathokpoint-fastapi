@@ -5,11 +5,15 @@ from sqlalchemy import select, func, delete, update
 from uuid import UUID
 from typing import Sequence
 from sqlalchemy.orm import joinedload
+import logging
 
 from slugify import slugify
 
 from app.filter_schema.book import BookFilter
 from app.models import Book, Author, Category, Image, Publisher, Tag
+
+
+logger = logging.getLogger(__name__)
 
 book_query = select(Book).options(
     joinedload(Book.publisher),
@@ -109,6 +113,47 @@ async def create_book(payload: dict, db: AsyncSession) -> Book:
     return book
 
 
+async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Book]:
+
+    _sku = [book.sku for book in await db.scalars(select(Book).filter(Book.sku.in_([book['sku'] for book in payload])))]
+    books = [book for book in payload if book['sku'] not in _sku]
+
+    publisher_ids = {book['publisher'] for book in books}
+    publishers = {publisher.id: publisher for publisher in await db.scalars(select(Publisher).filter(Publisher.id.in_(publisher_ids)))}
+
+    author_ids = {author_id for book in books for author_id in (book['authors'] + book['translators'])}
+    authors = {author.id: author for author in await db.scalars(select(Author).filter(Author.id.in_(author_ids)))}
+    
+    category_ids = {category_id for book in books for category_id in book['categories']}
+    categories = {category.id: category for category in await db.scalars(select(Category).filter(Category.id.in_(category_ids)))}
+
+    image_ids = {image_id for book in books for image_id in book['images']}
+    images = {image.id: image for image in await db.scalars(select(Image).filter(Image.id.in_(image_ids)))}
+
+    tag_ids = {tag_id for book in books for tag_id in book['tags']}
+    tags = {tag.id: tag for tag in await db.scalars(select(Tag).filter(Tag.id.in_(tag_ids)))}
+
+    logger.debug(f'Creating {len(books)} books with payload: {books[0]}')
+    new_items = []
+    for book in books:
+        book['slug'] = slugify(book['slug'])
+        
+        book['publisher'] = publishers[book['publisher']]
+        book['authors'] = [authors[author_id] for author_id in book['authors']]
+        book['translators'] = [authors[translator_id] for translator_id in book['translators']]
+        book['categories'] = [categories[category_id] for category_id in book['categories']]
+        book['images'] = [images[image_id] for image_id in book['images']]
+        book['tags'] = [tags[tag_id] for tag_id in book['tags']]
+        
+        new_item = Book(**book)
+        new_items.append(new_item)
+
+    db.add_all(new_items)
+    await db.commit()
+    logger.info(f"{len(new_items)}/{len(payload)} books created successfully")
+    return new_items
+
+
 async def update_book(id: UUID, payload: dict, db: AsyncSession) -> Book:
     book = await db.scalar(book_query.where(Book.id == id))
     if not book:
@@ -153,13 +198,16 @@ async def build_relationships(payload: dict, db: AsyncSession) -> dict:
         tasks.append(db.get(Publisher, payload['publisher']))
 
     if payload.get('authors'):
-        tasks += [db.get(Author, author_id) for author_id in payload['authors']]
+        tasks += [db.get(Author, author_id)
+                  for author_id in payload['authors']]
 
     if payload.get('translators'):
-        tasks += [db.get(Author, translator_id) for translator_id in payload['translators']]
+        tasks += [db.get(Author, translator_id)
+                  for translator_id in payload['translators']]
 
     if payload.get('categories'):
-        tasks += [db.get(Category, category_id) for category_id in payload['categories']]
+        tasks += [db.get(Category, category_id)
+                  for category_id in payload['categories']]
 
     if payload.get('images'):
         tasks += [db.get(Image, image_id) for image_id in payload['images']]
@@ -178,7 +226,8 @@ async def build_relationships(payload: dict, db: AsyncSession) -> dict:
         payload['authors'] = [next(iterator) for _ in payload['authors']]
 
     if payload.get('translators'):
-        payload['translators'] = [next(iterator) for _ in payload['translators']]
+        payload['translators'] = [next(iterator)
+                                  for _ in payload['translators']]
 
     if payload.get('categories'):
         payload['categories'] = [next(iterator) for _ in payload['categories']]

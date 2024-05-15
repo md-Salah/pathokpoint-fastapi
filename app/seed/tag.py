@@ -1,47 +1,25 @@
 import httpx
-
+import time
+from faker import Faker
 from app.config.settings import settings
 
-async def seed_tag():
-    data = [
-        {
-            'name': 'General bangla',
-            'slug': 'general-bangla',
-            'private': True,
-        },
-        {
-            'name': 'General english',
-            'slug': 'general-english',
-            'private': True,
-        },
-        {
-            'name': 'Indian bangla',
-            'slug': 'indian-bangla',
-            'private': True,
-        },
-        {
-            'name': 'Islamic old',
-            'slug': 'islamic-old',
-            'private': True,
-        },
-        {
-            'name': 'Islamic new',
-            'slug': 'islamic-new',
-            'private': True,
-        },
-        {
-            'name': 'English classic',
-            'slug': 'english-classic',
-            'private': True,
-        }
-    ]
+fake = Faker()
 
+
+async def seed_tag(n: int, headers: dict):
+    st = time.time()
     counter = 0
-    for payload in data:
+    for _ in range(n):
+        payload = {
+            'name': fake.text(20),
+            'slug': fake.slug(),
+            'private': fake.boolean(),
+        }
+
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{settings.BASE_URL}/tag", json=payload)
+            response = await client.post(f"{settings.BASE_URL}/tag", json=payload, headers=headers)
             if response.status_code != 201:
                 print(response.json())
             else:
                 counter += 1
-    print(f"{counter} tags seeded successfully")
+    print(f"{counter}/{n} tags seeded successfully, Average time taken: {((time.time() - st) / n):.2f} sec")

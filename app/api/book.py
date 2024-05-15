@@ -48,6 +48,9 @@ async def get_all_books(*,
 async def create_book(payload: schema.CreateBook, _: AdminAccessToken, db: Session):
     return await book_service.create_book(payload.model_dump(), db)
 
+@router.post('/bulk', response_model=list[schema.BookOutAdmin], status_code=status.HTTP_201_CREATED)
+async def create_book_bulk(payload: list[schema.CreateBook], _: AdminAccessToken, db: Session):
+    return await book_service.create_book_bulk([p.model_dump() for p in payload], db)
 
 @router.patch('/{id}', response_model=schema.BookOutAdmin)
 async def update_book(id: UUID, payload: schema.UpdateBook, _: AdminAccessToken, db: Session):
