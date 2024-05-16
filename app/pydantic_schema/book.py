@@ -6,7 +6,6 @@ from app.pydantic_schema.common import AuthorOut, PublisherOut, CategoryOut, Tag
 from app.constant import Cover, Language, Condition, StockLocation, Country
 
 
-    
 example_book_base = {
     'serial_number': 1,
     'name': 'The God of Small Things',
@@ -17,7 +16,7 @@ example_book_base = {
     'manage_stock': True,
     'quantity': 10,
     'in_stock': True,
-    'pre_order': False, 
+    'pre_order': False,
     'shipping_required': True,
     'edition': '1st edition, 1997',
     'notes': 'This is a special edition with a special cover',
@@ -30,7 +29,7 @@ example_book_base = {
     'no_of_pages': 333,
     'is_draft': False,
     'country': Country.BD,
-    
+
     'is_featured': True,
     'is_must_read': True,
     'is_vintage': True,
@@ -38,7 +37,7 @@ example_book_base = {
     'is_translated': False,
     'is_recommended': True,
     'is_big_sale': False,
-    
+
     'bar_code': '123456',
     'weight_in_gm': 540,
 }
@@ -49,7 +48,7 @@ example_book_base_admin = {
     'stock_location': StockLocation.mirpur_11,
     'shelf': '101',
     'row_col': '1A',
-    'cost': 200,     
+    'cost': 200,
 }
 
 
@@ -57,7 +56,7 @@ example_book_in = {
     **example_book_base_admin,
     'authors': ['example-uuid'],
     'translators': ['example-uuid'],
-    'publisher': 'example-uuid',  
+    'publisher': 'example-uuid',
     'categories': ['example-uuid'],
     'images': ['example-uuid'],
     'tags': ['example-uuid'],
@@ -66,7 +65,7 @@ example_book_in = {
 example_book_out = {
     **example_book_base,
     **IdTimestampMixin._example,
-    'authors': [AuthorOut._example], 
+    'authors': [AuthorOut._example],
     'translators': [AuthorOut._example],
     'publisher': PublisherOut._example,
     'categories': [CategoryOut._example],
@@ -81,11 +80,12 @@ example_book_out_admin = {
 
 _10_lakh: int = 1000000
 
+
 class BookBase(NameSlugMixin):
     short_description: str | None = Field(None, min_length=10, max_length=1000)
     regular_price: float = Field(ge=0, le=_10_lakh)
     sale_price: float = Field(ge=0, le=_10_lakh)
-    manage_stock: bool 
+    manage_stock: bool
     quantity: int = Field(0, ge=0, le=_10_lakh)
     in_stock: bool = True
     pre_order: bool = False
@@ -95,8 +95,8 @@ class BookBase(NameSlugMixin):
     cover: Cover | None = None
     description: str | None = Field(None, min_length=10, max_length=10000)
     language: Language | None = None
-    is_used: bool 
-    condition: Condition 
+    is_used: bool
+    condition: Condition
     isbn: str | None = Field(None, min_length=10, max_length=13)
     no_of_pages: int | None = Field(None, ge=0, le=10000)
     country: Country | None = None
@@ -111,38 +111,39 @@ class BookBase(NameSlugMixin):
     is_recommended: bool = False
     is_big_sale: bool = False
     is_popular: bool = False
-    
+
     bar_code: str | None = Field(None, min_length=4, max_length=20)
-    weight_in_gm: float = Field(0, ge=0, le=10000) # 10 kg max
-    
+    weight_in_gm: float = Field(0, ge=0, le=10000)  # 10 kg max
+
     @field_validator('sale_price')
     @classmethod
     def validate_sale_price(cls, v: float, info: ValidationInfo):
         if v > info.data['regular_price']:
             raise ValueError('Sale price cannot be greater than regular price')
         return v
-    
+
     @field_validator('condition')
     @classmethod
     def validate_condition(cls, v: Condition, info: ValidationInfo):
         if info.data['is_used'] is True and v == Condition.new:
             raise ValueError('Condition cannot be new when is_used is True')
         return v
-    
+
+
 class BookBaseAdmin(BookBase):
     sku: str = Field(min_length=4, max_length=15)
     stock_location: StockLocation = StockLocation.mirpur_11
     shelf: str | None = Field(None, min_length=2, max_length=20)
     row_col: str | None = Field(None, min_length=2, max_length=20)
-    cost: float = Field(0, ge=0, le=_10_lakh) 
+    cost: float = Field(0, ge=0, le=_10_lakh)
     sold_count: int = 0
 
 
 class CreateBook(BookBaseAdmin):
+    publisher_id: UUID4 | None = None
     authors: List[UUID4] = []
     translators: List[UUID4] = []
     categories: List[UUID4] = []
-    publisher: UUID4 | None = None
     images: List[UUID4] = []
     tags: List[UUID4] = []
 
@@ -157,7 +158,7 @@ class UpdateBook(NameSlugMixinOptional, CreateBook):
     quantity: int = Field(None, ge=0, le=_10_lakh)
     is_used: bool = Field(None)
     condition: Condition = Field(None)
-    stock_location: StockLocation = Field(None)
+
 
 class BookOut(BookBase, IdTimestampMixin):
     authors: List[AuthorOut] = []
@@ -166,10 +167,17 @@ class BookOut(BookBase, IdTimestampMixin):
     publisher: PublisherOut | None = None
     images: List[ImageOut] = []
     tags: List[TagOut] = []
-    
+
     serial_number: PositiveInt
-    
+
     model_config = ConfigDict(json_schema_extra={"example": example_book_out})
-        
+
+
+class BookOutMinimal(BookBase, IdTimestampMixin):
+    authors: List[AuthorOut] = []
+    images: List[ImageOut] = []
+
+
 class BookOutAdmin(BookBaseAdmin, BookOut):
-    model_config = ConfigDict(json_schema_extra={"example": example_book_out_admin})
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_book_out_admin})

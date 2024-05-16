@@ -50,11 +50,9 @@ async def create_author(payload: dict, db: AsyncSession) -> Author:
     _author = await db.scalar(select(Author).filter(or_(Author.name == payload['name'], Author.slug == payload['slug'])))
     if _author:
         if _author.name == payload['name']:
-            raise ConflictException('Author with name {} already exists'.format(
-                _author.name), str(_author.id))
+            raise ConflictException('Author name already exists', str(_author.id))
         else:
-            raise ConflictException('Author with slug {} already exists'.format(
-                _author.slug), str(_author.id))
+            raise ConflictException('Author slug already exists', str(_author.id))
 
     if 'image_id' in payload:
         payload['image'] = await attach_image(payload.pop('image_id'), None, db)
@@ -74,13 +72,11 @@ async def update_author(id: UUID, payload: dict, db: AsyncSession) -> Author:
     if payload.get('name') and author.name != payload['name']:
         _author = await db.scalar(select(Author).filter(Author.name == payload['name']))
         if _author:
-            raise ConflictException('Author with name {} already exists'.format(
-                payload["name"]), str(_author.id))
+            raise ConflictException('Author name already exists', str(_author.id))
     if payload.get('slug') and author.slug != payload['slug']:
         _author = await db.scalar(select(Author).filter(Author.slug == payload['slug']))
         if _author:
-            raise ConflictException('Author with slug {} already exists'.format(
-                payload["slug"]), str(_author.id))
+            raise ConflictException('Author slug already exists', str(_author.id))
 
     if 'image_id' in payload:
         payload['image'] = await attach_image(payload.pop('image_id'), author.image_id, db)

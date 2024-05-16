@@ -110,25 +110,6 @@ async def test_user_login_with_wrong_password(client: AsyncClient, user_in_db: d
         'detail']['message'] == "Incorrect email or password"
 
 
-async def test_get_private_data(client: AsyncClient, user_in_db: dict):
-    token = user_in_db['token']['access_token']
-    response = await client.get(
-        '/auth/get-private-data', headers={"Authorization": f"Bearer {token}"},)
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {
-        "message": "You are accessing private data because you have the access token."}
-
-
-async def test_get_private_data_without_token(client: AsyncClient):
-    response = await client.get(
-        '/auth/get-private-data'
-    )
-
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json() == {"detail": "Not authenticated"}
-
-
 async def test_reset_password(send_reset_password_otp, set_redis, client: AsyncClient, user_in_db: dict):
     send_reset_password_otp.return_value = None
     set_redis.return_value = None
@@ -207,3 +188,34 @@ async def test_change_password_with_wrong_password(client: AsyncClient, user_in_
     response = await client.post("/auth/change-password", json=payload,
                                  headers={'Authorization': f"Bearer {user_in_db['token']['access_token']}"})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+async def test_get_private_data(client: AsyncClient, user_in_db: dict):
+    token = user_in_db['token']['access_token']
+    response = await client.get(
+        '/auth/get-private-data', headers={"Authorization": f"Bearer {token}"},)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "message": "You are accessing private data because you have the access token."}
+
+
+async def test_get_private_data_without_token(client: AsyncClient):
+    response = await client.get(
+        '/auth/get-private-data'
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+async def test_get_admin_data(client: AsyncClient, admin_auth_headers: dict):
+    response = await client.get('/auth/get-admin-data', headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {
+        "message": "You are accessing private data because you have the admin access token."}
+
+
+async def test_get_admin_data_with_customer_token(client: AsyncClient, customer_auth_headers: dict):
+    response = await client.get('/auth/get-admin-data', headers=customer_auth_headers)
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED

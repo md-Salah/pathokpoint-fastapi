@@ -1,7 +1,14 @@
 from pydantic import EmailStr, SecretStr, ConfigDict
+from app.pydantic_schema.field import FirstLastNameField
 
 from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.user import UserOut
+
+class UserSignup(BaseModel):
+    first_name: str = FirstLastNameField()
+    last_name: str = FirstLastNameField()
+    email: EmailStr
+    password: SecretStr
 
 class VerifyOTP(BaseModel):
     email: EmailStr

@@ -9,7 +9,7 @@ import app.controller.user as user_service
 import app.controller.auth as auth_service
 import app.controller.email as email_service
 from app.config.database import Session
-from app.controller.auth import AccessToken, CurrentUser
+from app.controller.auth import AccessToken, CurrentUser, Role, AdminAccessToken
 from app.controller.redis import get_redis, set_redis
 from app.controller.exception import BadRequestException
 from app.controller.otp import generate_otp
@@ -29,7 +29,7 @@ async def login_for_access_token(db: Session, req: OAuth2PasswordRequestForm = D
 
 
 @router.post('/signup')
-async def user_signup(user: user_schema.CreateUser, request: Request, background_tasks: BackgroundTasks, db: Session):
+async def user_signup(user: auth_schema.UserSignup, request: Request, background_tasks: BackgroundTasks, db: Session):
     if await user_service.is_user_exist(user.email, db):
         raise BadRequestException(
             "Email is already registered, Try login or forget password.")
@@ -107,6 +107,26 @@ async def change_password(payload: auth_schema.ChangePassword, user: CurrentUser
     return {"message": "Password has been updated successfully."}
 
 
+@router.post('/signup-super-admin')
+async def signup_super_admin(user: auth_schema.UserSignup, db: Session):
+    if await user_service.is_user_exist(user.email, db):
+        raise BadRequestException(
+            "Email is already registered, Try login or forget password.")
+
+    if await user_service.is_super_admin_exist(db):
+        raise BadRequestException("Super admin exists already.")
+
+    payload = user.model_dump()
+    payload['role'] = Role.super_admin.value
+
+    return await user_service.create_user(payload, db)
+
+
 @router.get('/get-private-data')
 def test_get_private_data(_: AccessToken):
     return {"message": "You are accessing private data because you have the access token."}
+
+
+@router.get('/get-admin-data')
+def test_get_admin_data(_: AdminAccessToken):
+    return {"message": "You are accessing private data because you have the admin access token."}

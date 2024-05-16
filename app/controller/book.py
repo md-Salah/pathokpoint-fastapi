@@ -1,150 +1,116 @@
-from fastapi import HTTPException, status
-import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, update
+from sqlalchemy import select, func
 from uuid import UUID
 from typing import Sequence
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 import logging
-
 from slugify import slugify
 
-from app.filter_schema.book import BookFilter
+
+from app.filter_schema.book import BookFilter, BookFilterMinimal
 from app.models import Book, Author, Category, Image, Publisher, Tag
+from app.controller.exception import NotFoundException, ConflictException
 
 
 logger = logging.getLogger(__name__)
 
-book_query = select(Book).options(
-    joinedload(Book.publisher),
-    joinedload(Book.authors),
-    joinedload(Book.translators),
-    joinedload(Book.categories),
-    joinedload(Book.images),
-    joinedload(Book.tags)
+
+query_selectinload = select(Book).options(
+    selectinload(Book.publisher),
+    selectinload(Book.authors),
+    selectinload(Book.translators),
+    selectinload(Book.categories),
+    selectinload(Book.images),
+    selectinload(Book.tags)
 )
 
 
 async def get_book_by_id(id: UUID, db: AsyncSession) -> Book:
-    book = await db.scalar(book_query.where(Book.id == id))
+    book = await db.scalar(query_selectinload.where(Book.id == id))
     if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Book with id {id} not found')
+        raise NotFoundException('Book not found')
     return book
 
 
-async def get_all_books(page: int, per_page: int, db: AsyncSession,
-                        book_filter: BookFilter,
-                        authors: str | None,
-                        categories: str | None,
-                        publishers: str | None,
-                        translators: str | None,
-                        tags: str | None) -> Sequence[Book]:
+async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Book]:
     offset = (page - 1) * per_page
+    query = select(Book).outerjoin(Book.publisher).outerjoin(Book.categories).outerjoin(Book.authors).outerjoin(Book.images).outerjoin(Book.tags).options(
+        joinedload(Book.publisher),
+        joinedload(Book.categories),
+        joinedload(Book.authors),
+        joinedload(Book.translators),
+        joinedload(Book.images),
+        joinedload(Book.tags)
+    )
 
-    query = book_filter.filter(book_query)
-    query = query.offset(offset).limit(per_page)
-
-    if authors:
-        query = query.filter(Book.authors.any(
-            Author.slug.in_(authors.split(','))))
-    if categories:
-        query = query.filter(Book.categories.any(
-            Category.slug.in_(categories.split(','))))
-    if publishers:
-        query = query.filter(Book.publisher.slug.in_(
-            publishers.split(',')))
-    if translators:
-        query = query.filter(Book.translators.any(
-            Author.slug.in_(translators.split(','))))
-    if tags:
-        query = query.filter(Book.tags.any(
-            Tag.slug.in_(tags.split(','))))
-
-    result = await db.execute(query)
-    books = result.unique().scalars().all()
-    return books
+    stmt = filter.filter(query)
+    stmt = filter.sort(stmt)
+    stmt = stmt.offset(offset).limit(per_page)
+    result = await db.execute(stmt)
+    return result.unique().scalars().all()
 
 
-async def count_books(db: AsyncSession, book_filter: BookFilter,
-                      authors: str | None,
-                      categories: str | None,
-                      publishers: str | None,
-                      translators: str | None,
-                      tags: str | None) -> int:
-    query = select(func.count(Book.id))
-    query = book_filter.filter(query)
-
-    if authors:
-        query = query.join(Book.authors).filter(
-            Author.slug.in_(authors.split(',')))
-    if categories:
-        query = query.join(Book.categories).filter(
-            Category.slug.in_(categories.split(',')))
-    if publishers:
-        query = query.join(Book.publisher).filter(
-            Publisher.slug.in_(publishers.split(',')))
-    if translators:
-        query = query.join(Book.translators).filter(
-            Author.slug.in_(translators.split(',')))
-    if tags:
-        query = query.join(Book.tags).filter(
-            Tag.slug.in_(tags.split(',')))
-
+async def count_books(filter: BookFilter, db: AsyncSession) -> int:
+    count_query = select(func.count()).select_from(
+        Book).outerjoin(Book.publisher).outerjoin(Book.categories).outerjoin(Book.authors).outerjoin(Book.images).outerjoin(Book.tags)
+    query = filter.filter(count_query)
     return await db.scalar(query)
 
 
 async def create_book(payload: dict, db: AsyncSession) -> Book:
     _book = await db.scalar(select(Book).where(Book.sku == payload['sku']))
     if _book:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                            detail={
-                                'msg': 'Book with sku ({}) already exists'.format(payload['sku']),
-                                'resource_id': str(_book.id),
-                            })
+        raise ConflictException(
+            'Book with this SKU already exists', str(_book.id))
 
     payload['slug'] = slugify(payload['slug'])
-    payload = await build_relationships(payload, db)
+    payload = await handle_relationship(payload, db)
 
+    logger.debug(f'Creating book with payload: {payload}')
     book = Book(**payload)
     db.add(book)
     await db.commit()
 
+    logger.info(f'Book created successfully {book}')
     return book
 
 
 async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Book]:
 
     _sku = [book.sku for book in await db.scalars(select(Book).filter(Book.sku.in_([book['sku'] for book in payload])))]
-    books = [book for book in payload if book['sku'] not in _sku]
+    payload = [book for book in payload if book['sku'] not in _sku]
 
-    publisher_ids = {book['publisher'] for book in books}
+    publisher_ids = {book['publisher_id'] for book in payload}
     publishers = {publisher.id: publisher for publisher in await db.scalars(select(Publisher).filter(Publisher.id.in_(publisher_ids)))}
 
-    author_ids = {author_id for book in books for author_id in (book['authors'] + book['translators'])}
+    author_ids = {author_id for book in payload for author_id in (
+        book['authors'] + book['translators'])}
     authors = {author.id: author for author in await db.scalars(select(Author).filter(Author.id.in_(author_ids)))}
-    
-    category_ids = {category_id for book in books for category_id in book['categories']}
+
+    category_ids = {
+        category_id for book in payload for category_id in book['categories']}
     categories = {category.id: category for category in await db.scalars(select(Category).filter(Category.id.in_(category_ids)))}
 
-    image_ids = {image_id for book in books for image_id in book['images']}
+    image_ids = {image_id for book in payload for image_id in book['images']}
     images = {image.id: image for image in await db.scalars(select(Image).filter(Image.id.in_(image_ids)))}
 
-    tag_ids = {tag_id for book in books for tag_id in book['tags']}
+    tag_ids = {tag_id for book in payload for tag_id in book['tags']}
     tags = {tag.id: tag for tag in await db.scalars(select(Tag).filter(Tag.id.in_(tag_ids)))}
 
-    logger.debug(f'Creating {len(books)} books with payload: {books[0]}')
+    logger.debug(f'Creating {len(payload)} books with payload: {payload[0]}')
     new_items = []
-    for book in books:
+    for book in payload:
         book['slug'] = slugify(book['slug'])
-        
-        book['publisher'] = publishers[book['publisher']]
+
+        book['publisher'] = publishers[book['publisher_id']]
         book['authors'] = [authors[author_id] for author_id in book['authors']]
-        book['translators'] = [authors[translator_id] for translator_id in book['translators']]
-        book['categories'] = [categories[category_id] for category_id in book['categories']]
+        book['translators'] = [authors[translator_id]
+                               for translator_id in book['translators']]
+        book['categories'] = [categories[category_id]
+                              for category_id in book['categories']]
         book['images'] = [images[image_id] for image_id in book['images']]
         book['tags'] = [tags[tag_id] for tag_id in book['tags']]
-        
+
         new_item = Book(**book)
         new_items.append(new_item)
 
@@ -155,87 +121,65 @@ async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Bo
 
 
 async def update_book(id: UUID, payload: dict, db: AsyncSession) -> Book:
-    book = await db.scalar(book_query.where(Book.id == id))
+    book = await db.scalar(query_selectinload.where(Book.id == id))
     if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Book with id ({id}) not found')
+        raise NotFoundException('Book not found')
 
     if payload.get('slug'):
         payload['slug'] = slugify(payload['slug'])
-    payload = await build_relationships(payload, db)
+    payload = await handle_relationship(payload, db)
 
+    logger.debug(f'Updating book with payload: {payload}')
     [setattr(book, key, value) for key, value in payload.items()]
 
     await db.commit()
+    logger.info(f'Book updated successfully {book}')
     return book
 
 
 async def delete_book(id: UUID, db: AsyncSession) -> None:
-    await db.execute(delete(Book).where(Book.id == id))
+    book = await db.scalar(select(Book).where(Book.id == id))
+    if not book:
+        raise NotFoundException('Book not found')
+    await db.delete(book)
     await db.commit()
 
+    logger.info(f'Book deleted successfully {book}')
 
-# async def build_relationships(payload: dict, db: AsyncSession) -> dict:
-#     if payload.get('publisher'):
-#         payload['publisher'] = await db.get(Publisher, payload['publisher'])
-#     if payload.get('authors'):
-#         payload['authors'] = [await db.get(Author, author_id) for author_id in payload['authors']]
-#     if payload.get('translators'):
-#         payload['translators'] = [await db.get(Author, translator_id) for translator_id in payload['translators']]
-#     if payload.get('categories'):
-#         payload['categories'] = [await db.get(Category, category_id) for category_id in payload['categories']]
-#     if payload.get('images'):
-#         payload['images'] = [await db.get(Image, image_id) for image_id in payload['images']]
-#     if payload.get('tags'):
-#         payload['tags'] = [await db.get(Tag, tag_id) for tag_id in payload['tags']]
 
-#     return payload
-
-async def build_relationships(payload: dict, db: AsyncSession) -> dict:
-    tasks = []
-
-    if payload.get('publisher'):
-        tasks.append(db.get(Publisher, payload['publisher']))
-
+async def handle_relationship(payload: dict, db: AsyncSession) -> dict:
+    if payload.get('publisher_id'):
+        payload['publisher'] = await db.get(Publisher, payload['publisher_id'])
     if payload.get('authors'):
-        tasks += [db.get(Author, author_id)
-                  for author_id in payload['authors']]
-
+        payload['authors'] = (await db.scalars(select(Author).where(Author.id.in_(payload['authors'])))).all()
     if payload.get('translators'):
-        tasks += [db.get(Author, translator_id)
-                  for translator_id in payload['translators']]
-
+        payload['translators'] = (await db.scalars(select(Author).where(Author.id.in_(payload['translators'])))).all()
     if payload.get('categories'):
-        tasks += [db.get(Category, category_id)
-                  for category_id in payload['categories']]
-
+        payload['categories'] = (await db.scalars(select(Category).where(Category.id.in_(payload['categories'])))).all()
     if payload.get('images'):
-        tasks += [db.get(Image, image_id) for image_id in payload['images']]
-
+        payload['images'] = (await db.scalars(select(Image).where(Image.id.in_(payload['images'])))).all()
     if payload.get('tags'):
-        tasks += [db.get(Tag, tag_id) for tag_id in payload['tags']]
-
-    results = await asyncio.gather(*tasks)
-
-    # Now, map the results back to the payload, noting that the results order matches the tasks order
-    iterator = iter(results)
-    if payload.get('publisher'):
-        payload['publisher'] = next(iterator)
-
-    if payload.get('authors'):
-        payload['authors'] = [next(iterator) for _ in payload['authors']]
-
-    if payload.get('translators'):
-        payload['translators'] = [next(iterator)
-                                  for _ in payload['translators']]
-
-    if payload.get('categories'):
-        payload['categories'] = [next(iterator) for _ in payload['categories']]
-
-    if payload.get('images'):
-        payload['images'] = [next(iterator) for _ in payload['images']]
-
-    if payload.get('tags'):
-        payload['tags'] = [next(iterator) for _ in payload['tags']]
+        payload['tags'] = (await db.scalars(select(Tag).where(Tag.id.in_(payload['tags'])))).all()
 
     return payload
+
+
+async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: int, db: AsyncSession) -> Sequence[Book]:
+    offset = (page - 1) * per_page
+    query = select(Book).outerjoin(Book.authors).outerjoin(Book.images).options(
+        joinedload(Book.authors),
+        joinedload(Book.images),
+    )
+
+    stmt = filter.filter(query)
+    stmt = filter.sort(stmt)
+    stmt = stmt.offset(offset).limit(per_page)
+    result = await db.execute(stmt)
+    return result.unique().scalars().all()
+
+
+async def count_books_minimal(filter: BookFilterMinimal, db: AsyncSession) -> int:
+    count_query = select(func.count()).select_from(
+        Book).outerjoin(Book.authors).outerjoin(Book.images)
+    query = filter.filter(count_query)
+    return await db.scalar(query)

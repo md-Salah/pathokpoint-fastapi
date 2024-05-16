@@ -88,7 +88,7 @@ def valid_access_token(token: str = Depends(oauth_scheme)):
 
 
 def valid_admin_token(token: dict = Depends(valid_access_token)):
-    if token.get('role') == Role.admin.value:
+    if token.get('role') == Role.admin.value or token.get('role') == Role.super_admin.value:
         return token
     raise UnauthorizedException("Unauthorized access")
 

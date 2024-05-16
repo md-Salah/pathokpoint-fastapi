@@ -20,6 +20,9 @@ async def is_user_exist(email: str, db: AsyncSession) -> bool:
     user = await db.scalar(select(User).where(User.email == email))
     return True if user else False
 
+async def is_super_admin_exist(db: AsyncSession) -> bool:
+    user = await db.scalar(select(User).where(User.role == 'super_admin'))
+    return True if user else False
 
 async def get_user_by_id(id: UUID, db: AsyncSession) -> User:
     user = await db.get(User, id)
@@ -37,7 +40,7 @@ async def get_user_by_email(email: str, db: AsyncSession) -> User:
 
 async def get_all_users(filter: UserFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[User]:
     offset = (page - 1) * per_page
-    query = select(User)
+    query = select(User).outerjoin(User.addresses)
     query = filter.filter(query)
     query = query.offset(offset).limit(per_page)
     result = await db.execute(query)
@@ -45,7 +48,7 @@ async def get_all_users(filter: UserFilter, page: int, per_page: int, db: AsyncS
 
 
 async def count_user(filter: UserFilter, db: AsyncSession) -> int:
-    query = select(func.count(User.id))
+    query = select(func.count(User.id)).outerjoin(User.addresses)
     query = filter.filter(query)
     result = await db.execute(query)
     return result.scalar_one()

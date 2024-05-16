@@ -1,83 +1,73 @@
-from typing import BinaryIO
-import pandas as pd
-import numpy as np
+import csv
 import io
+from pydantic_core import ValidationError
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import UploadFile
+import logging
 
-def book_to_csv_stream(books: list[dict]) -> str:
-    df = pd.DataFrame(books)
-    
-    df['images'] = df['images'].apply(lambda x: '|'.join(x) if x else None)
-    stream = io.StringIO()
-    df.to_csv(stream, index=False, encoding='utf-8', sep=',')
-    return stream.getvalue()
-        
+from app.filter_schema.book import BookFilter
+from app.models import Publisher
+from app.controller.book import get_all_books
+from app.controller.exception import NotFoundException
+from app.pydantic_schema.book import CreateBook
 
-def clean_csv(file: BinaryIO) -> list[dict]:
-    df = pd.read_csv(file, sep=',', encoding='utf-8')
-    df['status'] = None
-
-    df = df.dropna(subset=['name', 'regular_price'])
-
-    df['name'] = df['name'].apply(lambda x: x.strip())
-    df['regular_price'] = df['regular_price'].astype(int)
-    df['sale_price'] = df['sale_price'].fillna('')
-    df['sale_price'].apply(lambda x: int(x) if x else None)
-
-    df['edition'] = df['edition'].astype(str)
-    df['edition'] = df['edition'].apply(lambda x: x.split('.')[0])
-
-    # Images
-    base_url = 'http://mdsalah.customerserver003003.eurhosting.net/WATERMARKED-2/'
-    df['images'] = df['images'].fillna('')
-    df['images'] = df['images'].apply(lambda x: [(
-        base_url + name.strip().replace(' ', '%20')) for name in x.split('|')] if x else [])
-
-    # Language
-    df['language'] = df['ln'].apply(
-        lambda x: x.replace('Bn', 'bangla').replace('En', 'english'))
-
-    # Notes
-    df['notes'] = df['notes'].fillna('')
-    df['notes'] = df['notes'].apply(lambda x: x.strip() if x else None)
-
-    df['condition'] = df['condition'].apply(map_condition)
-    
-    df['cost'] = df['cost'].astype(str)
-    df['cost'] = df['cost'].fillna(0)
-    df['cost'] = df['cost'].apply(lambda x: x.split('/')[0] if (x and '/' in x) else x)
-    df['cost'] = df['cost'].astype(int)
-    
-    df['cover'] = df['cover'].fillna('')
-    df['cover'] = df['cover'].apply(map_cover)
-    
-    df.rename(columns={
-        'name_alt': 'banglish_name',
-    }, inplace=True)
-    
-    df['qty'] = df['qty'].fillna(0)
-    df['quantity'] = df['qty'].astype(int)
-    df['quantity'] = df['quantity'].apply(lambda x: x if x > 0 else 0)
-    
-    df.drop(columns=['ln', 'qty', 'id', 'error'], inplace=True)
-    
-    df = df.replace(['', np.NAN], None)
-
-    return df.to_dict(orient='records')
+logger = logging.getLogger(__name__)
 
 
-def map_condition(condition: str) -> str | None:
-    if condition:
-        if condition.strip().lower() == 'new':
-            return 'new'
-        elif condition.strip().lower() == 'old':
-            return 'old_good_enough'
-    return None
+def flatten(value):
+    if isinstance(value, list):
+        value = '| '.join([item.name for item in value])
+    elif isinstance(value, Publisher):
+        value = value.name
+    return value
 
-def map_cover(cover: str) -> str | None:
-    if cover:
-        if cover.strip().lower() == 'hardcover':
-            return 'hardcover'
-        elif cover.strip().lower() == 'paperback':
-            return 'paperback'
-    
-    return None
+
+async def export_books_to_csv(filter: BookFilter, page: int, per_page: int, db: AsyncSession, columns: str | None = None):
+    books = await get_all_books(filter, page, per_page, db)
+    if not books:
+        raise NotFoundException('No books found')
+
+    headers = list(books[0].__dict__.keys())
+    headers.remove('_sa_instance_state')
+    if columns:
+        columns_list = [col.strip()
+                        for col in columns.split(',') if col.strip() in headers]
+        headers = sorted(columns_list, key=lambda x: columns_list.index(x))
+    else:
+        desired_order = [
+            'id', 'sku', 'name', 'regular_price', 'sale_price', 'quantity', 'manage_stock',
+            'authors', 'publisher', 'categories', 'images', 'tags'
+        ]
+        headers = sorted(headers, key=lambda x: (x not in desired_order, x.startswith(
+            "is_"), desired_order.index(x) if x in desired_order else x))
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(headers)
+    for book in books:
+        writer.writerow([flatten(getattr(book, header)) for header in headers])
+    buffer.seek(0)
+
+    response = StreamingResponse(
+        iter([buffer.getvalue()]), media_type='text/csv')
+    response.headers['Content-Disposition'] = 'attachment; filename="books.csv"'
+
+    logger.info(f'Exported {len(books)} books to CSV')
+    return response
+
+
+async def import_books_from_csv(file: UploadFile, db: AsyncSession):
+    content = (await file.read()).decode('utf-8').splitlines()
+    reader = csv.DictReader(content)
+
+    books = [row for row in reader if any(row.values())]
+    logger.info(f'Importing {len(books)} books from CSV file')
+
+    # try:
+    #     payload = [CreateBook(**book) for book in books]
+    # except ValidationError as err:
+    #     logger.error(f'Invalid data in CSV file: {err}')
+    #     return str(err)
+
+    return 'ok! But this endpoint is not implemented yet.'
