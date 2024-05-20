@@ -1,10 +1,14 @@
 
+import os
 from logging.config import dictConfig
 
 from app.config.settings import settings
 
 
 def configure_logging() -> None:
+    log_path = os.path.join('logs', 'app.log')
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    
     dictConfig({
         'version': 1,
         "disable_existing_loggers": False,
@@ -36,7 +40,7 @@ def configure_logging() -> None:
             },
             'rotating_file': {
                 'class': 'logging.handlers.RotatingFileHandler',
-                'filename': 'app.log',
+                'filename': log_path,
                 'maxBytes': 1024 * 1024,
                 'backupCount': 3,
                 'level': 'INFO',
