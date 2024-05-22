@@ -17,24 +17,6 @@ async def get_book_by_id(id: UUID, db: Session):
     return await book_service.get_book_by_id(id, db)
 
 
-@router.get('/all', response_model=list[schema.BookOut])
-async def get_all_books(*,
-                        page: int = Query(1, ge=1),
-                        per_page: int = Query(10, ge=1, le=100),
-                        filter: BookFilter = FilterDepends(BookFilter),
-                        db: Session,
-                        response: Response):
-    books = await book_service.get_all_books(filter, page, per_page, db)
-    total_books = await book_service.count_books(filter, db)
-
-    response.headers['X-Total-Count'] = str(total_books)
-    response.headers['X-Total-Pages'] = str(-(-total_books // per_page))
-    response.headers['X-Current-Page'] = str(page)
-    response.headers['X-Per-Page'] = str(per_page)
-
-    return books
-
-
 @router.get('/all-minimal', response_model=list[schema.BookOutMinimal])
 async def get_all_books_minimal(*,
                                 page: int = Query(1, ge=1),
@@ -43,11 +25,45 @@ async def get_all_books_minimal(*,
                                     BookFilterMinimal),
                                 db: Session,
                                 response: Response):
-    books = await book_service.get_all_books_minimal(filter, page, per_page, db)
-    total_books = await book_service.count_books_minimal(filter, db)
+    books, count = await book_service.get_all_books_minimal(filter, page, per_page, db)
 
-    response.headers['X-Total-Count'] = str(total_books)
-    response.headers['X-Total-Pages'] = str(-(-total_books // per_page))
+    response.headers['X-Total-Count'] = str(count)
+    response.headers['X-Total-Pages'] = str(-(-count // per_page))
+    response.headers['X-Current-Page'] = str(page)
+    response.headers['X-Per-Page'] = str(per_page)
+
+    return books
+
+
+@router.get('/all', response_model=list[schema.BookOut])
+async def get_all_books(*,
+                        page: int = Query(1, ge=1),
+                        per_page: int = Query(10, ge=1, le=100),
+                        filter: BookFilter = FilterDepends(BookFilter),
+                        db: Session,
+                        response: Response):
+    books, count = await book_service.get_all_books(filter, page, per_page, db)
+
+    response.headers['X-Total-Count'] = str(count)
+    response.headers['X-Total-Pages'] = str(-(-count // per_page))
+    response.headers['X-Current-Page'] = str(page)
+    response.headers['X-Per-Page'] = str(per_page)
+
+    return books
+
+
+@router.get('/all/admin', response_model=list[schema.BookOutAdmin])
+async def get_all_books_by_admin(*,
+                        page: int = Query(1, ge=1),
+                        per_page: int = Query(10, ge=1, le=100),
+                        filter: BookFilter = FilterDepends(BookFilter),
+                        _: AdminAccessToken,
+                        db: Session,
+                        response: Response):
+    books, count = await book_service.get_all_books(filter, page, per_page, db)
+
+    response.headers['X-Total-Count'] = str(count)
+    response.headers['X-Total-Pages'] = str(-(-count // per_page))
     response.headers['X-Current-Page'] = str(page)
     response.headers['X-Per-Page'] = str(per_page)
 
@@ -83,11 +99,10 @@ async def export_books_to_csv(*,
                               filter: BookFilter = FilterDepends(BookFilter),
                               _: AdminAccessToken,
                               db: Session):
-    response = await csv_service.export_books_to_csv(filter, page, per_page, db, columns)
-    total_books = await book_service.count_books(filter, db)
+    response, count = await csv_service.export_books_to_csv(filter, page, per_page, db, columns)
 
-    response.headers['X-Total-Count'] = str(total_books)
-    response.headers['X-Total-Pages'] = str(-(-total_books // per_page))
+    response.headers['X-Total-Count'] = str(count)
+    response.headers['X-Total-Pages'] = str(-(-count // per_page))
     response.headers['X-Current-Page'] = str(page)
     response.headers['X-Per-Page'] = str(per_page)
 

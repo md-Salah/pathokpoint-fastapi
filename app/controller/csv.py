@@ -1,6 +1,5 @@
 import csv
 import io
-from pydantic_core import ValidationError
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
@@ -10,7 +9,7 @@ from app.filter_schema.book import BookFilter
 from app.models import Publisher
 from app.controller.book import get_all_books
 from app.controller.exception import NotFoundException
-from app.pydantic_schema.book import CreateBook
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ def flatten(value):
 
 
 async def export_books_to_csv(filter: BookFilter, page: int, per_page: int, db: AsyncSession, columns: str | None = None):
-    books = await get_all_books(filter, page, per_page, db)
+    books, count = await get_all_books(filter, page, per_page, db)
     if not books:
         raise NotFoundException('No books found')
 
@@ -54,7 +53,7 @@ async def export_books_to_csv(filter: BookFilter, page: int, per_page: int, db: 
     response.headers['Content-Disposition'] = 'attachment; filename="books.csv"'
 
     logger.info(f'Exported {len(books)} books to CSV')
-    return response
+    return response, count
 
 
 async def import_books_from_csv(file: UploadFile, db: AsyncSession):

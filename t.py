@@ -1,19 +1,13 @@
-import pandas as pd
 
+class Man():
+    
+    name = None
+    age = None
+    height = None
+    
+man = Man()
 
-df = pd.DataFrame([
-    {
-        'A': 1,
-        'B': 2
-    },
-    {
-        'A': 3,
-        'B': 4
-    }
-])
+print(man.name, man.age, man.height)
 
-
-x = list(df.T.to_dict().values())
-
-print(x)
-print(type(x), type(x[0]))
+if man.name or man.age or man.height:
+    print('yes')

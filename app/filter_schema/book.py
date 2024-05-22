@@ -72,7 +72,7 @@ class BookFilterMinimal(Filter):
     stock_location: StockLocation | None = None
     shelf: str | None = None
     bar_code: str | None = None
-    author: AuthorFilter | None = FilterDepends(with_prefix("author", AuthorFilter))
+    author: AuthorFilter = FilterDepends(with_prefix("author", AuthorFilter))
     
 
     order_by: list[str] | None = Field(Query(None, description='Sort by fields created_at, updated_at, name, price, quantity, weight. Add "-" for descending order'))
@@ -97,6 +97,6 @@ class BookFilterMinimal(Filter):
         
 
 class BookFilter(BookFilterMinimal):
-    publisher: PublisherFilter | None = FilterDepends(with_prefix("publisher", PublisherFilter))
-    category: CategoryFilter | None = FilterDepends(with_prefix("category", CategoryFilter))
-    tag: TagFilter | None = FilterDepends(with_prefix("tag", TagFilter))
+    publisher: PublisherFilter = FilterDepends(with_prefix("publisher", PublisherFilter))
+    category: CategoryFilter = FilterDepends(with_prefix("category", CategoryFilter))
+    tag: TagFilter = FilterDepends(with_prefix("tag", TagFilter))

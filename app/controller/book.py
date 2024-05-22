@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, distinct
+from sqlalchemy import select, func
 from uuid import UUID
-from typing import Sequence
-from sqlalchemy.orm import selectinload
+from typing import Sequence, Tuple
+from sqlalchemy.orm import selectinload, joinedload
 import logging
 from slugify import slugify
 import traceback
@@ -27,6 +27,15 @@ query_selectinload = select(Book).options(
     selectinload(Book.tags)
 )
 
+query_joinedload = select(Book).options(
+    joinedload(Book.publisher),
+    joinedload(Book.authors),
+    joinedload(Book.translators),
+    joinedload(Book.categories),
+    joinedload(Book.images),
+    joinedload(Book.tags)
+)
+
 
 async def get_book_by_id(id: UUID, db: AsyncSession) -> Book:
     book = await db.scalar(query_selectinload.where(Book.id == id))
@@ -35,34 +44,47 @@ async def get_book_by_id(id: UUID, db: AsyncSession) -> Book:
     return book
 
 
-async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Book]:
+async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
     offset = (page - 1) * per_page
-    query = select(Book).distinct().outerjoin(
-        Book.publisher).outerjoin(
-        Book.categories).outerjoin(
-        Book.authors).outerjoin(
-        Book.tags).options(
-        selectinload(Book.publisher),
-        selectinload(Book.categories),
+    query = select(Book).distinct().options(
         selectinload(Book.authors),
-        selectinload(Book.translators),
         selectinload(Book.images),
-        selectinload(Book.tags)
-    )        
-    stmt = filter.filter(query)
-    stmt = filter.sort(stmt)
-    stmt = stmt.offset(offset).limit(per_page)
+    )
+    if any([filter.author.id__in, filter.author.name__in, filter.author.slug__in]):
+        query = query.outerjoin(Book.authors)
+    query = filter.filter(query)
+    query = filter.sort(query)
+    result = await db.execute(query.offset(offset).limit(per_page))
+
+    count_stmt = select(func.count()).select_from(query.subquery())
+    count = await db.scalar(count_stmt) or 0
+
+    return result.unique().scalars().all(), count
+
+
+async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
+    offset = (page - 1) * per_page
+
+    query = query_joinedload.distinct()
+    if any([filter.category.id__in, filter.category.name__in, filter.category.slug__in]):
+        query = query.outerjoin(Book.categories)
+    if any([filter.publisher.id__in, filter.publisher.name__in, filter.publisher.slug__in]):
+        query = query.outerjoin(Book.publisher)
+    if any([filter.tag.id__in, filter.tag.name__in, filter.tag.slug__in]):
+        query = query.outerjoin(Book.tags)
+    if any([filter.author.id__in, filter.author.name__in, filter.author.slug__in]):
+        query = query.outerjoin(Book.authors)
+
+    query = filter.filter(query)
+    query = filter.sort(query)
+    stmt = query.offset(offset).limit(per_page)
     result = await db.execute(stmt)
-    return result.unique().scalars().all()
+    books = result.unique().scalars().all()
 
+    count_stmt = select(func.count()).select_from(query.subquery())
+    count = await db.scalar(count_stmt) or 0
 
-async def count_books(filter: BookFilter, db: AsyncSession) -> int:
-    count_query = select(func.count(distinct(Book.id))).select_from(Book).outerjoin(
-        Book.publisher).outerjoin(
-        Book.categories).outerjoin(
-        Book.authors).outerjoin(Book.tags)
-    query = filter.filter(count_query)
-    return await db.scalar(query)
+    return books, count
 
 
 async def create_book(payload: dict, db: AsyncSession) -> Book:
@@ -98,7 +120,8 @@ async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Bo
             df = main_df[i:i+chunk_size]
             _sku = (await db.scalars(select(Book.sku).filter(Book.sku.in_(df['sku'].tolist())))).all()
             df = df[~df['sku'].isin(_sku)]
-            logger.debug('Len after dropping existing sku: {}/{}'.format(len(df), chunk_size))
+            logger.debug(
+                'Len after dropping existing sku: {}/{}'.format(len(df), chunk_size))
 
             if df.empty:
                 continue
@@ -134,7 +157,8 @@ async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Bo
 
             logger.debug(f'Adding {len(items)} books')
             db.add_all(items)
-            logger.info("{}/{} books created successfully".format(len(items), len(payload)))
+            logger.info(
+                "{}/{} books created successfully".format(len(items), len(payload)))
             new_items.extend(items)
         await db.commit()
         return new_items
@@ -188,22 +212,3 @@ async def handle_relationship(payload: dict, db: AsyncSession) -> dict:
         payload['tags'] = (await db.scalars(select(Tag).where(Tag.id.in_(payload['tags'])))).all()
 
     return payload
-
-
-async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: int, db: AsyncSession) -> Sequence[Book]:
-    offset = (page - 1) * per_page
-    query = select(Book).distinct().outerjoin(Book.authors).options(
-        selectinload(Book.authors),
-        selectinload(Book.images),
-    )
-    stmt = filter.filter(query)
-    stmt = filter.sort(stmt)
-    stmt = stmt.offset(offset).limit(per_page)
-    result = await db.execute(stmt)
-    return result.unique().scalars().all()
-
-
-async def count_books_minimal(filter: BookFilterMinimal, db: AsyncSession) -> int:
-    count_query = select(func.count(distinct(Book.id))).select_from(Book).outerjoin(Book.authors)
-    query = filter.filter(count_query)
-    return await db.scalar(query)
