@@ -98,8 +98,7 @@ async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Bo
             df = main_df[i:i+chunk_size]
             _sku = (await db.scalars(select(Book.sku).filter(Book.sku.in_(df['sku'].tolist())))).all()
             df = df[~df['sku'].isin(_sku)]
-            logger.debug(f'Len after dropping existing sku: {
-                         len(df)}/{chunk_size}')
+            logger.debug('Len after dropping existing sku: {}/{}'.format(len(df), chunk_size))
 
             if df.empty:
                 continue
@@ -135,8 +134,7 @@ async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Bo
 
             logger.debug(f'Adding {len(items)} books')
             db.add_all(items)
-            logger.info(f"{len(items)}/{len(payload)
-                                        } books created successfully")
+            logger.info("{}/{} books created successfully".format(len(items), len(payload)))
             new_items.extend(items)
         await db.commit()
         return new_items
