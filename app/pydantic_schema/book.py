@@ -7,7 +7,7 @@ from app.constant import Cover, Language, Condition, StockLocation, Country
 
 
 example_book_base = {
-    'serial_number': 1,
+    'public_id': 1,
     'name': 'The God of Small Things',
     'slug': 'the-god-of-small-things',
     'short_description': "Novel by Arundhati Roy, published in 1997, which won the Booker Prize in 1997.",
@@ -168,7 +168,7 @@ class BookOut(BookBase, IdTimestampMixin):
     images: List[ImageOut] = []
     tags: List[TagOut] = []
 
-    serial_number: PositiveInt
+    public_id: PositiveInt
 
     model_config = ConfigDict(json_schema_extra={"example": example_book_out})
 

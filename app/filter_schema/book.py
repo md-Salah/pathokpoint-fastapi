@@ -42,7 +42,7 @@ class CategoryFilter(Filter):
 
 class BookFilterMinimal(Filter):
     q: str | None = Field(Query(None, description='Search by name or slug'))
-    serial_number: int | None = None
+    public_id: int | None = None
     sku: str | None = None
     name: str | None = None
     slug: str | None = None
