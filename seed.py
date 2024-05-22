@@ -18,14 +18,15 @@ headers = {
 
 
 async def seed():
-    n = 1000
+    n = 10
+    m = 500000
     # await seed_user(n, headers)
     # await seed_category(n, headers)
     # await seed_author(n, headers)
     # await seed_publisher(n, headers)
     # await seed_tag(n, headers)
+    await seed_book_bulk(m, headers)
     # await seed_book(n, headers)
-    await seed_book_bulk(n, headers)
 
 if __name__ == "__main__":
     asyncio.run(seed())

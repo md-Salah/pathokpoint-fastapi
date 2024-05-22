@@ -86,7 +86,6 @@ async def update_review(id: UUID, user_id: UUID, payload: dict, db: AsyncSession
 
     if 'images' in payload:
         previous_ids = [image.id for image in review.images]
-        # payload['images'] = await attach_images(payload['images'], previous_ids, db, review_image_link)
         payload['images'] = await handle_multiple_image_attachment(payload['images'], previous_ids, db, review_image_link)
 
     logger.debug(payload)

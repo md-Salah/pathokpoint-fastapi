@@ -73,6 +73,7 @@ class BookFilterMinimal(Filter):
     shelf: str | None = None
     bar_code: str | None = None
     author: AuthorFilter | None = FilterDepends(with_prefix("author", AuthorFilter))
+    
 
     order_by: list[str] | None = Field(Query(None, description='Sort by fields created_at, updated_at, name, price, quantity, weight. Add "-" for descending order'))
     

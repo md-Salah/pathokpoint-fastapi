@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from asgi_correlation_id import CorrelationIdMiddleware
 import logging
-from asyncpg import InvalidAuthorizationSpecificationError
 
 from app.config.database import create_tables, drop_tables
 from app.config.settings import settings
@@ -19,14 +18,12 @@ async def lifespan(app: FastAPI):
     configure_logging()
     app.state.redis = await get_redis()
 
+    # await create_tables()
     try:
         # await drop_tables()
         await create_tables()
-    except InvalidAuthorizationSpecificationError as err:
-        logger.error('Failed to connect database. Is virtual env activated?')
-        logger.error(f'{err.__class__}: {err}')
     except Exception as err:
-        logger.error('Failed to connect database')
+        logger.error('Failed to connect database. "Check if the virtual env is activated."')
         logger.error(f'{err.__class__}: {err}')
     
 

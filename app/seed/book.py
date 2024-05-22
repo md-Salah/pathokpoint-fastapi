@@ -47,14 +47,14 @@ def generate_book(authors, categories, publishers, tags):
     payload = {
         'name': fake.sentence(nb_words=4).strip('.'),
         'slug': fake.slug(),
-        'sku': f'{fake.random_int(min=100000, max=999999)}',
+        'sku': f'sk-{fake.random_int(min=100000, max=999999)}',
         'regular_price': random.randint(1000, 5000),
         'sale_price': random.randint(50, 900),
         'manage_stock': random.choice([True, False]),
         'quantity': random.randint(1, 20),
         'condition': random.choice([cond.value for cond in Condition]),
         'authors': [random.choice(authors)],
-        'categories': [random.choice(categories)],
+        'categories': list(set([random.choice(categories), random.choice(categories)])),
         'publisher': random.choice(publishers),
         'tags': [random.choice(tags)]
     }
@@ -88,7 +88,7 @@ async def seed_book_bulk(n: int, headers: dict):
 
     payload = [generate_book(authors, categories, publishers, tags)
                for _ in range(n)]
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout= 10 * 60) as client:
         response = await client.post(f"{settings.BASE_URL}/book/bulk", json=payload, headers=headers)
         if response.status_code != 201:
             print(response.json())

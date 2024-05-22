@@ -37,6 +37,7 @@ async def update_file(file: BufferedReader | str, public_id: str, filename: str 
             cloudinary.uploader.upload,
             file, public_id=public_id, filename=filename
         )
+        logger.debug(response)
         return {
             'public_id': response['public_id'],
             'secure_url': response['secure_url'],
@@ -55,7 +56,8 @@ async def delete_file_from_cloudinary(public_id: str) -> bool:
         response = await run_in_threadpool(
             cloudinary.uploader.destroy, public_id
         )
-        return response['result'] == 'ok'
+        logger.debug(response)
+        return response['result'] == 'ok' or response['result'] == 'not found'
     except Exception as err:
         logger.error(err)
         return False
