@@ -41,7 +41,7 @@ faker = "^25.2.0"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.package]
+[tool.poetry.packages]
 packages = [
     { include = "app" }
 ]
