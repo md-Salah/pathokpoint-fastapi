@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, distinct
 from uuid import UUID
 from typing import Sequence, Tuple
 from sqlalchemy.orm import selectinload, joinedload
@@ -7,6 +7,7 @@ import logging
 from slugify import slugify
 import traceback
 import pandas as pd
+import time
 
 
 from app.filter_schema.book import BookFilter, BookFilterMinimal
@@ -54,10 +55,14 @@ async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: 
         query = query.outerjoin(Book.authors)
     query = filter.filter(query)
     query = filter.sort(query)
+    st = time.time()
     result = await db.execute(query.offset(offset).limit(per_page))
+    logger.debug(f'Time taken to fetch books: {time.time() - st}')
 
+    st = time.time()
     count_stmt = select(func.count()).select_from(query.subquery())
     count = await db.scalar(count_stmt) or 0
+    logger.debug(f'Time taken to fetch count: {time.time() - st}')
 
     return result.unique().scalars().all(), count
 
@@ -65,24 +70,34 @@ async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: 
 async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
     offset = (page - 1) * per_page
 
-    query = query_joinedload.distinct()
-    if any([filter.category.id__in, filter.category.name__in, filter.category.slug__in]):
-        query = query.outerjoin(Book.categories)
-    if any([filter.publisher.id__in, filter.publisher.name__in, filter.publisher.slug__in]):
-        query = query.outerjoin(Book.publisher)
-    if any([filter.tag.id__in, filter.tag.name__in, filter.tag.slug__in]):
-        query = query.outerjoin(Book.tags)
-    if any([filter.author.id__in, filter.author.name__in, filter.author.slug__in]):
-        query = query.outerjoin(Book.authors)
+    query = select(Book, 
+                   Author.id, Author.name, Author.slug,
+                   Category.id, Category.name, Category.slug,
+                   Publisher.id, Publisher.name, Publisher.slug,
+                   Tag.id, Tag.name, Tag.slug                      
+                   ).outerjoin(Book.authors).outerjoin(Book.categories).outerjoin(Book.publisher).outerjoin(Book.tags).distinct().options(
+                        joinedload(Book.publisher),
+                        joinedload(Book.authors),
+                        joinedload(Book.translators),
+                        joinedload(Book.categories),
+                        joinedload(Book.images),
+                        joinedload(Book.tags)
+                   )
+    
 
     query = filter.filter(query)
-    query = filter.sort(query)
-    stmt = query.offset(offset).limit(per_page)
+    stmt = filter.sort(query)
+    stmt = stmt.offset(offset).limit(per_page)
+    st = time.time()
     result = await db.execute(stmt)
     books = result.unique().scalars().all()
+    logger.debug(f'Time taken to fetch books: {time.time() - st}')
 
+    st = time.time()
+    # count_stmt = select(func.count()).select_from(query.subquery())
     count_stmt = select(func.count()).select_from(query.subquery())
     count = await db.scalar(count_stmt) or 0
+    logger.debug(f'Time taken to fetch count: {time.time() - st}')
 
     return books, count
 
