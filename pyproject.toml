@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "backend for pathokpoint"
 authors = ["md salah"]
 readme = "README.md"
+packages = [
+    { include = "app", from = "." }
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -41,7 +44,3 @@ faker = "^25.2.0"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.packages]
-packages = [
-    { include = "app" }
-]
