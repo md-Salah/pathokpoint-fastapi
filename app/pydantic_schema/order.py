@@ -1,4 +1,4 @@
-from pydantic import UUID4, ConfigDict
+from pydantic import UUID4, ConfigDict, Field, NonNegativeFloat, FiniteFloat
 from typing import List
 
 from app.pydantic_schema.base import BaseModel
@@ -9,23 +9,40 @@ from app.pydantic_schema.address import AddressOut
 from app.pydantic_schema.order_item import ItemIn, ItemOut, ItemUpdate
 from app.pydantic_schema.order_status import StatusIn, StatusOut
 
-example_order_in = {
+example_order_base = {
+    'is_full_paid': True,
     'order_items': [ItemIn._example],
+    'customer_note': 'Valo boi diben',
+}
+
+example_order_in = {
+    **example_order_base,
     'coupon_id': 'valid-uuid4',
-    'customer_id': 'valid-uuid4',
     'address_id': 'valid-uuid4',
     'courier_id': 'valid-uuid4',
 }
-example_order_update = {
+
+example_order_update_admin = {
     **example_order_in,
+    'customer_id': 'valid-uuid4',
+    'is_full_paid': True,
     'order_items': [ItemUpdate._example],
-    'order_status': [StatusIn._example],
-    'transactions': ['valid-uuid4'],
+    'shipping_charge': 100,
+    'weight_charge': 0,
+    'discount': 100,
+    'tracking_id': 'DT-546365',
+    'shipping_cost': 120,
+    'cod_receivable': 530,
+    'cod_received': 530,
+    'cost_of_good_new': 50,
+    'cost_of_good_old': 400,
+    'additional_cost': 10,
     'in_trash': False,
 }
 
 example_order_out = {
     **IdTimestampMixin._example,
+    **example_order_in,
     'invoice': 1,
     'order_items': [ItemOut._example],
     'new_book_total': 400,
@@ -34,12 +51,12 @@ example_order_out = {
     'weight_charge': 0,
     'total': 600,
     'discount': 100,
-    'payable': 500,
+    'net_amount': 500,
     'paid': 500,
-    'payment_back': 0,
-    'cash_on_delivery': 0,
+    'payment_reversed': 0,
+    'due': 0,
     'refunded': 0,
-    'customer_note': 'Valo boi diben',
+    'tracking_id': 'DT-546365',
     'order_status': [StatusOut._example],
     'transactions': [TransactionOut._example],
     'coupon': CouponOut._example,
@@ -51,74 +68,125 @@ example_order_out = {
 
 example_order_out_admin = {
     **example_order_out,
-    '_shipping_cost': 0,
-    '_cod_receivable': 0,
-    '_cod_received': 0,
-    '_new_cost': 0,
-    '_old_cost': 0,
-    '_additional_cost': 0,
-    '_outcome': 0,
+    'shipping_cost': 60,
+    'cod_receivable': 530,
+    'cod_received': 530,
+    'cost_of_good_new': 0,
+    'cost_of_good_old': 400,
+    'additional_cost': 10,
+    'gross_profit': 120,
 }
 
+
 class OrderBase(BaseModel):
-    pass
-    
-class CreateOrder(OrderBase):
+    is_full_paid: bool
     order_items: List[ItemIn]
+    customer_note: str | None = None
+
+
+class CreateOrder(OrderBase):
     coupon_id: UUID4 | None = None
-    address_id: UUID4 | None = None
-    courier_id: UUID4 | None = None
-    
+    address_id: UUID4
+    courier_id: UUID4
+
     model_config = ConfigDict(json_schema_extra={"example": example_order_in})
 
-class CreateOrderAdmin(CreateOrder):
-    customer_id: UUID4 | None = None
-    
+
 class UpdateOrder(CreateOrder):
     order_items: List[ItemUpdate] = []
-    order_status: StatusIn | None = None
-    transactions: List[UUID4] = []
-    in_trash: bool = False
-    
-    model_config = ConfigDict(json_schema_extra={"example": example_order_update})
 
-class OrderOut(OrderBase, IdTimestampMixin):
+    is_full_paid: bool = True
+    address_id: UUID4 = Field(None)
+    courier_id: UUID4 = Field(None)
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        **example_order_in,
+        'order_items': [ItemUpdate._example],
+    }})
+
+
+class OrderOut(CreateOrder, IdTimestampMixin):
     invoice: int
     order_items: List[ItemOut]
-    new_book_total: float
-    old_book_total: float
-    shipping_charge: float
-    weight_charge: float = 0
-    total: float
-    discount: float = 0
-    payable: float
-    paid: float
-    payment_back: float = 0
-    cash_on_delivery: float
-    refunded: float = 0
-    
-    customer_note: str | None = None
-    
+    new_book_total: NonNegativeFloat
+    old_book_total: NonNegativeFloat
+    shipping_charge: NonNegativeFloat
+    weight_charge: NonNegativeFloat
+    total: NonNegativeFloat
+    discount: NonNegativeFloat
+    net_amount: NonNegativeFloat
+    paid: NonNegativeFloat
+    payment_reversed: NonNegativeFloat
+    due: FiniteFloat
+    refunded: NonNegativeFloat
+
+    tracking_id: str | None
+
     order_status: List[StatusOut]
     transactions: List[TransactionOut] = []
     coupon: CouponOut | None = None
     customer: UserOut | None = None
     address: AddressOut | None = None
     courier: CourierOut | None = None
-    
+
     in_trash: bool
-    
+
     model_config = ConfigDict(json_schema_extra={"example": example_order_out})
 
-class OrderOutAdmin(OrderOut):
-    _shipping_cost: float = 0
-    _cod_receivable: float = 0
-    _cod_received: float = 0
-    _new_cost: float = 0
-    _old_cost: float = 0
-    _additional_cost: float = 0
-    _outcome: float = 0
-    
-    model_config = ConfigDict(json_schema_extra={"example": example_order_out_admin})
 
-    
+# For admin
+class CreateOrderAdmin(CreateOrder):
+    address_id: UUID4 | None = None
+    courier_id: UUID4 | None = None
+    customer_id: UUID4 | None = None
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        **example_order_in,
+        'customer_id': 'valid-uuid4'
+    }})
+
+
+class UpdateOrderAdmin(CreateOrderAdmin):
+    is_full_paid: bool = False
+    order_items: List[ItemUpdate] = []
+    shipping_charge: NonNegativeFloat = 0
+    weight_charge: NonNegativeFloat = 0
+    discount: NonNegativeFloat = 0
+    tracking_id: str | None = None
+    shipping_cost: NonNegativeFloat = 0
+    cod_receivable: NonNegativeFloat = 0
+    cod_received: NonNegativeFloat = 0
+    cost_of_good_new: NonNegativeFloat = 0
+    cost_of_good_old: NonNegativeFloat = 0
+    additional_cost: NonNegativeFloat = 0
+    in_trash: bool = False
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_order_update_admin})
+
+
+class UpdateOrderStatus(BaseModel):
+    order_status: StatusIn
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"order_status": StatusIn._example}})
+
+
+class AddPayment(BaseModel):
+    transaction_id: UUID4
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"transaction_id": "valid-uuid4"}})
+
+
+class OrderOutAdmin(OrderOut):
+    shipping_cost: NonNegativeFloat
+    cod_receivable: NonNegativeFloat
+    cod_received: NonNegativeFloat
+    cost_of_good_new: NonNegativeFloat
+    cost_of_good_old: NonNegativeFloat
+    additional_cost: NonNegativeFloat
+    gross_profit: FiniteFloat
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": example_order_out_admin})

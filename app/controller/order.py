@@ -1,4 +1,3 @@
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from uuid import UUID
@@ -14,7 +13,7 @@ import app.controller.coupon as coupon_service
 import app.controller.courier as courier_service
 import app.controller.user as user_service
 from app.models import Address
-from app.controller.exception import not_found_exception, bad_request_exception
+from app.controller.exception import NotFoundException, BadRequestException, not_found_exception, bad_request_exception
 
 order_query = select(Order).options(
     selectinload(Order.order_items).joinedload(OrderItem.book),
@@ -26,7 +25,7 @@ order_query = select(Order).options(
 async def get_order_by_id(id: UUID, db: AsyncSession) -> Order:
     order = await db.scalar(order_query.where(Order.id == id))
     if not order:
-        raise not_found_exception(str(id), 'Order not found')
+        raise NotFoundException('Order not found')
 
     return order
 
@@ -109,7 +108,7 @@ async def update_order(id: UUID, payload: dict, db: AsyncSession) -> Order:
                             )
                             .where(Order.id == id))
     if not order:
-        raise not_found_exception(str(id), 'Order not found')
+        raise NotFoundException('Order not found')
 
     validate_coupon = False
     # Order Items
@@ -164,7 +163,7 @@ async def update_order(id: UUID, payload: dict, db: AsyncSession) -> Order:
 async def delete_order(id: UUID, db: AsyncSession) -> None:
     order = await db.get(Order, id)
     if not order:
-        raise not_found_exception(str(id), 'Order not found')
+        raise NotFoundException('Order not found')
 
     # Restock items
     await manage_inventory([], db, order_id=id)
@@ -189,11 +188,7 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
         book_id = item['book_id']
         book = books.get(book_id)
         if not book:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail={
-                                    'resource_id': str(book_id),
-                                    'message': 'Book not found'
-                                })
+            raise NotFoundException(str(book_id), 'Book not found')
 
         _item = existing_items.get(book.id)
         if _item:
@@ -229,12 +224,10 @@ async def apply_coupon(coupon_id: UUID, items: List[OrderItem], shipping_charge:
     coupon = await coupon_service.get_coupon_by_id(coupon_id, db)
 
     if coupon.expiry_date and coupon.expiry_date < datetime.now():
-        raise bad_request_exception(
-            str(coupon_id), "Coupon '{}' has expired".format(coupon.code))
+        raise BadRequestException(str(coupon_id), "Coupon '{}' has expired".format(coupon.code))
 
     if coupon.use_limit and coupon.use_limit <= coupon._use_count:
-        raise bad_request_exception(
-            str(coupon_id), "Coupon '{}' has reached its limit".format(coupon.code))
+        raise BadRequestException(str(coupon_id), "Coupon '{}' has reached its limit".format(coupon.code))
 
     if coupon.use_limit_per_user:
         pass

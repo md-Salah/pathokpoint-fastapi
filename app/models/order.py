@@ -40,7 +40,7 @@ class OrderStatus(TimestampMixin):
     
     status: Mapped[Status] = mapped_column(Enum(Status))
     note: Mapped[str | None]
-    _admin_note: Mapped[str | None]
+    admin_note: Mapped[str | None]
     
     admin_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id'))
     updated_by: Mapped['User'] = relationship()
@@ -56,6 +56,7 @@ class Order(TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
     invoice: Mapped[int] = mapped_column(Integer, Identity(start=1), unique=True, autoincrement=True)
     
+    is_full_paid: Mapped[bool]
     order_items: Mapped[List['OrderItem']] = relationship(back_populates='order', cascade='all, delete-orphan', lazy='joined')
     new_book_total: Mapped[float]
     old_book_total: Mapped[float]
@@ -63,22 +64,23 @@ class Order(TimestampMixin):
     weight_charge: Mapped[float] = mapped_column(Float, default=0.0)
     total: Mapped[float]
     discount: Mapped[float] = mapped_column(Float, default=0.0)
-    payable: Mapped[float]
+    net_amount: Mapped[float]
     paid: Mapped[float]
-    payment_back: Mapped[float] = mapped_column(Float, default=0.0)
-    cash_on_delivery: Mapped[float]
+    payment_reversed: Mapped[float] = mapped_column(Float, default=0.0)
+    due: Mapped[float]
     refunded: Mapped[float] = mapped_column(Float, default=0.0)
     
     customer_note: Mapped[str | None]
+    tracking_id: Mapped[str | None]
     
     # Admin only fields
-    _shipping_cost: Mapped[float] = mapped_column(Float, default=0.0)
-    _cod_receivable: Mapped[float] = mapped_column(Float, default=0.0)
-    _cod_received: Mapped[float] = mapped_column(Float, default=0.0)
-    _new_cost: Mapped[float] = mapped_column(Float, default=0.0)
-    _old_cost: Mapped[float] = mapped_column(Float, default=0.0)
-    _additional_cost: Mapped[float] = mapped_column(Float, default=0.0)
-    _outcome: Mapped[float] = mapped_column(Float, default=0.0)
+    shipping_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    cod_receivable: Mapped[float] = mapped_column(Float, default=0.0)
+    cod_received: Mapped[float] = mapped_column(Float, default=0.0)
+    cost_of_good_new: Mapped[float] = mapped_column(Float, default=0.0)
+    cost_of_good_old: Mapped[float] = mapped_column(Float, default=0.0)
+    additional_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    gross_profit: Mapped[float] = mapped_column(Float, default=0.0)
      
     order_status: Mapped[List['OrderStatus']] = relationship(back_populates='order', cascade='all, delete-orphan', lazy='joined', order_by='OrderStatus.created_at')
     transactions: Mapped[List['Transaction']] = relationship(back_populates='order')
