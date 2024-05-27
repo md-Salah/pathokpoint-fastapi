@@ -1,4 +1,4 @@
-from pydantic import UUID4, PositiveInt, NonNegativeFloat
+from pydantic import UUID4, PositiveInt, NonNegativeFloat, NonNegativeInt
 from typing import ClassVar
 
 from app.pydantic_schema.base import BaseModel
@@ -21,6 +21,7 @@ class ItemIn(ItemBase):
     }
     
 class ItemUpdate(ItemIn):
+    quantity: NonNegativeInt = 1
     is_removed: bool = False
     note: str | None = None
     

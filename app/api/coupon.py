@@ -16,7 +16,7 @@ async def get_coupon_by_id(id: UUID, db: Session):
     return await coupon_service.get_coupon_by_id(id, db)
 
 
-@router.get('/all', response_model=list[coupon_schema.CouponOutBulk])
+@router.get('/all', response_model=list[coupon_schema.CouponOut])
 async def get_all_coupons(*, page: int = Query(1, ge=1),
                           per_page: int = Query(10, ge=1, le=100),
                           filter: CouponFilter = FilterDepends(CouponFilter),
@@ -32,35 +32,12 @@ async def get_all_coupons(*, page: int = Query(1, ge=1),
     return coupons
 
 
-@router.get('/admin/id/{id}', response_model=coupon_schema.CouponOutAdmin)
-async def get_coupon_by_id_admin(id: UUID, _: AdminAccessToken, db: Session):
-    return await coupon_service.get_coupon_by_id(id, db)
-
-
-@router.get('/admin/all', response_model=list[coupon_schema.CouponOutAdminBulk])
-async def get_all_coupons_by_admin(*, page: int = Query(1, ge=1),
-                                   per_page: int = Query(10, ge=1, le=100),
-                                   filter: CouponFilter = FilterDepends(
-                                       CouponFilter),
-                                   _: AdminAccessToken,
-                                   db: Session,  response: Response):
-    coupons = await coupon_service.get_all_coupons(filter, page, per_page, db)
-    total_coupons = await coupon_service.count_coupon(filter, db)
-
-    response.headers['X-Total-Count'] = str(total_coupons)
-    response.headers['X-Total-Pages'] = str(-(-total_coupons // per_page))
-    response.headers['X-Current-Page'] = str(page)
-    response.headers['X-Per-Page'] = str(per_page)
-
-    return coupons
-
-
-@router.post('', response_model=coupon_schema.CouponOutAdmin, status_code=status.HTTP_201_CREATED)
+@router.post('', response_model=coupon_schema.CouponOut, status_code=status.HTTP_201_CREATED)
 async def create_coupon(payload: coupon_schema.CreateCoupon, _: AdminAccessToken, db: Session):
     return await coupon_service.create_coupon(payload.model_dump(), db)
 
 
-@router.patch('/{id}', response_model=coupon_schema.CouponOutAdmin)
+@router.patch('/{id}', response_model=coupon_schema.CouponOut)
 async def update_coupon(id: UUID, payload: coupon_schema.UpdateCoupon, _: AdminAccessToken, db: Session):
     return await coupon_service.update_coupon(id, payload.model_dump(exclude_unset=True), db)
 

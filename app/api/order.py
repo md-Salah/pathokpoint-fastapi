@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi_filter import FilterDepends
 
 
-# from app.filter_schema.order import OrderFilter
+from app.filter_schema.order import OrderFilter
 from app.controller.exception import bad_request_exception
 from app.controller.auth import AccessToken
 import app.pydantic_schema.order as schema
@@ -28,11 +28,11 @@ async def get_order_by_id_admin(id: UUID, db: Session):
 async def get_all_orders(*,
                          page: int = Query(1, ge=1),
                          per_page: int = Query(10, ge=1, le=100),
-                         # order_filter: OrderFilter = FilterDepends(OrderFilter),
+                         filter: OrderFilter = FilterDepends(OrderFilter),
                          db: Session,
                          response: Response):
-    orders = await order_service.get_all_orders(page, per_page, db)
-    total_orders = await order_service.count_orders(db)
+    orders = await order_service.get_all_orders(filter, page, per_page, db)
+    total_orders = await order_service.count_orders(filter, db)
 
     response.headers['X-Total-Count'] = str(total_orders)
     response.headers['X-Total-Pages'] = str(-(-total_orders // per_page))
@@ -57,7 +57,7 @@ async def create_order_by_admin(payload: schema.CreateOrderAdmin, db: Session):
 
 
 @router.patch('/{id}', response_model=schema.OrderOutAdmin)
-async def update_order(id: UUID, payload: schema.UpdateOrder, db: Session):
+async def update_order(id: UUID, payload: schema.UpdateOrderAdmin, db: Session):
     return await order_service.update_order(id, payload.model_dump(exclude_unset=True), db)
 
 

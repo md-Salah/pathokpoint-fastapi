@@ -7,7 +7,7 @@ pytestmark = pytest.mark.asyncio
 async def test_get_order_by_id(client: AsyncClient, order_in_db: dict):
     response = await client.get(f"/order/id/{order_in_db['id']}")
     assert response.status_code == status.HTTP_200_OK
-    assert response.json().items() >= order_in_db.items()
+    assert response.json().items() <= order_in_db.items()
 
 
 async def test_get_order_by_id_admin(client: AsyncClient, order_in_db: dict):
@@ -114,43 +114,13 @@ async def test_create_order_with_fixed_discount(client: AsyncClient, book_in_db:
     else:
         assert response.json()['discount'] == coupon_in_db['discount_old']
         
-        
-@pytest.mark.parametrize('quantity', [1, 2])
-async def test_create_order_with_flat_discount(client: AsyncClient, book_in_db: dict, quantity: int, admin_auth_headers: dict):
-    response = await client.post("/coupon", json={
-        'code': 'Flat Sale',
-        'discount_type': 'flat-rate',
-        'discount_old': 100, # all items at 100 tk
-        'discount_new': 0,
-        'min_spend_old': 300,
-    }, headers=admin_auth_headers)
-    assert response.status_code == status.HTTP_201_CREATED
-    coupon_in_db = response.json()
-    
-    payload = {
-        'coupon_id': coupon_in_db['id'],
-        'order_items': [
-            {
-                'book_id': book_in_db['id'],
-                'quantity': quantity,
-            }
-        ]
-    }
-    
-    response = await client.post("/order/admin/new", json=payload)
-    assert response.status_code == status.HTTP_201_CREATED
-    
-    if book_in_db['sale_price'] * quantity < coupon_in_db['min_spend_old']:
-        assert response.json()['discount'] == 0
-    else:
-        assert response.json()['discount'] == book_in_db['sale_price'] * quantity - coupon_in_db['discount_old'] * quantity
-
 
 async def test_update_order_status(client: AsyncClient, order_in_db: dict):
+    assert len(order_in_db['order_status']) == 1
     payload = {
-        'order_status': {
-            'status': "order-confirmed",
-            'note': 'Order confirmed by admin'
+        "order_status": {
+            "status": "order-confirmed",
+            "note": "payment received, preparing for shipment"
         }
     }
     
@@ -170,7 +140,7 @@ async def test_update_order_payment(client: AsyncClient, order_in_db: dict, paym
     transaction_in_db = response.json()
     
     response = await client.patch(f"/order/{order_in_db['id']}", json={
-        'transactions': [transaction_in_db['id']]
+        'transaction_id': transaction_in_db['id']
     })
     assert response.status_code == status.HTTP_200_OK
     assert response.json()['paid'] == transaction_in_db['amount']

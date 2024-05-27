@@ -25,8 +25,8 @@ class Coupon(TimestampMixin):
     expiry_date: Mapped[datetime | None]
 
     discount_type: Mapped[DiscountType] = mapped_column(Enum(DiscountType))
-    discount_old: Mapped[float] = mapped_column(Float, default=0)
-    discount_new: Mapped[float] = mapped_column(Float, default=0)
+    discount_old: Mapped[float | None]
+    discount_new: Mapped[float | None]
     max_discount_old: Mapped[float | None]
     max_discount_new: Mapped[float | None]
     min_spend_old: Mapped[float] = mapped_column(Float, default=0)
@@ -36,10 +36,6 @@ class Coupon(TimestampMixin):
     use_limit_per_user: Mapped[int | None]
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     max_shipping_charge: Mapped[float | None]
-
-    _use_count: Mapped[int] = mapped_column(Integer, default=0)
-    _discount_applied_old: Mapped[float] = mapped_column(Float, default=0)
-    _discount_applied_new: Mapped[float] = mapped_column(Float, default=0)
 
     include_conditions: Mapped[List[Condition]] = mapped_column(
         ARRAY(Enum(Condition)), default=list)

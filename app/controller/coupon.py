@@ -38,7 +38,7 @@ async def get_coupon_by_id(id: UUID, db: AsyncSession) -> Coupon:
 
 async def get_all_coupons(filter: CouponFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Coupon]:
     offset = (page - 1) * per_page
-    stmt = select(Coupon).offset(offset).limit(per_page)
+    stmt = query.offset(offset).limit(per_page)
     stmt = filter.filter(stmt)
     stmt = filter.sort(stmt)
     result = await db.execute(stmt)

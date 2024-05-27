@@ -37,23 +37,6 @@ async def test_get_all_coupons(client: AsyncClient, coupon_in_db: dict):
     assert response.headers['x-per-page'] == '10'
 
 
-async def test_get_coupon_by_id_by_admin(client: AsyncClient, coupon_in_db: dict, admin_auth_headers: dict):
-    response = await client.get(f"/coupon/id/{coupon_in_db['id']}", headers=admin_auth_headers)
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json().items() <= coupon_in_db.items()
-
-
-async def test_get_all_coupons_by_admin(client: AsyncClient, coupon_in_db: dict, admin_auth_headers: dict):
-    response = await client.get("/coupon/admin/all", headers=admin_auth_headers)
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.json()) == 1
-    assert response.json()[0].items() <= coupon_in_db.items()
-    assert response.headers['x-total-count'] == '1'
-    assert response.headers['x-total-pages'] == '1'
-    assert response.headers['x-current-page'] == '1'
-    assert response.headers['x-per-page'] == '10'
-
-
 async def test_create_coupon(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/coupon", json=simple_coupon, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED

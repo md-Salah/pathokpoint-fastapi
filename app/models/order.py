@@ -30,7 +30,7 @@ class OrderItem(Base):
     note: Mapped[str | None]
 
     def __repr__(self):
-        return f'<OrderItem (order_id={self.order_id}, book_id={self.book_id})>'
+        return f'<OrderItem (book_id={self.book_id}, qty={self.quantity})>'
 
 
 class OrderStatus(TimestampMixin):
@@ -48,7 +48,7 @@ class OrderStatus(TimestampMixin):
     order: Mapped['Order'] = relationship(back_populates='order_status')
     
     def __repr__(self):
-        return f'<OrderStatus (order_id={self.order_id}, status={self.status})>'
+        return f'<OrderStatus (status={self.status}, created_at={self.created_at})>'
     
 class Order(TimestampMixin):
     __tablename__ = 'orders'

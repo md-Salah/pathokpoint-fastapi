@@ -47,7 +47,8 @@ async def test_create_book_review(client: AsyncClient, book_in_db: dict, user_in
     assert response.json().items() >= payload.items()
 
 
-async def test_create_order_review(client: AsyncClient, book_in_db: dict, user_in_db: dict):
+async def test_create_order_review(client: AsyncClient, book_in_db: dict, address_in_db: dict, courier_in_db: dict):
+    user_in_db = address_in_db['user']
     headers = {"Authorization": "Bearer {}".format(user_in_db['token']['access_token'])}
     response = await client.post('/order/new', json={
         "order_items": [
@@ -55,7 +56,9 @@ async def test_create_order_review(client: AsyncClient, book_in_db: dict, user_i
                 "book_id": book_in_db['id'],
                 "quantity": 1,
             }
-        ]
+        ],
+        'address_id': address_in_db['address']['id'],
+        'courier_id': courier_in_db['id'],
     }, headers=headers)
     assert response.status_code == status.HTTP_201_CREATED
     order_in_db = response.json()

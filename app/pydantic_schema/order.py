@@ -23,9 +23,6 @@ example_order_in = {
 }
 
 example_order_update_admin = {
-    **example_order_in,
-    'customer_id': 'valid-uuid4',
-    'is_full_paid': True,
     'order_items': [ItemUpdate._example],
     'shipping_charge': 100,
     'weight_charge': 0,
@@ -38,6 +35,8 @@ example_order_update_admin = {
     'cost_of_good_old': 400,
     'additional_cost': 10,
     'in_trash': False,
+    'order_status': StatusIn._example,
+    "transaction_id": "valid-uuid4"
 }
 
 example_order_out = {
@@ -79,7 +78,7 @@ example_order_out_admin = {
 
 
 class OrderBase(BaseModel):
-    is_full_paid: bool
+    is_full_paid: bool = True
     order_items: List[ItemIn]
     customer_note: str | None = None
 
@@ -90,19 +89,6 @@ class CreateOrder(OrderBase):
     courier_id: UUID4
 
     model_config = ConfigDict(json_schema_extra={"example": example_order_in})
-
-
-class UpdateOrder(CreateOrder):
-    order_items: List[ItemUpdate] = []
-
-    is_full_paid: bool = True
-    address_id: UUID4 = Field(None)
-    courier_id: UUID4 = Field(None)
-
-    model_config = ConfigDict(json_schema_extra={"example": {
-        **example_order_in,
-        'order_items': [ItemUpdate._example],
-    }})
 
 
 class OrderOut(CreateOrder, IdTimestampMixin):
@@ -128,6 +114,8 @@ class OrderOut(CreateOrder, IdTimestampMixin):
     customer: UserOut | None = None
     address: AddressOut | None = None
     courier: CourierOut | None = None
+    address_id: UUID4 | None = None
+    courier_id: UUID4 | None = None
 
     in_trash: bool
 
@@ -146,8 +134,7 @@ class CreateOrderAdmin(CreateOrder):
     }})
 
 
-class UpdateOrderAdmin(CreateOrderAdmin):
-    is_full_paid: bool = False
+class UpdateOrderAdmin(BaseModel):
     order_items: List[ItemUpdate] = []
     shipping_charge: NonNegativeFloat = 0
     weight_charge: NonNegativeFloat = 0
@@ -160,23 +147,11 @@ class UpdateOrderAdmin(CreateOrderAdmin):
     cost_of_good_old: NonNegativeFloat = 0
     additional_cost: NonNegativeFloat = 0
     in_trash: bool = False
+    order_status: StatusIn = Field(None)
+    transaction_id: UUID4 = Field(None)
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_order_update_admin})
-
-
-class UpdateOrderStatus(BaseModel):
-    order_status: StatusIn
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"order_status": StatusIn._example}})
-
-
-class AddPayment(BaseModel):
-    transaction_id: UUID4
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"transaction_id": "valid-uuid4"}})
 
 
 class OrderOutAdmin(OrderOut):

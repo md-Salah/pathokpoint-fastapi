@@ -62,13 +62,6 @@ example_coupon_out = {
     'allowed_users': [UserOut._example],
 }
 
-example_coupon_out_admin = {
-    **example_coupon_out,
-    '_use_count': 0,
-    '_discount_applied_old': 0,
-    '_discount_applied_new': 0,
-}
-
 
 class CouponBase(BaseModel):
     code: str = Field(min_length=3, max_length=20)
@@ -76,8 +69,8 @@ class CouponBase(BaseModel):
     expiry_date: FutureDatetime | None = None
 
     discount_type: DiscountType
-    discount_old: NonNegativeFloat = 0
-    discount_new: NonNegativeFloat = 0
+    discount_old: NonNegativeFloat | None = None
+    discount_new: NonNegativeFloat | None = None
     max_discount_old: NonNegativeFloat | None = None
     max_discount_new: NonNegativeFloat | None = None
     min_spend_old: NonNegativeFloat = 0
@@ -92,7 +85,7 @@ class CouponBase(BaseModel):
     @field_validator('discount_old', 'discount_new')
     @classmethod
     def validate_percentage_discount(cls, value: float, info: ValidationInfo):
-        if info.data['discount_type'] == DiscountType.percentage:
+        if info.data['discount_type'] == DiscountType.percentage and value:
             if not 0 <= value <= 100:
                 raise ValueError(
                     'Discount must be between 0 and 100 for percent type.')
@@ -140,21 +133,3 @@ class CouponOut(CreateCoupon, IdTimestampMixin):
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_coupon_out})
 
-
-class CouponOutAdmin(CouponOut):
-    _use_count: NonNegativeInt
-    _discount_applied_old: NonNegativeFloat
-    _discount_applied_new: NonNegativeFloat
-
-    model_config = ConfigDict(json_schema_extra={
-                              "example": example_coupon_out_admin})
-
-
-class CouponOutBulk(CouponBase, IdTimestampMixin):
-    pass
-
-
-class CouponOutAdminBulk(CouponBase, IdTimestampMixin):
-    _use_count: NonNegativeInt
-    _discount_applied_old: NonNegativeFloat
-    _discount_applied_new: NonNegativeFloat

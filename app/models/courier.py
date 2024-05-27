@@ -15,10 +15,10 @@ class Courier(TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
     method_name: Mapped[str] = mapped_column(String, unique=True)
-    company_name: Mapped[str] = mapped_column(String)
+    company_name: Mapped[str]
     
-    base_charge: Mapped[float] = mapped_column(Float)
-    weight_charge_per_kg: Mapped[float] = mapped_column(Float)
+    base_charge: Mapped[float]
+    weight_charge_per_kg: Mapped[float]
     allow_cash_on_delivery: Mapped[bool] = mapped_column(Boolean, default=True)
 
     include_country: Mapped[List[Country]] = mapped_column(ARRAY(Enum(Country)), default=list)
