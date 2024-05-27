@@ -111,7 +111,7 @@ async def create_coupon(client: AsyncClient, coupon_payload: dict, admin_auth_he
 
 
 @pytest_asyncio.fixture(name="order_in_db")
-async def create_order(client: AsyncClient, book_in_db: dict):
+async def create_order(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
     response = await client.post("/order/admin/new", json={
         "order_items": [
             {
@@ -119,7 +119,7 @@ async def create_order(client: AsyncClient, book_in_db: dict):
                 "quantity": 1,
             }
         ]
-    })
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
 

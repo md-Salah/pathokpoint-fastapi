@@ -2,12 +2,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from uuid import UUID
 from datetime import datetime
-from typing import Sequence, List
+from typing import Sequence, List, Tuple
 from sqlalchemy.orm import selectinload
 import logging
 
-from app.filter_schema.order import OrderFilter
-from app.models import Order, Book, OrderItem, OrderStatus, Transaction, User, Courier
+from app.filter_schema.order import OrderFilter, OrderFilterCustomer
+from app.models import Order, Book, OrderItem, OrderStatus, Transaction, User, Courier, Coupon
 from app.constant.discount_type import DiscountType
 from app.constant.orderstatus import Status
 import app.controller.coupon as coupon_service
@@ -20,8 +20,10 @@ order_query = select(Order).options(
     selectinload(Order.order_items).selectinload(OrderItem.book),
     selectinload(Order.order_status).selectinload(OrderStatus.updated_by),
     selectinload(Order.transactions).selectinload(Transaction.gateway),
-    selectinload(Order.address), selectinload(
-        Order.courier), selectinload(Order.coupon)
+    selectinload(Order.address), 
+    selectinload(Order.courier), 
+    selectinload(Order.coupon), 
+    selectinload(Order.customer)
 )
 
 
@@ -33,24 +35,50 @@ async def get_order_by_id(id: UUID, db: AsyncSession) -> Order:
     return order
 
 
-async def get_all_orders(filter: OrderFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Order]:
+async def get_all_orders(filter: OrderFilter, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Order], int]:
     offset = (page - 1) * per_page
-    stmt = order_query
+    query = order_query
 
-    stmt = filter.filter(stmt)
-    stmt = filter.sort(stmt)
+    if any([filter.order_status.id, filter.order_status.status]):
+        query = query.outerjoin(Order.order_status)
+    if any([filter.coupon.id, filter.coupon.code]):
+        query = query.outerjoin(Order.coupon)
+    if any([filter.customer.id, filter.customer.username, filter.customer.email, filter.customer.phone_number]):
+        query = query.outerjoin(Order.customer)
+    if any([filter.address.id, filter.address.phone_number, filter.address.thana, filter.address.city, filter.address.country]):
+        query = query.outerjoin(Order.address)
+    if any([filter.courier.id__in, filter.courier.method_name__in, filter.courier.company_name, filter.courier.allow_cash_on_delivery]):
+        query = query.outerjoin(Order.courier)
+
+    query = filter.filter(query)
+    stmt = filter.sort(query)
     stmt = stmt.offset(offset).limit(per_page)
     result = await db.execute(stmt)
     orders = result.unique().scalars().all()
-    return orders
+
+    # Count
+    stmt = select(func.count()).select_from(query.subquery())
+    count = (await db.scalar(stmt)) or 0
+    return orders, count
 
 
-async def count_orders(filter: OrderFilter, db: AsyncSession) -> int:
-    stmt = select(func.count()).select_from(Order)
-    stmt = filter.filter(stmt)
-    result = await db.scalar(stmt)
+async def get_my_orders(filter: OrderFilterCustomer, customer_id: UUID, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Order], int]:
+    offset = (page - 1) * per_page
+    query = order_query.filter(Order.customer_id == customer_id)
 
-    return result or 0
+    if any([filter.order_status.id, filter.order_status.status]):
+        query = query.outerjoin(Order.order_status)
+
+    query = filter.filter(query)
+    stmt = filter.sort(query)
+    stmt = stmt.offset(offset).limit(per_page)
+    result = await db.execute(stmt)
+    orders = result.unique().scalars().all()
+
+    # Count
+    stmt = select(func.count()).select_from(query.subquery())
+    count = (await db.scalar(stmt)) or 0
+    return orders, count
 
 
 async def create_order(payload: dict, db: AsyncSession) -> Order:
@@ -64,7 +92,13 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
         order.customer = customer
 
     # Order Items
-    order.order_items, order.old_book_total, order.new_book_total = await manage_inventory(payload['order_items'], db)
+    (
+        order.order_items,
+        order.old_book_total,
+        order.new_book_total,
+        order.cost_of_good_old,
+        order.cost_of_good_new
+    ) = await manage_inventory(payload['order_items'], db)
 
     # Shipping
     order.shipping_charge, order.weight_charge = 0, 0
@@ -94,6 +128,12 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
     order.net_amount = order.total - order.discount
     order.due = order.net_amount - order.paid
 
+    # Profit
+    order.additional_cost = 0
+    order.shipping_cost = order.shipping_charge + order.weight_charge
+    order.gross_profit = order.net_amount - order.cost_of_good_new - \
+        order.cost_of_good_old - order.shipping_cost - order.additional_cost
+
     db.add(order)
     await db.commit()
     logger.info('Order created: {}'.format(order))
@@ -108,16 +148,34 @@ async def update_order(id: UUID, payload: dict, db: AsyncSession) -> Order:
 
     # Order Items
     if payload.get('order_items'):
-        order.order_items, order.old_book_total, order.new_book_total = await manage_inventory(payload['order_items'], db, order_id=order.id)
+        (
+            order.order_items,
+            order.old_book_total,
+            order.new_book_total,
+            order.cost_of_good_old,
+            order.cost_of_good_new
+        ) = await manage_inventory(payload['order_items'], db, order_id=order.id)
 
         if order.coupon_id:
-            order.coupon, order.discount, order.shipping_charge = await apply_coupon(
-                order.coupon.id, order.order_items, order.shipping_charge, db, order.customer_id, False)
+            (
+                order.coupon,
+                order.discount,
+                order.shipping_charge
+            ) = await apply_coupon(
+                order.coupon.id,
+                order.order_items,
+                order.shipping_charge,
+                db,
+                order.customer_id,
+                False
+            )
 
         order.total = order.new_book_total + order.old_book_total + \
             order.shipping_charge + order.weight_charge
         order.net_amount = order.total - order.discount
         order.due = order.net_amount - order.paid + order.payment_reversed
+        order.gross_profit = order.net_amount - order.cost_of_good_new - \
+            order.cost_of_good_old - order.shipping_cost - order.additional_cost
 
     # Status
     if payload.get('order_status'):
@@ -135,7 +193,8 @@ async def update_order(id: UUID, payload: dict, db: AsyncSession) -> Order:
         if not transaction:
             raise NotFoundException('Transaction not found')
         elif transaction.order_id != order.id:
-            raise BadRequestException('Transaction does not belong to this order')
+            raise BadRequestException(
+                'Transaction does not belong to this order')
         order.transactions.append(transaction)
 
         if transaction.is_refund:
@@ -147,6 +206,35 @@ async def update_order(id: UUID, payload: dict, db: AsyncSession) -> Order:
             order.paid += transaction.amount
         order.due = order.net_amount - order.paid + order.payment_reversed
 
+    if payload.get('discount'):
+        order.discount = payload['discount']
+        order.net_amount = order.total - order.discount
+        order.due = order.net_amount - order.paid + order.payment_reversed
+
+    if payload.get('tracking_id'):
+        order.tracking_id = payload['tracking_id']
+
+    if payload.get('shipping_cost'):
+        order.shipping_cost = payload['shipping_cost']
+        order.cod_receivable = 0 if order.is_full_paid else (
+            order.due - order.shipping_cost)
+
+    if payload.get('cod_received'):
+        order.cod_received = payload['cod_received']
+
+    if payload.get('cost_of_good_new'):
+        order.cost_of_good_new = payload['cost_of_good_new']
+        order.gross_profit = order.net_amount - order.cost_of_good_new - \
+            order.cost_of_good_old - order.additional_cost
+
+    if payload.get('additional_cost'):
+        order.additional_cost = payload['additional_cost']
+        order.gross_profit = order.net_amount - order.cost_of_good_new - \
+            order.cost_of_good_old - order.additional_cost
+
+    if payload.get('in_trash'):
+        order.in_trash = payload['in_trash']
+
     await db.commit()
     logger.info('Order updated: {}'.format(order))
     return order
@@ -157,14 +245,11 @@ async def delete_order(id: UUID, db: AsyncSession) -> None:
     if not order:
         raise NotFoundException('Order not found')
 
-    # Restock items
-    await manage_inventory([], db, order_id=id)
-
     await db.delete(order)
     await db.commit()
 
 
-async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUID | None = None):
+async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUID | None = None) -> Tuple[list[OrderItem], float, float, float, float]:
     book_ids = [item['book_id'] for item in items_in]
     books = {book.id: book for book in (await db.scalars(select(Book).filter(Book.id.in_(book_ids))))}
 
@@ -207,21 +292,34 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
         if book_id not in book_ids:
             await restock_item(_item.book, _item.quantity)
 
-    old_book_total = sum([item.sold_price * item.quantity for item in items if (
-        item.is_removed is False and item.book.is_used)])
-    new_book_total = sum([item.sold_price * item.quantity for item in items if (
-        item.is_removed is False and not item.book.is_used)])
+    # Sum
+    old_book_total, new_book_total, cog_old, cog_new = 0, 0, 0, 0
+    for item in items:
+        if item.is_removed:
+            continue
+        if item.book.is_used:
+            old_book_total += item.sold_price * item.quantity
+            cog_old += item.book.cost * item.quantity
+        else:
+            new_book_total += item.sold_price * item.quantity
+            cog_new += item.book.cost * item.quantity
 
-    return items, old_book_total, new_book_total
+    return items, old_book_total, new_book_total, cog_old, cog_new
 
 
-async def apply_coupon(coupon_id: UUID, items: List[OrderItem], shipping_charge: float, db: AsyncSession, customer_id: UUID | None = None, new_order: bool = True):
+async def apply_coupon(coupon_id: UUID,
+                       items: List[OrderItem],
+                       shipping_charge: float,
+                       db: AsyncSession,
+                       customer_id: UUID | None = None,
+                       new_order: bool = True) -> Tuple[Coupon, float, float]:
     # coupon with all relationships
     coupon = await coupon_service.get_coupon_by_id(coupon_id, db)
 
     if new_order:
-        logger.debug(f'Coupon expiry date: {
-                     coupon.expiry_date}, current date: {datetime.now()}')
+        logger.debug('Expiry datetime: {}, Current datetime: {}'.format(
+            coupon.expiry_date, datetime.now()
+        ))
         if coupon.expiry_date and coupon.expiry_date < datetime.now():
             raise BadRequestException(
                 "Coupon '{}' has expired".format(coupon.code))
@@ -317,7 +415,7 @@ async def apply_coupon(coupon_id: UUID, items: List[OrderItem], shipping_charge:
     return coupon, discount, shipping_charge
 
 
-async def handle_shipping(address_id: UUID, courier_id: UUID, weight_kg: float, db: AsyncSession):
+async def handle_shipping(address_id: UUID, courier_id: UUID, weight_kg: float, db: AsyncSession) -> Tuple[float, float, Address, Courier]:
     address = await db.get(Address, address_id)
     if not address:
         raise NotFoundException('Address not found')
@@ -342,7 +440,7 @@ async def handle_shipping(address_id: UUID, courier_id: UUID, weight_kg: float, 
     return shipping_charge, weight_charge, address, courier
 
 
-async def reduce_stock(book: Book, quantity: int):
+async def reduce_stock(book: Book, quantity: int) -> None:
     if quantity < 1:
         logger.error('Cannot reduce stock by %s', quantity)
         raise ServerErrorException('Something went wrong.')
@@ -359,7 +457,7 @@ async def reduce_stock(book: Book, quantity: int):
         book.in_stock = book.quantity > 0
 
 
-async def restock_item(book: Book, quantity: int):
+async def restock_item(book: Book, quantity: int) -> None:
     if quantity < 1:
         logger.error('Cannot restock by %s', quantity)
         raise ServerErrorException('Something went wrong.')

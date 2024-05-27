@@ -24,15 +24,11 @@ example_order_in = {
 
 example_order_update_admin = {
     'order_items': [ItemUpdate._example],
-    'shipping_charge': 100,
-    'weight_charge': 0,
     'discount': 100,
     'tracking_id': 'DT-546365',
     'shipping_cost': 120,
-    'cod_receivable': 530,
     'cod_received': 530,
     'cost_of_good_new': 50,
-    'cost_of_good_old': 400,
     'additional_cost': 10,
     'in_trash': False,
     'order_status': StatusIn._example,
@@ -136,15 +132,11 @@ class CreateOrderAdmin(CreateOrder):
 
 class UpdateOrderAdmin(BaseModel):
     order_items: List[ItemUpdate] = []
-    shipping_charge: NonNegativeFloat = 0
-    weight_charge: NonNegativeFloat = 0
     discount: NonNegativeFloat = 0
     tracking_id: str | None = None
     shipping_cost: NonNegativeFloat = 0
-    cod_receivable: NonNegativeFloat = 0
     cod_received: NonNegativeFloat = 0
     cost_of_good_new: NonNegativeFloat = 0
-    cost_of_good_old: NonNegativeFloat = 0
     additional_cost: NonNegativeFloat = 0
     in_trash: bool = False
     order_status: StatusIn = Field(None)

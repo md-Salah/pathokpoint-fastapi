@@ -12,51 +12,56 @@ from app.constant.orderstatus import Status
 from app.constant.country import Country
 from app.constant.city import City
 
+
 class StatusFilter(Filter):
     id: UUID4 | None = None
     status: Status | None = None
-    
+
     class Constants(Filter.Constants):
         model = OrderStatus
-        
+
+
 class CouponFilter(Filter):
     id: UUID4 | None = None
     code: str | None = None
-    
+
     class Constants(Filter.Constants):
         model = Coupon
-        
+
+
 class CustomerFilter(Filter):
     id: UUID4 | None = None
     username: str | None = None
     email: str | None = None
     phone_number: str | None = None
-    
+
     class Constants(Filter.Constants):
         model = User
-        
+
+
 class AddressFilter(Filter):
     id: UUID4 | None = None
     phone_number: str | None = None
     thana: str | None = None
     city: City | None = None
     country: Country | None = None
-    
+
     class Constants(Filter.Constants):
         model = Address
-        
+
+
 class CourierFilter(Filter):
     id__in: List[UUID4] | None = None
     method_name__in: List[str] | None = None
     company_name: str | None = None
     allow_cash_on_delivery: bool | None = None
-    
+
     class Constants(Filter.Constants):
-        model = Courier        
+        model = Courier
 
 
 class OrderFilter(Filter):
-    q: str | None = Field(Query(None, description='Search by id or invoice number'))
+    q: str | None = Field(Query(None, description='Search by tracking_id'))
     invoice: int | None = None
     is_full_paid: bool | None = None
     shipping_charge__gte: float | None = None
@@ -91,30 +96,61 @@ class OrderFilter(Filter):
     gross_profit__lte: float | None = None
     in_trash: bool | None = None
     created_at: datetime | None = None
-    
-    order_status: StatusFilter = FilterDepends(with_prefix('order_status', StatusFilter))
+
+    order_status: StatusFilter = FilterDepends(
+        with_prefix('order_status', StatusFilter))
     coupon: CouponFilter = FilterDepends(with_prefix('coupon', CouponFilter))
-    customer: CustomerFilter = FilterDepends(with_prefix('customer', CustomerFilter))
-    address: AddressFilter = FilterDepends(with_prefix('address', AddressFilter))
-    
-    order_by: List[str] | None = Field(Query(None, description='Sort by fields invoice, total, discount, net_amount, paid, due, shipping_cost etc. Add "-" for descending order'))
-    
+    customer: CustomerFilter = FilterDepends(
+        with_prefix('customer', CustomerFilter))
+    address: AddressFilter = FilterDepends(
+        with_prefix('address', AddressFilter))
+    courier: CourierFilter = FilterDepends(
+        with_prefix('courier', CourierFilter))
+
+    order_by: list[str] | None = Field(Query(
+        None, description='Sort by fields invoice, total, discount, net_amount, paid, due, shipping_cost etc. Add "-" for descending order'))
+
     @field_validator('order_by')
     def restrict_sortable_fields(cls, value):
         if value is None:
             return None
-        
-        allowed_fields = ['invoice', 'total', 'discount', 'net_amount', 'paid', 'due', 'shipping_cost', 'cod_receivable', 'cod_received', 'gross_profit', 'created_at']
-        
+
+        allowed_fields = ['invoice', 'total', 'discount', 'net_amount', 'paid', 'due',
+                          'shipping_cost', 'cod_receivable', 'cod_received', 'gross_profit', 'created_at']
+
         for field_name in value:
             field_name = field_name.replace('-', '').replace('+', '')
             if field_name not in allowed_fields:
-                raise ValueError('You may only sort by {}'.format(', '.join(allowed_fields)))
+                raise ValueError('You may only sort by {}'.format(
+                    ', '.join(allowed_fields)))
         return value
 
     class Constants(Filter.Constants):
         model = Order
         search_field_name = 'q'
-        search_model_fields = ['id', 'invoice']
-        
-        
+        search_model_fields = ['tracking_id']
+
+
+class OrderFilterCustomer(Filter):
+    order_status: StatusFilter = FilterDepends(
+        with_prefix('order_status', StatusFilter))
+
+    order_by: list[str] | None = Field(Query(
+        None, description='Sort by fields created_at, updated_at. Add "-" for descending order'))
+
+    @field_validator('order_by')
+    def restrict_sortable_fields(cls, value):
+        if value is None:
+            return None
+
+        allowed_fields = ['created_at', 'updated_at']
+
+        for field_name in value:
+            field_name = field_name.replace('-', '').replace('+', '')
+            if field_name not in allowed_fields:
+                raise ValueError('You may only sort by {}'.format(
+                    ', '.join(allowed_fields)))
+        return value
+
+    class Constants(Filter.Constants):
+        model = Order
