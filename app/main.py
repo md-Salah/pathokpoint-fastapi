@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from asgi_correlation_id import CorrelationIdMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.config.database import create_tables, drop_tables
@@ -11,6 +12,7 @@ from app.config.logging_conf import configure_logging
 from app.api_routes import router as api_router
 
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,9 +25,9 @@ async def lifespan(app: FastAPI):
         # await drop_tables()
         await create_tables()
     except Exception as err:
-        logger.error('Failed to connect database. "Check if the virtual env is activated."')
+        logger.error(
+            'Failed to connect database. "Check if the virtual env is activated."')
         logger.error(f'{err.__class__}: {err}')
-    
 
     yield
     # shutdown
@@ -47,5 +49,12 @@ app = FastAPI(
     root_path='/api/v1'
 )
 app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*']
+)
 
 app.include_router(api_router)
