@@ -328,8 +328,9 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
     buffer.seek(0)
     response = StreamingResponse(
         iter([buffer.getvalue()]), media_type='text/csv')
-    response.headers['Content-Disposition'] = f'attachment; filename="{
-        file.filename}"'
+    response.headers['Content-Disposition'] = (
+        f'attachment; filename="{file.filename}"'
+    )
     return response
 
 
