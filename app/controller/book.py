@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, distinct
+from sqlalchemy import select, func
 from uuid import UUID
 from typing import Sequence, Tuple
 from sqlalchemy.orm import selectinload, joinedload
@@ -70,20 +70,19 @@ async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: 
 async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
     offset = (page - 1) * per_page
 
-    query = select(Book, 
+    query = select(Book,
                    Author.id, Author.name, Author.slug,
                    Category.id, Category.name, Category.slug,
                    Publisher.id, Publisher.name, Publisher.slug,
-                   Tag.id, Tag.name, Tag.slug                      
+                   Tag.id, Tag.name, Tag.slug
                    ).outerjoin(Book.authors).outerjoin(Book.categories).outerjoin(Book.publisher).outerjoin(Book.tags).distinct().options(
-                        joinedload(Book.publisher),
-                        joinedload(Book.authors),
-                        joinedload(Book.translators),
-                        joinedload(Book.categories),
-                        joinedload(Book.images),
-                        joinedload(Book.tags)
-                   )
-    
+        joinedload(Book.publisher),
+        joinedload(Book.authors),
+        joinedload(Book.translators),
+        joinedload(Book.categories),
+        joinedload(Book.images),
+        joinedload(Book.tags)
+    )
 
     query = filter.filter(query)
     stmt = filter.sort(query)
@@ -212,6 +211,21 @@ async def delete_book(id: UUID, db: AsyncSession) -> None:
     await db.commit()
 
     logger.info(f'Book deleted successfully {book}')
+
+
+async def delete_book_bulk(ids: list[UUID], db: AsyncSession) -> None:
+    books = (await db.scalars(select(Book).options(selectinload(Book.images)).where(Book.id.in_(ids)))).all()
+
+    img_ids = []
+    for book in books:
+        img_ids.extend([img.id for img in book.images])
+        await db.delete(book)
+        
+    if img_ids:
+        await handle_multiple_image_attachment([], img_ids, db, book_image_link)
+
+    await db.commit()
+    logger.info(f'{len(ids)} Books deleted successfully')
 
 
 async def handle_relationship(payload: dict, db: AsyncSession) -> dict:

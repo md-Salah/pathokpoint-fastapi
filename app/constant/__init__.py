@@ -8,3 +8,4 @@ from .role import Role # noqa : F401
 from .discount_type import DiscountType # noqa : F401
 from .orderstatus import Status # noqa : F401
 from .gender import Gender # noqa : F401
+from .image_folder import ImageFolder # noqa : F401

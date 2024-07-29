@@ -1,3 +1,4 @@
+import io
 import pytest
 from httpx import AsyncClient
 from starlette import status
@@ -97,6 +98,10 @@ async def test_update_book(client: AsyncClient, book_in_db: dict, admin_auth_hea
 async def test_delete_book(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
     response = await client.delete(f"/book/{book_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
+    
+async def test_delete_book_bulk(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
+    response = await client.delete(f"/book/bulk/{book_in_db['id']}", headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 async def test_export_books(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
@@ -109,10 +114,13 @@ async def test_export_books(client: AsyncClient, book_in_db: dict, admin_auth_he
     assert len(response.content.splitlines()) == 2
 
 
-async def test_import_books(client: AsyncClient, admin_auth_headers: dict):
-    payload = {
-        "file": "sku,name,slug,regular_price,sale_price,manage_stock,quantity,is_used,condition,is_popular\n99-5432,Test Book,test-book,100.0,90.0,True,10,True,old-like-new,True"
-    }
-    response = await client.post("/book/import/csv", files=payload, headers=admin_auth_headers)
+async def test_import_books_by_csv(client: AsyncClient, admin_auth_headers: dict):
+    csv_content = b"""sku,name,slug,regular_price,sale_price,manage_stock,quantity,is_used,condition,is_popular
+                99-5432,Test Book,test-book,100.0,90.0,True,10,True,old-like-new,True
+                """
+    file = io.BytesIO(csv_content)
+    files = [
+        ('file', ('test_books.csv', file, 'text/csv'))
+    ]
+    response = await client.post("/book/import/csv", files=files, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == 'ok! But this endpoint is not implemented yet.'

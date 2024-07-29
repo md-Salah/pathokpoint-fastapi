@@ -20,7 +20,6 @@ async def lifespan(app: FastAPI):
     configure_logging()
     app.state.redis = await get_redis()
 
-    # await create_tables()
     try:
         # await drop_tables()
         await create_tables()

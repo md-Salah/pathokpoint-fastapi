@@ -23,6 +23,7 @@ async def upload_file_to_cloudinary(file: BufferedReader | str, filename: str | 
         )
         logger.debug(response)
         return {
+            'filename': response['original_filename'] + '.' + response['format'],
             'public_id': response['public_id'],
             'secure_url': response['secure_url'],
         }

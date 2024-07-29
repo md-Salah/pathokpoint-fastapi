@@ -8,6 +8,7 @@ from app.config.database import Session
 import app.controller.book as book_service
 import app.controller.csv as csv_service
 from app.controller.auth import AdminAccessToken
+from app.controller.exception import BadRequestException
 
 router = APIRouter(prefix='/book')
 
@@ -54,12 +55,13 @@ async def get_all_books(*,
 
 @router.get('/all/admin', response_model=list[schema.BookOutAdmin])
 async def get_all_books_by_admin(*,
-                        page: int = Query(1, ge=1),
-                        per_page: int = Query(10, ge=1, le=100),
-                        filter: BookFilter = FilterDepends(BookFilter),
-                        _: AdminAccessToken,
-                        db: Session,
-                        response: Response):
+                                 page: int = Query(1, ge=1),
+                                 per_page: int = Query(10, ge=1, le=100),
+                                 filter: BookFilter = FilterDepends(
+                                     BookFilter),
+                                 _: AdminAccessToken,
+                                 db: Session,
+                                 response: Response):
     books, count = await book_service.get_all_books(filter, page, per_page, db)
 
     response.headers['X-Total-Count'] = str(count)
@@ -90,6 +92,15 @@ async def delete_book(id: UUID, _: AdminAccessToken, db: Session):
     await book_service.delete_book(id, db)
 
 
+@router.delete('/bulk/{ids}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_book_bulk(ids: str, _: AdminAccessToken, db: Session):
+    try:
+        valid_ids = [UUID(id.strip()) for id in ids.split(',')]
+    except Exception:
+        raise BadRequestException('Invalid UUIDs')
+    await book_service.delete_book_bulk(valid_ids, db)
+
+
 @router.get('/export/csv')
 async def export_books_to_csv(*,
                               page: int = Query(1, ge=1),
@@ -112,3 +123,8 @@ async def export_books_to_csv(*,
 @router.post('/import/csv')
 async def import_books_from_csv(*, file: UploadFile = File(...), _: AdminAccessToken, db: Session):
     return await csv_service.import_books_from_csv(file, db)
+
+
+@router.post('/template-for-import-csv')
+async def template_for_import_csv(_: AdminAccessToken, reqd_cols_only: bool = Query(False)):
+    return await csv_service.template_for_import_csv(reqd_cols_only)
