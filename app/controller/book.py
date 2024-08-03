@@ -45,6 +45,13 @@ async def get_book_by_id(id: UUID, db: AsyncSession) -> Book:
     return book
 
 
+async def get_book_by_public_id(public_id: int, db: AsyncSession) -> Book:
+    book = await db.scalar(query_selectinload.where(Book.public_id == public_id))
+    if not book:
+        raise NotFoundException('Book not found')
+    return book
+
+
 async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
     offset = (page - 1) * per_page
     query = select(Book).distinct().options(

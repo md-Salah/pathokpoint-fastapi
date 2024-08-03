@@ -18,6 +18,11 @@ async def get_book_by_id(id: UUID, db: Session):
     return await book_service.get_book_by_id(id, db)
 
 
+@router.get('/public_id/{public_id}', response_model=schema.BookOut)
+async def get_book_by_public_id(public_id: int, db: Session):
+    return await book_service.get_book_by_public_id(public_id, db)
+
+
 @router.get('/all-minimal', response_model=list[schema.BookOutMinimal])
 async def get_all_books_minimal(*,
                                 page: int = Query(1, ge=1),
