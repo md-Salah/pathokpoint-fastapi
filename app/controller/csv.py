@@ -258,8 +258,8 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
                         await db.rollback()
 
                     logger.error(f'{traceback.format_exc()}')
-                    err_df.loc[book['sku'], 'status'] = f'error: {
-                        e.__class__}: {str(e)}'
+                    err_df.loc[book['sku'], 'status'] = 'error: {}: {}'.format(
+                        e.__class__, str(e))
 
         if not updt_df.empty:
             logger.info(f'Updating {len(updt_df)} books')
