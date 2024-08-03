@@ -14,11 +14,11 @@ def slugify(text):
     return slg.slugify(text).replace('aa', 'a').replace('ii', 'i').replace('ea', 'o')
 
 
-async def unique_slug(base_slug: str, Model: Any, db: AsyncSession) -> str:
+async def unique_slug(base_slug: str, cls: Any, db: AsyncSession) -> str:
     slug = slugify(base_slug)
     counter = 1
     while True:
-        result = await db.execute(select(Model).filter_by(slug=slug))
+        result = await db.execute(select(cls).filter_by(slug=slug))
         if not result.scalars().first():
             break
         slug = f"{base_slug}-{counter}"

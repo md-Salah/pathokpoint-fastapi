@@ -3,6 +3,7 @@ import logging
 import cloudinary
 import cloudinary.uploader
 from io import BufferedReader
+import traceback
 
 from app.config.settings import settings
 
@@ -27,8 +28,8 @@ async def upload_file_to_cloudinary(file: BufferedReader | str, filename: str | 
             'public_id': response['public_id'],
             'secure_url': response['secure_url'],
         }
-    except Exception as err:
-        logger.error(err)
+    except Exception:
+        logger.error(f'{traceback.format_exc()}')
         return None
 
 
@@ -43,8 +44,8 @@ async def update_file(file: BufferedReader | str, public_id: str, filename: str 
             'public_id': response['public_id'],
             'secure_url': response['secure_url'],
         }
-    except Exception as err:
-        logger.error(err)
+    except Exception:
+        logger.error(f'{traceback.format_exc()}')
         return None
 
 
@@ -59,6 +60,6 @@ async def delete_file_from_cloudinary(public_id: str) -> bool:
         )
         logger.debug(response)
         return response['result'] == 'ok' or response['result'] == 'not found'
-    except Exception as err:
-        logger.error(err)
+    except Exception:
+        logger.error(f'{traceback.format_exc()}')
         return False
