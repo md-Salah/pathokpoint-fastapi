@@ -325,8 +325,8 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
                         logger.debug(f'Updated: {book.__dict__}')
                 except Exception as e:
                     logger.error(f'{traceback.format_exc()}')
-                    err_df.loc[book.sku, 'status'] = f'error: {
-                        e.__class__}: {str(e)}'
+                    err_df.loc[book.sku, 'status'] = 'error: {}: {}'.format(
+                        e.__class__, str(e))
 
     df['status'] = err_df['status']
     buffer = io.StringIO()
