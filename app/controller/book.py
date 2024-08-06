@@ -96,18 +96,13 @@ async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncS
                        Publisher.id, Publisher.name, Publisher.slug,
                        Tag.id, Tag.name, Tag.slug
                        ).outerjoin(Book.authors).outerjoin(Book.categories).outerjoin(Book.publisher).outerjoin(Book.tags)
-
         query = filter.filter(query)
         query = query.distinct(Book.id)
-        stmt = filter.sort(query)
+        subquery = query.subquery()
+
+        stmt = query_selectinload.join(subquery, Book.id == subquery.c.id)
+        stmt = filter.sort(stmt)
         stmt = stmt.offset(offset).limit(per_page)
-        stmt = stmt.options(selectinload(Book.authors),
-                            selectinload(Book.categories),
-                            selectinload(Book.publisher),
-                            selectinload(Book.tags),
-                            selectinload(Book.images),
-                            selectinload(Book.translators)
-                            )
 
         st = time.time()
         result = await db.execute(stmt)
@@ -115,7 +110,7 @@ async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncS
         logger.debug(f'Time taken to fetch books: {time.time() - st}')
 
         st = time.time()
-        count_stmt = select(func.count()).select_from(query.subquery())
+        count_stmt = select(func.count()).select_from(subquery)
         count = await db.scalar(count_stmt) or 0
         logger.debug(f'Time taken to fetch count: {time.time() - st}')
 
