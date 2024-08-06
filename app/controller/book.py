@@ -13,7 +13,7 @@ import time
 from app.filter_schema.book import BookFilter, BookFilterMinimal
 from app.models import Book, Author, Category, Image, Publisher, Tag
 from app.models.book import book_image_link
-from app.controller.exception import NotFoundException, ConflictException, ServerErrorException
+from app.controller.exception import NotFoundException, ConflictException, UnhandledException
 from app.controller.image import handle_multiple_image_attachment
 
 logger = logging.getLogger(__name__)
@@ -39,93 +39,114 @@ query_joinedload = select(Book).options(
 
 
 async def get_book_by_id(id: UUID, db: AsyncSession) -> Book:
-    book = await db.scalar(query_selectinload.where(Book.id == id))
-    if not book:
-        raise NotFoundException('Book not found')
-    return book
+    try:
+        book = await db.scalar(query_selectinload.where(Book.id == id))
+        if not book:
+            raise NotFoundException('Book not found')
+        return book
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def get_book_by_public_id(public_id: int, db: AsyncSession) -> Book:
-    book = await db.scalar(query_selectinload.where(Book.public_id == public_id))
-    if not book:
-        raise NotFoundException('Book not found')
-    return book
+    try:
+        book = await db.scalar(query_selectinload.where(Book.public_id == public_id))
+        if not book:
+            raise NotFoundException('Book not found')
+        return book
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
-    offset = (page - 1) * per_page
-    query = select(Book).distinct().options(
-        selectinload(Book.authors),
-        selectinload(Book.images),
-    )
-    if any([filter.author.id__in, filter.author.name__in, filter.author.slug__in]):
-        query = query.outerjoin(Book.authors)
-    query = filter.filter(query)
-    query = filter.sort(query)
-    st = time.time()
-    result = await db.execute(query.offset(offset).limit(per_page))
-    logger.debug(f'Time taken to fetch books: {time.time() - st}')
+    try:
+        offset = (page - 1) * per_page
+        query = select(Book).distinct().options(
+            selectinload(Book.authors),
+            selectinload(Book.images),
+        )
+        if any([filter.author.id__in, filter.author.name__in, filter.author.slug__in]):
+            query = query.outerjoin(Book.authors)
+        query = filter.filter(query)
+        query = filter.sort(query)
+        st = time.time()
+        result = await db.execute(query.offset(offset).limit(per_page))
+        logger.debug(f'Time taken to fetch books: {time.time() - st}')
 
-    st = time.time()
-    count_stmt = select(func.count()).select_from(query.subquery())
-    count = await db.scalar(count_stmt) or 0
-    logger.debug(f'Time taken to fetch count: {time.time() - st}')
+        st = time.time()
+        count_stmt = select(func.count()).select_from(query.subquery())
+        count = await db.scalar(count_stmt) or 0
+        logger.debug(f'Time taken to fetch count: {time.time() - st}')
 
-    return result.unique().scalars().all(), count
+        return result.unique().scalars().all(), count
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
-    offset = (page - 1) * per_page
+    try:
+        offset = (page - 1) * per_page
 
-    query = select(Book,
-                   Author.id, Author.name, Author.slug,
-                   Category.id, Category.name, Category.slug,
-                   Publisher.id, Publisher.name, Publisher.slug,
-                   Tag.id, Tag.name, Tag.slug
-                   ).outerjoin(Book.authors).outerjoin(Book.categories).outerjoin(Book.publisher).outerjoin(Book.tags).distinct().options(
-        joinedload(Book.publisher),
-        joinedload(Book.authors),
-        joinedload(Book.translators),
-        joinedload(Book.categories),
-        joinedload(Book.images),
-        joinedload(Book.tags)
-    )
+        query = select(Book,
+                       Author.id, Author.name, Author.slug,
+                       Category.id, Category.name, Category.slug,
+                       Publisher.id, Publisher.name, Publisher.slug,
+                       Tag.id, Tag.name, Tag.slug
+                       ).outerjoin(Book.authors).outerjoin(Book.categories).outerjoin(Book.publisher).outerjoin(Book.tags)
 
-    query = filter.filter(query)
-    stmt = filter.sort(query)
-    stmt = stmt.offset(offset).limit(per_page)
-    st = time.time()
-    result = await db.execute(stmt)
-    books = result.unique().scalars().all()
-    logger.debug(f'Time taken to fetch books: {time.time() - st}')
+        query = filter.filter(query)
+        query = query.distinct()
+        stmt = filter.sort(query)
+        stmt = stmt.offset(offset).limit(per_page)
+        stmt = stmt.options(selectinload(Book.authors),
+                            selectinload(Book.categories),
+                            selectinload(Book.publisher),
+                            selectinload(Book.tags),
+                            selectinload(Book.images),
+                            selectinload(Book.translators)
+                            )
 
-    st = time.time()
-    # count_stmt = select(func.count()).select_from(query.subquery())
-    count_stmt = select(func.count()).select_from(query.subquery())
-    count = await db.scalar(count_stmt) or 0
-    logger.debug(f'Time taken to fetch count: {time.time() - st}')
+        st = time.time()
+        result = await db.execute(stmt)
+        books = result.unique().scalars().all()
+        logger.debug(f'Time taken to fetch books: {time.time() - st}')
 
-    return books, count
+        st = time.time()
+        count_stmt = select(func.count()).select_from(query.subquery())
+        count = await db.scalar(count_stmt) or 0
+        logger.debug(f'Time taken to fetch count: {time.time() - st}')
+
+        return books, count
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def create_book(payload: dict, db: AsyncSession) -> Book:
-    _book = await db.scalar(select(Book).where(Book.sku == payload['sku']))
-    if _book:
-        raise ConflictException(
-            'Book with this SKU already exists', str(_book.id))
+    try:
+        _book = await db.scalar(select(Book).where(Book.sku == payload['sku']))
+        if _book:
+            raise ConflictException(
+                'Book with this SKU already exists', str(_book.id))
 
-    payload['slug'] = slugify(payload['slug'])
-    payload = await handle_relationship(payload, db)
-    if payload.get('images'):
-        payload['images'] = (await db.scalars(select(Image).where(Image.id.in_(payload['images'])))).all()
+        payload['slug'] = slugify(payload['slug'])
+        payload = await handle_relationship(payload, db)
+        if payload.get('images'):
+            payload['images'] = (await db.scalars(select(Image).where(Image.id.in_(payload['images'])))).all()
 
-    logger.debug(f'Creating book with payload: {payload}')
-    book = Book(**payload)
-    db.add(book)
-    await db.commit()
+        logger.debug(f'Creating book with payload: {payload}')
+        book = Book(**payload)
+        db.add(book)
+        await db.commit()
 
-    logger.info(f'Book created successfully {book}')
-    return book
+        logger.info(f'Book created successfully {book}')
+        return book
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Book]:
@@ -184,55 +205,67 @@ async def create_book_bulk(payload: list[dict], db: AsyncSession) -> Sequence[Bo
         await db.commit()
         return new_items
     except Exception:
-        logger.error(f"Error creating books: {traceback.format_exc()}")
-        raise ServerErrorException('Error creating books. Try again later.')
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def update_book(id: UUID, payload: dict, db: AsyncSession) -> Book:
-    book = await db.scalar(query_selectinload.where(Book.id == id))
-    if not book:
-        raise NotFoundException('Book not found')
+    try:
+        book = await db.scalar(query_selectinload.where(Book.id == id))
+        if not book:
+            raise NotFoundException('Book not found')
 
-    if payload.get('slug'):
-        payload['slug'] = slugify(payload['slug'])
-    payload = await handle_relationship(payload, db)
-    if 'images' in payload:
-        previous_ids = [image.id for image in book.images]
-        payload['images'] = await handle_multiple_image_attachment(payload['images'], previous_ids, db, book_image_link)
+        if payload.get('slug'):
+            payload['slug'] = slugify(payload['slug'])
+        payload = await handle_relationship(payload, db)
+        if 'images' in payload:
+            previous_ids = [image.id for image in book.images]
+            payload['images'] = await handle_multiple_image_attachment(payload['images'], previous_ids, db, book_image_link)
 
-    logger.debug(f'Updating book with payload: {payload}')
-    [setattr(book, key, value) for key, value in payload.items()]
+        logger.debug(f'Updating book with payload: {payload}')
+        [setattr(book, key, value) for key, value in payload.items()]
 
-    await db.commit()
-    logger.info(f'Book updated successfully {book}')
-    return book
+        await db.commit()
+        logger.info(f'Book updated successfully {book}')
+        return book
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def delete_book(id: UUID, db: AsyncSession) -> None:
-    book = await db.scalar(select(Book).where(Book.id == id))
-    if not book:
-        raise NotFoundException('Book not found')
+    try:
+        book = await db.scalar(select(Book).where(Book.id == id))
+        if not book:
+            raise NotFoundException('Book not found')
 
-    await handle_multiple_image_attachment([], [image.id for image in await book.awaitable_attrs.images], db, book_image_link)
-    await db.delete(book)
-    await db.commit()
+        await handle_multiple_image_attachment([], [image.id for image in await book.awaitable_attrs.images], db, book_image_link)
+        await db.delete(book)
+        await db.commit()
 
-    logger.info(f'Book deleted successfully {book}')
+        logger.info(f'Book deleted successfully {book}')
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def delete_book_bulk(ids: list[UUID], db: AsyncSession) -> None:
-    books = (await db.scalars(select(Book).options(selectinload(Book.images)).where(Book.id.in_(ids)))).all()
+    try:
+        books = (await db.scalars(select(Book).options(selectinload(Book.images)).where(Book.id.in_(ids)))).all()
 
-    img_ids = []
-    for book in books:
-        img_ids.extend([img.id for img in book.images])
-        await db.delete(book)
-        
-    if img_ids:
-        await handle_multiple_image_attachment([], img_ids, db, book_image_link)
+        img_ids = []
+        for book in books:
+            img_ids.extend([img.id for img in book.images])
+            await db.delete(book)
 
-    await db.commit()
-    logger.info(f'{len(ids)} Books deleted successfully')
+        if img_ids:
+            await handle_multiple_image_attachment([], img_ids, db, book_image_link)
+
+        await db.commit()
+        logger.info(f'{len(ids)} Books deleted successfully')
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
 
 async def handle_relationship(payload: dict, db: AsyncSession) -> dict:

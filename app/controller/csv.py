@@ -127,6 +127,7 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
     chunk_size = 1000
     for i in range(0, len(df), chunk_size):
         chunk_df = df[i:i + chunk_size]
+        pd.set_option('future.no_silent_downcasting', True)
         chunk_df = chunk_df.fillna(np.nan).replace([np.nan], [None])
 
         try:

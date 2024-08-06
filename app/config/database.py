@@ -12,7 +12,7 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 
 engine = create_async_engine(
-    settings.DATABASE_URL, echo=not settings.PRODUCTION, future=True)
+    settings.DATABASE_URL, echo=False, future=True)
 session_factory = async_sessionmaker(
     engine, autoflush=False, expire_on_commit=False)
 

@@ -23,22 +23,22 @@ async def get_book_by_public_id(public_id: int, db: Session):
     return await book_service.get_book_by_public_id(public_id, db)
 
 
-@router.get('/all-minimal', response_model=list[schema.BookOutMinimal])
-async def get_all_books_minimal(*,
-                                page: int = Query(1, ge=1),
-                                per_page: int = Query(10, ge=1, le=100),
-                                filter: BookFilterMinimal = FilterDepends(
-                                    BookFilterMinimal),
-                                db: Session,
-                                response: Response):
-    books, count = await book_service.get_all_books_minimal(filter, page, per_page, db)
+# @router.get('/all-minimal', response_model=list[schema.BookOutMinimal])
+# async def get_all_books_minimal(*,
+#                                 page: int = Query(1, ge=1),
+#                                 per_page: int = Query(10, ge=1, le=100),
+#                                 filter: BookFilterMinimal = FilterDepends(
+#                                     BookFilterMinimal),
+#                                 db: Session,
+#                                 response: Response):
+#     books, count = await book_service.get_all_books_minimal(filter, page, per_page, db)
 
-    response.headers['X-Total-Count'] = str(count)
-    response.headers['X-Total-Pages'] = str(-(-count // per_page))
-    response.headers['X-Current-Page'] = str(page)
-    response.headers['X-Per-Page'] = str(per_page)
+#     response.headers['X-Total-Count'] = str(count)
+#     response.headers['X-Total-Pages'] = str(-(-count // per_page))
+#     response.headers['X-Current-Page'] = str(page)
+#     response.headers['X-Per-Page'] = str(per_page)
 
-    return books
+#     return books
 
 
 @router.get('/all', response_model=list[schema.BookOut])
