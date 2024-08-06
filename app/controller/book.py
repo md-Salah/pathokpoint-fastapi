@@ -98,7 +98,7 @@ async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncS
                        ).outerjoin(Book.authors).outerjoin(Book.categories).outerjoin(Book.publisher).outerjoin(Book.tags)
 
         query = filter.filter(query)
-        query = query.distinct()
+        query = query.distinct(Book.id)
         stmt = filter.sort(query)
         stmt = stmt.offset(offset).limit(per_page)
         stmt = stmt.options(selectinload(Book.authors),
