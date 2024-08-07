@@ -1,13 +1,15 @@
 from fastapi import Query
-from pydantic import Field
+from pydantic import Field, UUID4
 from fastapi_filter.contrib.sqlalchemy import Filter
 
 from app.models.category import Category
 
+
 class CategoryFilter(Filter):
+    id__in: list[UUID4] | None = None
     q: str | None = Field(Query(None, description='Search by name or slug'))
     name: str | None = None
-    slug: str | None = None
+    slug__in: list[str] | None = None
 
     is_islamic: bool | None = None
     is_english_featured: bool | None = None
@@ -21,4 +23,3 @@ class CategoryFilter(Filter):
         model = Category
         search_field_name = 'q'
         search_model_fields = ['name', 'slug']
-        

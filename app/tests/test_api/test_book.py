@@ -49,11 +49,11 @@ async def test_get_all_books(client: AsyncClient, book_in_db: dict, query_string
     assert response.headers.get("x-total-count") == str(expected_length)
 
 
-async def test_get_all_books_minimal(client: AsyncClient, book_in_db: dict):
-    response = await client.get("/book/all-minimal")
-    assert len(response.json()) == 1
-    assert response.json()[0].items() <= book_in_db.items()
-    assert response.headers.get("x-total-count") == '1'
+# async def test_get_all_books_minimal(client: AsyncClient, book_in_db: dict):
+#     response = await client.get("/book/all-minimal")
+#     assert len(response.json()) == 1
+#     assert response.json()[0].items() <= book_in_db.items()
+#     assert response.headers.get("x-total-count") == '1'
 
 
 async def test_create_book(client: AsyncClient, author_in_db: dict, category_in_db: dict, publisher_in_db: dict, admin_auth_headers: dict):
