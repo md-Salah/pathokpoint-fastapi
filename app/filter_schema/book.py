@@ -46,6 +46,8 @@ class BookFilterMinimal(Filter):
     sku: str | None = None
     name: str | None = None
     slug: str | None = None
+    id__in: List[UUID4] | None = None
+    slug__in: List[str] | None = None
     regular_price__lte: float | None = None
     regular_price__gte: float | None = None
     sale_price__lte: float | None = None
