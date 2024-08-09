@@ -36,11 +36,29 @@ async def get_coupon_by_id(id: UUID, db: AsyncSession) -> Coupon:
     return coupon
 
 
+async def get_coupon_by_code(code: str, db: AsyncSession) -> Coupon:
+    coupon = await db.scalar(query.filter(Coupon.code.ilike(code)))
+    if not coupon:
+        raise NotFoundException('Coupon not found')
+    return coupon
+
+
 async def get_all_coupons(filter: CouponFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Coupon]:
     offset = (page - 1) * per_page
     stmt = query.offset(offset).limit(per_page)
     stmt = filter.filter(stmt)
     stmt = filter.sort(stmt)
+    result = await db.execute(stmt)
+    return result.scalars().unique().all()
+
+
+async def get_suggested_coupons(page: int, per_page: int, db: AsyncSession) -> Sequence[Coupon]:
+    offset = (page - 1) * per_page
+
+    stmt = query.filter(Coupon.is_active,
+                        func.cardinality(Coupon.allowed_users) == 0,
+                        Coupon.expiry_date > func.now())
+    stmt = query.offset(offset).limit(per_page)
     result = await db.execute(stmt)
     return result.scalars().unique().all()
 
@@ -125,4 +143,3 @@ async def build_relationships(payload: dict, db: AsyncSession) -> dict:
         payload['allowed_users'] = list((await db.scalars(select(User).where(User.id.in_(payload['allowed_users'])))).all())
 
     return payload
-

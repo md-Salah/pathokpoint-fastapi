@@ -20,9 +20,9 @@ order_query = select(Order).options(
     selectinload(Order.order_items).selectinload(OrderItem.book),
     selectinload(Order.order_status).selectinload(OrderStatus.updated_by),
     selectinload(Order.transactions).selectinload(Transaction.gateway),
-    selectinload(Order.address), 
-    selectinload(Order.courier), 
-    selectinload(Order.coupon), 
+    selectinload(Order.address),
+    selectinload(Order.courier),
+    selectinload(Order.coupon),
     selectinload(Order.customer)
 )
 
@@ -307,14 +307,13 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
     return items, old_book_total, new_book_total, cog_old, cog_new
 
 
-async def apply_coupon(coupon_id: UUID,
+async def apply_coupon(coupon_id: UUID | Coupon,
                        items: List[OrderItem],
                        shipping_charge: float,
                        db: AsyncSession,
                        customer_id: UUID | None = None,
                        new_order: bool = True) -> Tuple[Coupon, float, float]:
-    # coupon with all relationships
-    coupon = await coupon_service.get_coupon_by_id(coupon_id, db)
+    coupon = coupon_id if isinstance(coupon_id, Coupon) else await coupon_service.get_coupon_by_id(coupon_id, db)
 
     if new_order:
         logger.debug('Expiry datetime: {}, Current datetime: {}'.format(
@@ -376,6 +375,8 @@ async def apply_coupon(coupon_id: UUID,
         [item.sold_price * item.quantity for item in items if item.book.is_used])
     new_book_total = sum(
         [item.sold_price * item.quantity for item in items if not item.book.is_used])
+    logger.debug('Old book total: {}, New book total: {}'.format(
+        old_book_total, new_book_total))
 
     discount_old = 0
     if coupon.discount_old and old_book_total >= coupon.min_spend_old:

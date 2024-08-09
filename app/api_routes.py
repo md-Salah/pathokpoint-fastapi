@@ -16,6 +16,7 @@ from app.api.address import router as address_route
 from app.api.coupon import router as coupon_route
 from app.api.payment_gateway import router as payment_gateway_route
 from app.api.transaction import router as transaction_route
+from app.api.cart import router as cart_route
 
 router = APIRouter()
 
@@ -29,6 +30,7 @@ router.include_router(category_route, tags=['Category'])
 router.include_router(image_route, tags=['Image'])
 router.include_router(tag_route, tags=['Tag'])
 router.include_router(coupon_route, tags=['Coupon'])
+router.include_router(cart_route, tags=['Cart'])
 router.include_router(order_route, tags=['Order'])
 router.include_router(review_route, tags=['Review'])
 router.include_router(courier_route, tags=['Courier'])
