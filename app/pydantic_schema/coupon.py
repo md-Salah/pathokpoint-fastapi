@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, Field, UUID4, field_validator, FutureDatetime, ValidationInfo, NonNegativeFloat, NonNegativeInt, PositiveInt
+from pydantic import ConfigDict, Field, UUID4, field_validator, ValidationInfo, NonNegativeFloat, PositiveInt
 from datetime import datetime, timedelta
 
 from app.pydantic_schema.mixins import IdTimestampMixin
@@ -66,7 +66,7 @@ example_coupon_out = {
 class CouponBase(BaseModel):
     code: str = Field(min_length=3, max_length=20)
     short_description: str | None = Field(None, max_length=100)
-    expiry_date: FutureDatetime | None = None
+    expiry_date: datetime | None = None
 
     discount_type: DiscountType
     discount_old: NonNegativeFloat | None = None
@@ -132,4 +132,3 @@ class CouponOut(CreateCoupon, IdTimestampMixin):
 
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_coupon_out})
-
