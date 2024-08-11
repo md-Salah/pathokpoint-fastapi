@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from uuid import UUID
 from datetime import datetime
-from typing import Sequence, List, Tuple
+from typing import Sequence, List, Tuple, Any
 from sqlalchemy.orm import selectinload
 import logging
 
@@ -161,7 +161,7 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
     return order
 
 
-async def update_order(id: UUID, payload: dict, db: AsyncSession) -> Order:
+async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> Order:
     logger.debug(f'Updating order with payload: {payload}')
     order = await db.scalar(order_query.where(Order.id == id))
     if not order:
