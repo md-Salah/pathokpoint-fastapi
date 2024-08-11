@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from sqlalchemy import select
+from typing import Any
 
 from app.controller.coupon import get_coupon_by_code
 import app.controller.order as order_service
@@ -9,7 +10,7 @@ from app.models import OrderItem, Book
 logger = logging.getLogger(__name__)
 
 
-async def apply_coupon(payload: dict, db: AsyncSession):
+async def apply_coupon(payload: dict[str, Any], db: AsyncSession):
     coupon = await get_coupon_by_code(payload['coupon_code'], db)
 
     books = await db.scalars(select(Book).where(Book.id.in_([item['book_id'] for item in payload['order_items']])))

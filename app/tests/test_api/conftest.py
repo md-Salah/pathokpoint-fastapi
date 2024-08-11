@@ -64,7 +64,7 @@ async def create_category(client: AsyncClient, admin_auth_headers: dict):
 
 
 @pytest_asyncio.fixture(name="user_in_db")
-async def create_user_by_admin(client: AsyncClient, user_payload: dict, admin_auth_headers: dict):
+async def create_user_by_admin(client: AsyncClient, user_payload: dict, admin_auth_headers: dict) -> dict[str, dict]:
     response = await client.post("/user", json=user_payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     user = response.json()
@@ -91,7 +91,7 @@ async def create_courier(client: AsyncClient, courier_payload: dict, admin_auth_
 
 
 @pytest_asyncio.fixture(name="address_in_db")
-async def create_address(client: AsyncClient, address_payload: dict, user_in_db: dict):
+async def create_address(client: AsyncClient, address_payload: dict, user_in_db: dict[str, dict]) -> dict[str, dict]:
     response = await client.post("/address", json=address_payload,
                                  headers={"Authorization": "Bearer {}".format(
                                      user_in_db["token"]['access_token'])}
@@ -152,7 +152,7 @@ async def create_transaction(client: AsyncClient, payment_gateway_in_db: dict, o
 
 
 @pytest_asyncio.fixture(name="review_in_db")
-async def create_review(client: AsyncClient, image_in_db: dict, book_in_db: dict, user_in_db: dict):
+async def create_review(client: AsyncClient, image_in_db: dict, book_in_db: dict, user_in_db: dict[str, dict]):
     response = await client.post("/review/new", json={
         "product_rating": 5,
         "time_rating": 5,
@@ -263,6 +263,7 @@ def coupon_payload() -> dict:
 @pytest_asyncio.fixture(name="address_payload")
 def address_payload() -> dict:
     return {
+        "name": "test user",
         "phone_number": "+8801710002000",
         "alternative_phone_number": "+8801710000001",
         "address": "House 1, Road 1, Block A, Dhaka",

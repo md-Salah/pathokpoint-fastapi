@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, Field, UUID4
+from pydantic import ConfigDict, Field, UUID4, EmailStr
 
 from app.constant.city import City
 from app.constant.country import Country
@@ -7,6 +7,8 @@ from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.field import PhoneNumberField
 
 example_address = {
+    'name': 'John Doe',
+    'email': 'johnDoe@gmail.com',
     'phone_number': '+8801511112222',
     'alternative_phone_number': '+8801633334444',
     'address': 'House 1, Road 1, Block A, Dhaka',
@@ -27,8 +29,10 @@ example_address_out = {
 
 
 class AddressBase(BaseModel):
+    name: str = Field(min_length=3, max_length=50)
+    email: EmailStr | None = None
     phone_number: str = PhoneNumberField()
-    alternative_phone_number: str = PhoneNumberField(None)
+    alternative_phone_number: str | None = PhoneNumberField(None)
     address: str = Field(min_length=5, max_length=500)
     thana: str = Field(min_length=3, max_length=50)
     city: City
@@ -41,6 +45,7 @@ class CreateAddress(AddressBase):
 
 
 class UpdateAddress(CreateAddress):
+    name: str = Field(None, min_length=3, max_length=50)
     phone_number: str = PhoneNumberField(None)
     address: str = Field(None, min_length=3, max_length=500)
     thana: str = Field(None, min_length=3, max_length=50)
@@ -49,6 +54,6 @@ class UpdateAddress(CreateAddress):
 
 
 class AddressOut(CreateAddress, IdTimestampMixin):
-    user_id: UUID4
+    user_id: UUID4 | None = None
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_address_out})

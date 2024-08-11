@@ -1,5 +1,5 @@
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, NonNegativeFloat, FiniteFloat
 from typing import List
 
 from app.pydantic_schema.base import BaseModel
@@ -19,3 +19,8 @@ class ApplyCoupon(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_apply_coupon})
+
+
+class ApplyCouponResponse(BaseModel):
+    discount: NonNegativeFloat
+    shipping_charge: FiniteFloat

@@ -5,7 +5,7 @@ from fastapi_filter import FilterDepends
 
 from app.filter_schema.order import OrderFilter, OrderFilterCustomer
 from app.controller.exception import BadRequestException
-from app.controller.auth import AccessToken, AdminAccessToken
+from app.controller.auth import AccessToken, AdminAccessToken, AccessTokenOptional
 import app.pydantic_schema.order as schema
 from app.config.database import Session
 import app.controller.order as order_service
@@ -66,11 +66,10 @@ async def get_all_orders_by_admin(*,
 
 
 @router.post('/new', response_model=schema.OrderOut, status_code=status.HTTP_201_CREATED)
-async def create_order(payload: schema.CreateOrder, token: AccessToken, db: Session):
-    data = {
-        **payload.model_dump(),
-        'customer_id': token['id']
-    }
+async def create_order(payload: schema.CreateOrder, token: AccessTokenOptional, db: Session):
+    data = payload.model_dump()
+    if token:
+        data['customer_id'] = token['id']
     return await order_service.create_order(data, db)
 
 

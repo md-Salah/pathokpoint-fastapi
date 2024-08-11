@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from starlette import status
 from unittest.mock import patch
+from typing import Any
 
 pytestmark = pytest.mark.asyncio
 
@@ -34,7 +35,7 @@ async def test_get_all_reviews(client: AsyncClient, review_in_db: dict):
     assert response.json()[0].items() >= review_in_db.items()
 
 
-async def test_create_book_review(client: AsyncClient, book_in_db: dict, user_in_db: dict):
+async def test_create_book_review(client: AsyncClient, book_in_db: dict, user_in_db: dict[str, Any]):
     payload = {
         **simple_review,
         "book_id": book_in_db['id'],
@@ -47,7 +48,7 @@ async def test_create_book_review(client: AsyncClient, book_in_db: dict, user_in
     assert response.json().items() >= payload.items()
 
 
-async def test_create_order_review(client: AsyncClient, book_in_db: dict, address_in_db: dict, courier_in_db: dict):
+async def test_create_order_review(client: AsyncClient, book_in_db: dict, address_in_db: dict[str, Any], courier_in_db: dict):
     user_in_db = address_in_db['user']
     headers = {"Authorization": "Bearer {}".format(user_in_db['token']['access_token'])}
     response = await client.post('/order/new', json={
@@ -57,7 +58,8 @@ async def test_create_order_review(client: AsyncClient, book_in_db: dict, addres
                 "quantity": 1,
             }
         ],
-        'address_id': address_in_db['address']['id'],
+        'address': address_in_db['address'],
+        "payment_method": "bkash",
         'courier_id': courier_in_db['id'],
     }, headers=headers)
     assert response.status_code == status.HTTP_201_CREATED
@@ -104,7 +106,7 @@ async def test_approve_review(client: AsyncClient, review_in_db: dict, admin_acc
     assert response.json()['is_approved'] is True
 
 
-async def test_delete_review(mock_delete_file, client: AsyncClient, review_in_db: dict):
+async def test_delete_review(mock_delete_file, client: AsyncClient, review_in_db: dict[str, Any]):
     mock_delete_file.return_value = True
     response = await client.delete(f"/review/{review_in_db['id']}",
                                    headers={"Authorization": f"Bearer {review_in_db['access_token']}"})

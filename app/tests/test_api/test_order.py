@@ -1,17 +1,19 @@
 import pytest
 from httpx import AsyncClient
 from starlette import status
+from typing import Any
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_get_order_by_id(client: AsyncClient, address_in_db: dict, courier_in_db: dict, book_in_db: dict):
+async def test_get_my_order_by_id(client: AsyncClient, address_in_db: dict[str, Any], courier_in_db: dict, book_in_db: dict):
     user_in_db = address_in_db['user']
     headers = {'Authorization': 'Bearer {}'.format(
         user_in_db['token']['access_token'])}
     payload = {
-        "address_id": address_in_db['address']["id"],
+        "address": address_in_db['address'],
         "courier_id": courier_in_db["id"],
+        "payment_method": "bkash",
         "order_items": [
             {
                 "book_id": book_in_db["id"],
@@ -68,11 +70,12 @@ async def test_get_my_orders(client: AsyncClient, order_in_db: dict, customer_au
 
 
 @pytest.mark.parametrize('quantity', [1, 2])
-async def test_create_order(client: AsyncClient, user_in_db: dict, book_in_db: dict, coupon_in_db: dict, address_in_db: dict, courier_in_db: dict, quantity: int):
+async def test_create_order_by_customer(client: AsyncClient, user_in_db: dict[str, Any], book_in_db: dict, coupon_in_db: dict, address_payload: dict[str, Any], courier_in_db: dict, quantity: int):
     payload = {
-        "coupon_id": coupon_in_db["id"],
-        "address_id": address_in_db['address']["id"],
+        "coupon_code": coupon_in_db["code"],
+        "address": address_payload,
         "courier_id": courier_in_db["id"],
+        "payment_method": "bkash",
         "order_items": [
             {
                 "book_id": book_in_db["id"],
@@ -88,8 +91,8 @@ async def test_create_order(client: AsyncClient, user_in_db: dict, book_in_db: d
 
     assert response.status_code == status.HTTP_201_CREATED
     assert len(response_data["order_items"]) == len(payload["order_items"])
-    assert response_data["coupon"]["id"] == payload["coupon_id"]
-    assert response_data["address"]["id"] == payload["address_id"]
+    assert response_data["coupon"]["code"] == payload["coupon_code"]
+    assert response_data["address"].items() >= payload["address"].items()
     assert response_data["courier"]["id"] == payload["courier_id"]
 
     # Status
@@ -147,7 +150,7 @@ async def test_create_order_with_fixed_discount(client: AsyncClient, book_in_db:
     coupon_in_db = response.json()
 
     payload = {
-        'coupon_id': coupon_in_db['id'],
+        'coupon_code': coupon_in_db['code'],
         'order_items': [
             {
                 'book_id': book_in_db['id'],

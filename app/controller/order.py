@@ -92,6 +92,8 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
         order.customer = customer
 
     # Order Items
+    if (len(payload['order_items']) < 1):
+        raise BadRequestException('Order must have at least one item')
     (
         order.order_items,
         order.old_book_total,
@@ -102,15 +104,34 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
 
     # Shipping
     order.shipping_charge, order.weight_charge = 0, 0
-    if payload.get('address_id'):
-        weight_kg = sum(
-            [item.book.weight_in_gm for item in order.order_items if item.is_removed is False])/1000
-        order.shipping_charge, order.weight_charge, order.address, order.courier = await handle_shipping(
+    weight_kg = sum(
+        [item.book.weight_in_gm for item in order.order_items if item.is_removed is False])/1000
+    if payload.get('address'):
+        order.address = Address(**payload['address'])
+        (
+            order.shipping_charge,
+            order.weight_charge,
+            _,
+            order.courier
+        ) = await handle_shipping(
+            order.address, payload['courier_id'], weight_kg, db)
+    elif payload.get('address_id'):
+        (
+            order.shipping_charge,
+            order.weight_charge,
+            order.address,
+            order.courier
+        ) = await handle_shipping(
             payload['address_id'], payload['courier_id'], weight_kg, db)
 
     # Coupon & Discount
     order.discount = 0
-    if payload.get('coupon_id'):
+    if payload.get('coupon_code'):
+        coupon = await coupon_service.get_coupon_by_code(
+            payload['coupon_code'], db)
+        order.coupon, order.discount, order.shipping_charge = await apply_coupon(
+            coupon, order.order_items, order.shipping_charge, db, payload.get('customer_id'))
+    elif payload.get('coupon_id'):
         order.coupon, order.discount, order.shipping_charge = await apply_coupon(
             payload['coupon_id'], order.order_items, order.shipping_charge, db, payload.get('customer_id'))
 
@@ -416,10 +437,13 @@ async def apply_coupon(coupon_id: UUID | Coupon,
     return coupon, discount, shipping_charge
 
 
-async def handle_shipping(address_id: UUID, courier_id: UUID, weight_kg: float, db: AsyncSession) -> Tuple[float, float, Address, Courier]:
-    address = await db.get(Address, address_id)
-    if not address:
-        raise NotFoundException('Address not found')
+async def handle_shipping(address_id: UUID | Address, courier_id: UUID, weight_kg: float, db: AsyncSession) -> Tuple[float, float, Address, Courier]:
+    if isinstance(address_id, Address):
+        address = address_id
+    else:
+        address = await db.get(Address, address_id)
+        if not address:
+            raise NotFoundException('Address not found')
 
     courier = await db.get(Courier, courier_id)
     if not courier:

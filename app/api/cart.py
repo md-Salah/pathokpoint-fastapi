@@ -10,7 +10,7 @@ import app.controller.coupon as coupon_service
 router = APIRouter(prefix='/cart')
 
 
-@router.post('/apply-coupon')
+@router.post('/apply-coupon', response_model=schema.ApplyCouponResponse)
 async def apply_coupon(payload: schema.ApplyCoupon, db: Session):
     return await cart_service.apply_coupon(payload.model_dump(), db)
 

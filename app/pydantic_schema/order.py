@@ -5,21 +5,22 @@ from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.common import UserOut, CouponOut, CourierOut
 from app.pydantic_schema.transaction import TransactionOut
-from app.pydantic_schema.address import AddressOut
+from app.pydantic_schema.address import AddressOut, CreateAddress, example_address_in
 from app.pydantic_schema.order_item import ItemIn, ItemOut, ItemUpdate
 from app.pydantic_schema.order_status import StatusIn, StatusOut
 
 example_order_base = {
     'is_full_paid': True,
     'order_items': [ItemIn._example],
-    'customer_note': 'Valo boi diben',
+    'customer_note': 'Please deliver fast',
 }
 
 example_order_in = {
     **example_order_base,
-    'coupon_id': 'valid-uuid4',
-    'address_id': 'valid-uuid4',
+    'coupon_code': 'Welcome10',
+    'address': example_address_in,
     'courier_id': 'valid-uuid4',
+    'payment_method': 'bkash',
 }
 
 example_order_update_admin = {
@@ -80,14 +81,28 @@ class OrderBase(BaseModel):
 
 
 class CreateOrder(OrderBase):
-    coupon_id: UUID4 | None = None
-    address_id: UUID4
+    coupon_code: str | None = None
+    address: CreateAddress
     courier_id: UUID4
+    payment_method: str
 
     model_config = ConfigDict(json_schema_extra={"example": example_order_in})
 
 
-class OrderOut(CreateOrder, IdTimestampMixin):
+class CreateOrderAdmin(OrderBase):
+    coupon_code: str | None = None
+    address: CreateAddress | None = None
+    courier_id: UUID4 | None = None
+    payment_method: str | None = None
+    customer_id: UUID4 | None = None
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        **example_order_in,
+        'customer_id': 'valid-uuid4'
+    }})
+
+
+class OrderOut(OrderBase, IdTimestampMixin):
     invoice: int
     order_items: List[ItemOut]
     new_book_total: NonNegativeFloat
@@ -110,24 +125,10 @@ class OrderOut(CreateOrder, IdTimestampMixin):
     customer: UserOut | None = None
     address: AddressOut | None = None
     courier: CourierOut | None = None
-    address_id: UUID4 | None = None
-    courier_id: UUID4 | None = None
 
     in_trash: bool
 
     model_config = ConfigDict(json_schema_extra={"example": example_order_out})
-
-
-# For admin
-class CreateOrderAdmin(CreateOrder):
-    address_id: UUID4 | None = None
-    courier_id: UUID4 | None = None
-    customer_id: UUID4 | None = None
-
-    model_config = ConfigDict(json_schema_extra={"example": {
-        **example_order_in,
-        'customer_id': 'valid-uuid4'
-    }})
 
 
 class UpdateOrderAdmin(BaseModel):

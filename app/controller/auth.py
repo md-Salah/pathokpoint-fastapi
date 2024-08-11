@@ -109,6 +109,15 @@ async def current_admin(db: Session, token: dict = Depends(valid_admin_token)) -
     raise UnauthorizedException("User not found")
 
 
+def valid_access_token_optional(token: str = Depends(oauth_scheme)):
+    try:
+        return valid_access_token(token)
+    except Exception:
+        return None
+
+
+AccessTokenOptional = Annotated[Token | None,
+                                Depends(valid_access_token_optional)]
 AccessToken = Annotated[Token, Depends(valid_access_token)]
 AdminAccessToken = Annotated[Token, Depends(valid_admin_token)]
 CurrentUser = Annotated[User, Depends(current_user)]
