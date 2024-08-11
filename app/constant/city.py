@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class City(str, Enum):
     bagerhat = 'bagerhat'
     bandarban = 'bandarban'
@@ -65,3 +66,7 @@ class City(str, Enum):
     sylhet = 'sylhet'
     tangail = 'tangail'
     thakurgaon = 'thakurgaon'
+
+    @classmethod
+    def values(cls):
+        return [city.value for city in cls]

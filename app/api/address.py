@@ -6,6 +6,7 @@ import app.controller.address as address_service
 import app.pydantic_schema.address as address_schema
 from app.controller.auth import AccessToken, Role
 from app.controller.exception import ForbiddenException
+from app.constant import Country, City
 
 router = APIRouter(prefix='/address')
 
@@ -49,3 +50,9 @@ async def update_my_address(id: UUID, payload: address_schema.UpdateAddress, tok
 @router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_address(id: UUID, token: AccessToken, db: Session):
     await address_service.delete_address(id, token['id'], token['role'], db)
+
+
+@router.get('/city/{country}')
+async def get_city_by_country(country: Country):
+    if country == Country.BD:
+        return City.values()
