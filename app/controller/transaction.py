@@ -101,3 +101,4 @@ async def delete_transaction(id: UUID, db: AsyncSession) -> None:
     await db.delete(transaction)
     await db.commit()
     logger.info(f'Transaction deleted: {transaction}')
+

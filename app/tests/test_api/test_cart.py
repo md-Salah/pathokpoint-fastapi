@@ -12,7 +12,7 @@ async def test_get_suggested_coupons(client: AsyncClient, coupon_in_db: dict):
     assert response.json()[0].items() <= coupon_in_db.items()
 
 
-async def test_apply(client: AsyncClient, book_in_db: dict, coupon_in_db: dict):
+async def test_apply_coupon(client: AsyncClient, book_in_db: dict, coupon_in_db: dict):
     response = await client.post("/cart/apply-coupon", json={
         'coupon_code': coupon_in_db["code"],
         'order_items': [

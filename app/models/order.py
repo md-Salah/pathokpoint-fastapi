@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Float, ForeignKey, Enum, Identity, Boolean
+from sqlalchemy import Integer, Float, ForeignKey, Enum, Identity
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
@@ -26,8 +26,6 @@ class OrderItem(Base):
     regular_price: Mapped[float]
     sold_price: Mapped[float]
     quantity: Mapped[int] = mapped_column(Integer, default=1)
-    is_removed: Mapped[bool] = mapped_column(Boolean, default=False)
-    note: Mapped[str | None]
 
     def __repr__(self):
         return f'<OrderItem (book_id={self.book_id}, qty={self.quantity})>'
@@ -92,8 +90,6 @@ class Order(TimestampMixin):
     address: Mapped['Address'] = relationship()
     courier_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('couriers.id'))
     courier: Mapped['Courier'] = relationship(back_populates='orders')
-    
-    in_trash: Mapped[bool] = mapped_column(Boolean, default=False)
     
     def __repr__(self):
         return f'<Order (invoice={self.invoice})>'

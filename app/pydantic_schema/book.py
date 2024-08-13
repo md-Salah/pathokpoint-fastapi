@@ -129,6 +129,14 @@ class BookBase(NameSlugMixin):
             raise ValueError('Condition cannot be new when is_used is True')
         return v
 
+    # @field_validator('in_stock')
+    # @classmethod
+    # def validate_in_stock(cls, v: bool, info: ValidationInfo):
+    #     if v is True and info.data['quantity'] == 0:
+    #         raise ValueError(
+    #             'Quantity must be greater than 0 when in_stock is True')
+    #     return v
+
 
 class BookBaseAdmin(BookBase):
     sku: str = Field(min_length=4, max_length=15)

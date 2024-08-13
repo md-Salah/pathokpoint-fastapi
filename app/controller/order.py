@@ -105,7 +105,7 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
     # Shipping
     order.shipping_charge, order.weight_charge = 0, 0
     weight_kg = sum(
-        [item.book.weight_in_gm for item in order.order_items if item.is_removed is False])/1000
+        [item.book.weight_in_gm for item in order.order_items])/1000
     if payload.get('address'):
         order.address = Address(**payload['address'])
         (
@@ -253,18 +253,20 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
         order.gross_profit = order.net_amount - order.cost_of_good_new - \
             order.cost_of_good_old - order.additional_cost
 
-    if payload.get('in_trash'):
-        order.in_trash = payload['in_trash']
-
     await db.commit()
     logger.info('Order updated: {}'.format(order))
     return order
 
 
-async def delete_order(id: UUID, db: AsyncSession) -> None:
+async def delete_order(id: UUID, restock: bool, db: AsyncSession) -> None:
     order = await db.get(Order, id)
     if not order:
         raise NotFoundException('Order not found')
+
+    if restock:
+        for item in order.order_items:
+            book = await item.awaitable_attrs.book
+            await restock_item(book, item.quantity)
 
     await db.delete(order)
     await db.commit()
@@ -293,9 +295,6 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
             elif item['quantity'] < _item.quantity:
                 await restock_item(book, (_item.quantity - item['quantity']))
             _item.quantity = item['quantity']
-            _item.is_removed = item.get('is_removed', False)
-            _item.note = item.get('note', None)
-
             items.append(_item)
         else:
             await reduce_stock(book, item['quantity'])
@@ -304,8 +303,6 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
                 regular_price=book.regular_price,
                 sold_price=book.sale_price,
                 quantity=item['quantity'],
-                is_removed=item.get('is_removed', False),
-                note=item.get('note', None)
             ))
 
     # Restock removed items
@@ -316,8 +313,6 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
     # Sum
     old_book_total, new_book_total, cog_old, cog_new = 0, 0, 0, 0
     for item in items:
-        if item.is_removed:
-            continue
         if item.book.is_used:
             old_book_total += item.sold_price * item.quantity
             cog_old += item.book.cost * item.quantity
@@ -363,7 +358,6 @@ async def apply_coupon(coupon_id: UUID | Coupon,
                 raise BadRequestException(
                     "Coupon '{}' is not applicable for you".format(coupon.code))
 
-    items = [item for item in items if item.is_removed is False]
     # Include items
     for item in items:
         if coupon.include_conditions and item.book.condition not in coupon.include_conditions:

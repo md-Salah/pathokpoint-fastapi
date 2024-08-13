@@ -9,7 +9,6 @@ from app.controller.auth import AccessToken, AdminAccessToken, AccessTokenOption
 import app.pydantic_schema.order as schema
 from app.config.database import Session
 import app.controller.order as order_service
-import app.controller.email as email_service
 
 router = APIRouter(prefix='/order')
 
@@ -84,8 +83,8 @@ async def update_order(id: UUID, payload: schema.UpdateOrderAdmin, _: AdminAcces
 
 
 @router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_order(id: UUID, _: AdminAccessToken, db: Session):
-    await order_service.delete_order(id, db)
+async def delete_order(id: UUID, _: AdminAccessToken, db: Session, restock: bool = Query(False)):
+    await order_service.delete_order(id, restock, db)
 
 
 # @router.post('/{id}/invoice')

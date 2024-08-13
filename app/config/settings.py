@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     PRODUCTION: bool = False
 
     BASE_URL: str = "http://localhost:8000"
-    
+
     DATABASE_URL: str
     TEST_DATABASE_URL: str
 
@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     SMTP_PORT: int
     SMTP_USERNAME: str
     SMTP_PASSWORD: str
+
+    FRONTEND_URL: str
+
+    BKASH_URL: str
+    BKASH_USERNAME: str
+    BKASH_PASSWORD: str
+    BKASH_APP_KEY: str
+    BKASH_APP_SECRET: str
 
     model_config = SettingsConfigDict(env_file='.env', extra='allow')
 

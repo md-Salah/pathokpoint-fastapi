@@ -5,7 +5,7 @@ from starlette import status
 pytestmark = pytest.mark.asyncio
 
 simple_payment_gateway = {
-    "name": "Bkash",
+    "name": "bkash",
     "description": "Bkash Payment Gateway",
     "is_enabled": True
 }

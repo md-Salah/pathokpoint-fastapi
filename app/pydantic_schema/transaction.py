@@ -38,7 +38,7 @@ example_transaction_out = {
 class TransactionBase(BaseModel):
     amount: float = Field(..., gt=0, le=10000)
     transaction_id: str = Field(..., min_length=3, max_length=100)
-    reference: str | None = Field(None, min_length=3, max_length=100)
+    reference: str | None = Field(None, max_length=100)
     account_number: str = Field(..., min_length=3, max_length=17)
     is_manual: bool = False
 

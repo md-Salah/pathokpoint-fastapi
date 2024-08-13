@@ -127,7 +127,7 @@ async def create_order(client: AsyncClient, book_in_db: dict, admin_auth_headers
 @pytest_asyncio.fixture(name="payment_gateway_in_db")
 async def create_payment_gateway(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/payment_gateway", json={
-        "name": "Bkash",
+        "name": "bkash",
         "description": "Bkash Payment Gateway",
         "is_enabled": True
     }, headers=admin_auth_headers)

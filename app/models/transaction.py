@@ -1,4 +1,4 @@
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import String, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
@@ -21,7 +21,7 @@ class Transaction(TimestampMixin):
     account_number: Mapped[str]
     is_manual: Mapped[bool]
 
-    is_refund: Mapped[bool]
+    is_refund: Mapped[bool] = mapped_column(Boolean, default=False)
     refund_reason: Mapped[str | None]
 
     # Relationships

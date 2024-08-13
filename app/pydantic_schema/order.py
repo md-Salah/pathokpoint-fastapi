@@ -31,7 +31,6 @@ example_order_update_admin = {
     'cod_received': 530,
     'cost_of_good_new': 50,
     'additional_cost': 10,
-    'in_trash': False,
     'order_status': StatusIn._example,
     "transaction_id": "valid-uuid4"
 }
@@ -59,7 +58,6 @@ example_order_out = {
     'customer': UserOut._example,
     'address': AddressOut._example,
     'courier': CourierOut._example,
-    'in_trash': False,
 }
 
 example_order_out_admin = {
@@ -126,8 +124,6 @@ class OrderOut(OrderBase, IdTimestampMixin):
     address: AddressOut | None = None
     courier: CourierOut | None = None
 
-    in_trash: bool
-
     model_config = ConfigDict(json_schema_extra={"example": example_order_out})
 
 
@@ -139,7 +135,6 @@ class UpdateOrderAdmin(BaseModel):
     cod_received: NonNegativeFloat = 0
     cost_of_good_new: NonNegativeFloat = 0
     additional_cost: NonNegativeFloat = 0
-    in_trash: bool = False
     order_status: StatusIn = Field(None)
     transaction_id: UUID4 = Field(None)
 

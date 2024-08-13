@@ -23,13 +23,13 @@ async def apply_coupon(payload: dict[str, Any], db: AsyncSession):
             regular_price=book.regular_price,
             sold_price=book.sale_price,
             quantity=item['quantity'],
-            is_removed=False
         ))
     _, discount, shipping_charge = await order_service.apply_coupon(
         coupon_id=coupon,
         items=items,
         shipping_charge=float('inf'),
-        db=db)
+        db=db
+    )
     return {
         "discount": discount,
         "shipping_charge": -1 if shipping_charge == float('inf') else shipping_charge

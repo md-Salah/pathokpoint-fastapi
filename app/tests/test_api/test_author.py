@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from starlette import status
+from typing import Any
 
 pytestmark = pytest.mark.asyncio
 
@@ -33,13 +34,13 @@ async def test_get_author_by_slug(client: AsyncClient, author_in_db: dict):
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 1, lambda qs, _: qs),
-    ("?q={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'][:5])),
-    ("?name={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'])),
-    ("?slug={}", 1, lambda qs, author_in_db: qs.format(author_in_db['slug'])),
+    ("?q={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'][:5])), # type: ignore
+    ("?name={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'])), # type: ignore
+    ("?slug={}", 1, lambda qs, author_in_db: qs.format(author_in_db['slug'])), # type: ignore
     ("?country=BD", 1, lambda qs, _: qs),
     ("?is_popular=true", 1, lambda qs, _: qs),
     ("?q={}&country=BD&is_popular=true", 1, lambda qs,
-     author_in_db: qs.format(author_in_db['name'][:5])),
+     author_in_db: qs.format(author_in_db['name'][:5])), # type: ignore
     ("?followers_count__lte=1", 1, lambda qs, _: qs),
 ])
 async def test_get_all_authors(client: AsyncClient, author_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
@@ -80,7 +81,7 @@ async def test_delete_author(client: AsyncClient, author_in_db: dict, admin_auth
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
-async def test_follow_author(client: AsyncClient, author_in_db: dict, user_in_db: dict):
+async def test_follow_author(client: AsyncClient, author_in_db: dict, user_in_db: dict[str, Any]):
     headers = {'Authorization': 'Bearer {}'.format(
         user_in_db["token"]["access_token"])}
     response = await client.post('/author/follow/{}'.format(author_in_db['id']), headers=headers)
@@ -88,7 +89,7 @@ async def test_follow_author(client: AsyncClient, author_in_db: dict, user_in_db
     assert response.json()['followers_count'] == 1
 
 
-async def test_unfollow_author(client: AsyncClient, author_in_db: dict, user_in_db: dict):
+async def test_unfollow_author(client: AsyncClient, author_in_db: dict, user_in_db: dict[str, Any]):
     headers = {'Authorization': 'Bearer {}'.format(
         user_in_db["token"]["access_token"])}
 
