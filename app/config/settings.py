@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     BKASH_PASSWORD: str
     BKASH_APP_KEY: str
     BKASH_APP_SECRET: str
+    
+    FASTAPI_ANALYTICS_API_KEY: str
 
     model_config = SettingsConfigDict(env_file='.env', extra='allow')
 

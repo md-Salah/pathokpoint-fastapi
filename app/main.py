@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+from api_analytics.fastapi import Analytics
 import logging
 
 from app.config.database import create_tables, drop_tables
@@ -47,10 +48,16 @@ app = FastAPI(
     lifespan=lifespan,
     root_path='/api/v1'
 )
+
+origins = [
+    "http://localhost:3000",
+    "https://beta1.pathokpoint.com"
+]
 app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(Analytics, api_key=settings.FASTAPI_ANALYTICS_API_KEY)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*']
