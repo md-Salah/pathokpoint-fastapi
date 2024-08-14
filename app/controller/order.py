@@ -11,6 +11,7 @@ from app.models import Order, Book, OrderItem, OrderStatus, Transaction, User, C
 from app.constant.discount_type import DiscountType
 from app.constant.orderstatus import Status
 import app.controller.coupon as coupon_service
+from app.controller.courier import get_courier_by_id
 from app.models import Address
 from app.controller.exception import NotFoundException, BadRequestException, ServerErrorException
 
@@ -81,7 +82,7 @@ async def get_my_orders(filter: OrderFilterCustomer, customer_id: UUID, page: in
     return orders, count
 
 
-async def create_order(payload: dict, db: AsyncSession) -> Order:
+async def create_order(payload: dict, db: AsyncSession, commit: bool = True) -> Order:
     order = Order()
     order.is_full_paid = payload['is_full_paid']
 
@@ -123,6 +124,8 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
             order.courier
         ) = await handle_shipping(
             payload['address_id'], payload['courier_id'], weight_kg, db)
+    if (order.courier):
+        order.weight_charge += await additional_weight_charge(order.order_items, order.courier.weight_charge_per_kg)
 
     # Coupon & Discount
     order.discount = 0
@@ -130,10 +133,10 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
         coupon = await coupon_service.get_coupon_by_code(
             payload['coupon_code'], db)
         order.coupon, order.discount, order.shipping_charge = await apply_coupon(
-            coupon, order.order_items, order.shipping_charge, db, payload.get('customer_id'))
+            coupon, order.order_items, order.shipping_charge, db, payload.get('customer_id'), payload.get('courier_id'))
     elif payload.get('coupon_id'):
         order.coupon, order.discount, order.shipping_charge = await apply_coupon(
-            payload['coupon_id'], order.order_items, order.shipping_charge, db, payload.get('customer_id'))
+            payload['coupon_id'], order.order_items, order.shipping_charge, db, payload.get('customer_id'), payload.get('courier_id'))
 
     # Status
     order.order_status = [OrderStatus(
@@ -155,9 +158,10 @@ async def create_order(payload: dict, db: AsyncSession) -> Order:
     order.gross_profit = order.net_amount - order.cost_of_good_new - \
         order.cost_of_good_old - order.shipping_cost - order.additional_cost
 
-    db.add(order)
-    await db.commit()
-    logger.info('Order created: {}'.format(order))
+    if commit:
+        db.add(order)
+        await db.commit()
+        logger.info('Order created: {}'.format(order))
     return order
 
 
@@ -188,6 +192,7 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
                 order.shipping_charge,
                 db,
                 order.customer_id,
+                order.courier_id,
                 False
             )
 
@@ -328,6 +333,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
                        shipping_charge: float,
                        db: AsyncSession,
                        customer_id: UUID | None = None,
+                       courier_id: UUID | None = None,
                        new_order: bool = True) -> Tuple[Coupon, float, float]:
     coupon = coupon_id if isinstance(coupon_id, Coupon) else await coupon_service.get_coupon_by_id(coupon_id, db)
 
@@ -335,6 +341,10 @@ async def apply_coupon(coupon_id: UUID | Coupon,
         logger.debug('Expiry datetime: {}, Current datetime: {}'.format(
             coupon.expiry_date, datetime.now()
         ))
+        if not coupon.is_active:
+            raise BadRequestException(
+                "Coupon '{}' is disabled".format(coupon.code))
+
         if coupon.expiry_date and coupon.expiry_date < datetime.now():
             raise BadRequestException(
                 "Coupon '{}' has expired".format(coupon.code))
@@ -357,6 +367,12 @@ async def apply_coupon(coupon_id: UUID | Coupon,
             if customer_id not in coupon.allowed_users:
                 raise BadRequestException(
                     "Coupon '{}' is not applicable for you".format(coupon.code))
+
+    if courier_id and coupon.exclude_couriers:
+        courier = await get_courier_by_id(courier_id, db)
+        if courier in coupon.exclude_couriers:
+            raise BadRequestException(
+                "Coupon '{}' is not applicable with '{}'".format(coupon.code, courier.method_name))
 
     # Include items
     for item in items:
@@ -415,16 +431,16 @@ async def apply_coupon(coupon_id: UUID | Coupon,
         if coupon.max_shipping_charge:
             shipping_charge = min(shipping_charge, coupon.max_shipping_charge)
     elif coupon.discount_old and coupon.discount_new:
-        raise BadRequestException('Please buy more {} tk (Old)/{} Tk (New) to use this coupon'.format(
+        raise BadRequestException('Please buy at least {}৳ old or {}৳ new book to use this coupon'.format(
             coupon.min_spend_old - old_book_total, coupon.min_spend_new - new_book_total))
     elif coupon.discount_old:
-        raise BadRequestException('Please buy more {} tk (Old) to use this coupon'.format(
+        raise BadRequestException('Please buy at least {}৳ old book to use this coupon'.format(
             coupon.min_spend_old - old_book_total))
     elif coupon.discount_new:
-        raise BadRequestException('Please buy more {} tk (New) to use this coupon'.format(
+        raise BadRequestException('Please buy at least {}৳ new book to use this coupon'.format(
             coupon.min_spend_new - new_book_total))
     else:
-        raise BadRequestException('Please buy more {} tk (Old)/{} Tk (New) to use this coupon'.format(
+        raise BadRequestException('Please buy at least {}৳ old or {}৳ new book to use this coupon'.format(
             coupon.min_spend_old - old_book_total, coupon.min_spend_new - new_book_total))
 
     discount = round(discount_old + discount_new)
@@ -454,7 +470,8 @@ async def handle_shipping(address_id: UUID | Address, courier_id: UUID, weight_k
             courier.method_name, address.city.value))
 
     shipping_charge = courier.base_charge
-    weight_charge = round((courier.weight_charge_per_kg * weight_kg), 2)
+    weight_charge = 0 if (weight_kg < 1) else round(
+        (courier.weight_charge_per_kg * weight_kg), 2)
 
     return shipping_charge, weight_charge, address, courier
 
@@ -484,3 +501,9 @@ async def restock_item(book: Book, quantity: int) -> None:
     if book.manage_stock:
         book.quantity += quantity
         book.in_stock = True
+
+
+async def additional_weight_charge(items: List[OrderItem], weight_charge_per_kg) -> float:
+    sub_total = sum(
+        [item.sold_price * item.quantity for item in items if item.book.weight_in_gm == 0])
+    return (sub_total//1000) * weight_charge_per_kg

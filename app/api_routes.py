@@ -18,6 +18,7 @@ from app.api.payment_gateway import router as payment_gateway_route
 from app.api.transaction import router as transaction_route
 from app.api.payment import router as payment_route
 from app.api.cart import router as cart_route
+from app.api.checkout import router as checkout_route
 
 router = APIRouter()
 
@@ -32,6 +33,7 @@ router.include_router(image_route, tags=['Image'])
 router.include_router(tag_route, tags=['Tag'])
 router.include_router(coupon_route, tags=['Coupon'])
 router.include_router(cart_route, tags=['Cart'])
+router.include_router(checkout_route, tags=['Checkout'])
 router.include_router(order_route, tags=['Order'])
 router.include_router(review_route, tags=['Review'])
 router.include_router(courier_route, tags=['Courier'])

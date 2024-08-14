@@ -6,7 +6,7 @@ from uuid import UUID
 import logging
 
 from app.models.coupon import Coupon
-from app.models import Book, Publisher, Author, Category, Tag, User
+from app.models import Book, Publisher, Author, Category, Tag, User, Courier
 from app.controller.exception import NotFoundException, ConflictException
 from app.filter_schema.coupon import CouponFilter
 
@@ -26,6 +26,7 @@ query = select(Coupon).options(
     selectinload(Coupon.exclude_tags),
 
     selectinload(Coupon.allowed_users),
+    selectinload(Coupon.exclude_couriers),
 )
 
 
@@ -141,5 +142,8 @@ async def build_relationships(payload: dict, db: AsyncSession) -> dict:
 
     if payload.get('allowed_users'):
         payload['allowed_users'] = list((await db.scalars(select(User).where(User.id.in_(payload['allowed_users'])))).all())
+
+    if payload.get('exclude_couriers'):
+        payload['exclude_couriers'] = list((await db.scalars(select(Courier).where(Courier.id.in_(payload['exclude_couriers'])))).all())
 
     return payload

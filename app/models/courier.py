@@ -20,6 +20,8 @@ class Courier(TimestampMixin):
     base_charge: Mapped[float]
     weight_charge_per_kg: Mapped[float]
     allow_cash_on_delivery: Mapped[bool] = mapped_column(Boolean, default=True)
+    delivery_time: Mapped[str | None] 
+    note: Mapped[str | None] 
 
     include_country: Mapped[List[Country]] = mapped_column(ARRAY(Enum(Country)), default=list)
     include_city: Mapped[List[City]] = mapped_column(ARRAY(Enum(City)), default=list)

@@ -1,4 +1,4 @@
-from pydantic import UUID4, ConfigDict, Field, field_validator, PositiveInt, ValidationInfo
+from pydantic import UUID4, ConfigDict, Field, field_validator, PositiveInt, ValidationInfo, NonNegativeFloat
 from typing import List
 
 from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin
@@ -113,7 +113,7 @@ class BookBase(NameSlugMixin):
     is_popular: bool = False
 
     bar_code: str | None = Field(None, min_length=4, max_length=20)
-    weight_in_gm: float = Field(0, ge=0, le=10000)  # 10 kg max
+    weight_in_gm: NonNegativeFloat = Field(0, ge=0, le=10000)  # 10 kg max
 
     @field_validator('sale_price')
     @classmethod

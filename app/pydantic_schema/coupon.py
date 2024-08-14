@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
-from app.pydantic_schema.common import BookOut, AuthorOut, PublisherOut, CategoryOut, TagOut, UserOut
+from app.pydantic_schema.common import BookOut, AuthorOut, PublisherOut, CategoryOut, TagOut, UserOut, CourierOut
 
 from app.constant.discount_type import DiscountType
 from app.constant.condition import Condition
@@ -42,6 +42,7 @@ example_coupon_in = {
     'exclude_tags': ['example-uuid'],
 
     'allowed_users': ['example-uuid'],
+    'exclude_couriers': ['example-uuid'],
 }
 
 example_coupon_out = {
@@ -60,6 +61,7 @@ example_coupon_out = {
     'exclude_tags': [TagOut._example],
 
     'allowed_users': [UserOut._example],
+    'exclude_couriers': [CourierOut._example],
 }
 
 
@@ -106,6 +108,7 @@ class CreateCoupon(CouponBase):
     exclude_tags: list[UUID4] = []
 
     allowed_users: list[UUID4] = []
+    exclude_couriers: list[UUID4] = []
 
     model_config = ConfigDict(json_schema_extra={"example": example_coupon_in})
 
@@ -129,6 +132,7 @@ class CouponOut(CreateCoupon, IdTimestampMixin):
     exclude_tags: list[TagOut] = []
 
     allowed_users: list[UserOut] = []
+    exclude_couriers: list[CourierOut] = []
 
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_coupon_out})

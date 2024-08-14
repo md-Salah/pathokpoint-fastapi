@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, ARRAY, Column, Table, ForeignKey, Boolean, Enum, Float
+from sqlalchemy import String, ARRAY, Column, Table, ForeignKey, Boolean, Enum, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
@@ -9,7 +9,7 @@ from app.models.mixins import TimestampMixin
 from app.models.base import Base
 from app.models import Order, Author, Book, Publisher, Category
 if TYPE_CHECKING:
-    from app.models import Tag, User
+    from app.models import Tag, User, Courier
 
 from app.constant.discount_type import DiscountType
 from app.constant.condition import Condition
@@ -65,6 +65,8 @@ class Coupon(TimestampMixin):
 
     allowed_users: Mapped[List['User']] = relationship(
         secondary='coupon_user_link')
+    exclude_couriers: Mapped[List['Courier']] = relationship(
+        secondary='coupon_courier_exclude_link')
 
     orders: Mapped[List['Order']] = relationship(back_populates='coupon')
 
@@ -167,4 +169,13 @@ coupon_user_link = Table(
            ForeignKey('coupons.id'), primary_key=True),
     Column('user_id', UUID(as_uuid=True),
            ForeignKey('users.id'), primary_key=True),
+)
+
+coupon_courier_exclude_link = Table(
+    'coupon_courier_exclude_link',
+    Base.metadata,
+    Column('coupon_id', UUID(as_uuid=True),
+           ForeignKey('coupons.id'), primary_key=True),
+    Column('courier_id', UUID(as_uuid=True),
+           ForeignKey('couriers.id'), primary_key=True),
 )
