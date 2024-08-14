@@ -71,7 +71,7 @@ async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
         )
 
         trx = Transaction(**payload.model_dump())
-        order.transactions.append(trx)
+        (await order.awaitable_attrs.transactions).append(trx)
         order.paid += trx.amount
         order.due = order.net_amount - order.paid + order.payment_reversed
 
