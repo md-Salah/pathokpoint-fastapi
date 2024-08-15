@@ -44,8 +44,7 @@ async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
         logger.error(traceback.format_exc())
         raise ServerErrorException('Bkash payment failed. Try again later.')
 
-    logger.info(data)
-    if data:
+    if data and data['statusMessage'] == 'Successful':
         order = await db.scalar(select(Order).filter(Order.invoice == int(data['merchantInvoiceNumber'])))
         if not order:
             raise NotFoundException(
@@ -81,4 +80,6 @@ async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
             ))
         await db.commit()
         return str(order.invoice)
+    elif data:
+        logger.error('Bkash payment failed. statusMessage: {}'.format(data.get('statusMessage')))
     return None
