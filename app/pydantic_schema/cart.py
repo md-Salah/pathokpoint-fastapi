@@ -24,3 +24,13 @@ class ApplyCoupon(BaseModel):
 class ApplyCouponResponse(BaseModel):
     discount: NonNegativeFloat
     shipping_charge: FiniteFloat
+
+
+class VerifyStock(BaseModel):
+    order_items: List[ItemIn]
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {
+            "order_items": [ItemIn._example]
+        }})
+    

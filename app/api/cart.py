@@ -20,3 +20,8 @@ async def get_suggested_coupons(*, page: int = Query(1, ge=1),
                                 per_page: int = Query(10, ge=1, le=100),
                                 db: Session):
     return await coupon_service.get_suggested_coupons(page, per_page, db)
+
+
+@router.post('/verify-stock')
+async def verify_stock(payload: schema.VerifyStock, db: Session):
+    return await cart_service.verify_stock(payload.model_dump(), db)

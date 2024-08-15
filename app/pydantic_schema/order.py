@@ -1,4 +1,4 @@
-from pydantic import UUID4, ConfigDict, Field, NonNegativeFloat, FiniteFloat
+from pydantic import UUID4, ConfigDict, Field, NonNegativeFloat, FiniteFloat, ValidationInfo, field_validator
 from typing import List
 
 from app.pydantic_schema.base import BaseModel
@@ -80,11 +80,19 @@ class OrderBase(BaseModel):
 
 class CreateOrder(OrderBase):
     coupon_code: str | None = None
-    address: CreateAddress
+    address: CreateAddress | None = None
+    address_id: UUID4 | None = None
     courier_id: UUID4
     payment_method: str
 
     model_config = ConfigDict(json_schema_extra={"example": example_order_in})
+    
+    @field_validator('address_id')
+    @classmethod
+    def validate_sale_price(cls, v: UUID4 | None, info: ValidationInfo):
+        if v is None and info.data['address'] is None:
+            raise ValueError('Either address or address_id is required')
+        return v
 
 
 class CreateOrderAdmin(OrderBase):

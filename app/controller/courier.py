@@ -1,11 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, literal_column
 from typing import Sequence
 from uuid import UUID
 import logging
 
 from app.models.courier import Courier
 from app.controller.exception import NotFoundException, ConflictException
+from app.filter_schema.courier import CourierFilter
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +18,31 @@ async def get_courier_by_id(id: UUID, db: AsyncSession) -> Courier:
     return courier
 
 
-async def get_all_couriers(page: int, per_page: int, db: AsyncSession) -> Sequence[Courier]:
+async def get_all_couriers(filter: CourierFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Courier]:
     offset = (page - 1) * per_page
-    result = await db.execute(select(Courier).offset(offset).limit(per_page))
+
+    if (filter.city is not None):
+        stmt = select(Courier).filter(
+            or_(
+                Courier.include_city == [],
+                Courier.include_city.any(literal_column(f"'{filter.city.value}'"))
+            ),
+            ~Courier.exclude_city.any(literal_column(f"'{filter.city.value}'"))
+        )
+        filter.city = None
+    else:
+        stmt = select(Courier)
+
+    stmt = filter.filter(stmt)
+    stmt = stmt.offset(offset).limit(per_page)
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
-async def count_courier(db: AsyncSession) -> int:
-    result = await db.execute(select(func.count()).select_from(Courier))
+async def count_courier(filter: CourierFilter, db: AsyncSession) -> int:
+    stmt = select(func.count(Courier.id))
+    stmt = filter.filter(stmt)
+    result = await db.execute(stmt)
     return result.scalar_one()
 
 
