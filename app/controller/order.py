@@ -44,7 +44,9 @@ async def get_all_orders(filter: OrderFilter, page: int, per_page: int, db: Asyn
         os2 = aliased(OrderStatus)
         subquery = select(func.max(os2.created_at)).where(os2.order_id == Order.id).scalar_subquery()
         query = query.filter(OrderStatus.created_at == subquery, OrderStatus.status == filter.order_status.status)
-        filter.order_status.status = None
+        filter.order_status.pop('status')
+    query = query.join(Order.order_status)    
+        
     if any([filter.coupon.id, filter.coupon.code]):
         query = query.outerjoin(Order.coupon)
     if any([filter.customer.id, filter.customer.username, filter.customer.email, filter.customer.phone_number]):
@@ -74,8 +76,9 @@ async def get_my_orders(filter: OrderFilterCustomer, customer_id: UUID, page: in
         os2 = aliased(OrderStatus)
         subquery = select(func.max(os2.created_at)).where(os2.order_id == Order.id).scalar_subquery()
         query = query.filter(OrderStatus.created_at == subquery, OrderStatus.status == filter.order_status.status)
-        filter.order_status.status = None
-
+        filter.order_status.pop('status')
+        
+    query = query.join(Order.order_status)
     query = filter.filter(query)
     stmt = filter.sort(query)
     stmt = stmt.offset(offset).limit(per_page)

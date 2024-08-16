@@ -24,7 +24,8 @@ async def test_pay_with_bkash_success_callback(grant_token, execute_payment, cli
         "customerMsisdn": "01770618575",
         "trxID": "6H7801QFYM",
         "amount": "15",
-        "merchantInvoiceNumber": str(order_in_db['invoice'])
+        "merchantInvoiceNumber": str(order_in_db['invoice']),
+        "statusMessage": "Successful",
     }
 
     res = await client.get('/payment/bkash/callback?paymentID=123&status=success&signature=123')

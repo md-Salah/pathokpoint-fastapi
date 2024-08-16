@@ -18,6 +18,9 @@ class StatusFilter(Filter):
 
     class Constants(Filter.Constants):
         model = OrderStatus
+        
+    def pop(self, attr: str):
+        del self.__dict__[attr]
 
 
 class CouponFilter(Filter):
