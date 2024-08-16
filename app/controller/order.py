@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 from uuid import UUID
 from datetime import datetime
 from typing import Sequence, List, Tuple, Any
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, aliased
 import logging
 
 from app.filter_schema.order import OrderFilter, OrderFilterCustomer
@@ -40,8 +40,11 @@ async def get_all_orders(filter: OrderFilter, page: int, per_page: int, db: Asyn
     offset = (page - 1) * per_page
     query = order_query
 
-    if any([filter.order_status.id, filter.order_status.status]):
-        query = query.outerjoin(Order.order_status)
+    if filter.order_status.status:
+        os2 = aliased(OrderStatus)
+        subquery = select(func.max(os2.created_at)).where(os2.order_id == Order.id).scalar_subquery()
+        query = query.filter(OrderStatus.created_at == subquery, OrderStatus.status == filter.order_status.status)
+        filter.order_status.status = None
     if any([filter.coupon.id, filter.coupon.code]):
         query = query.outerjoin(Order.coupon)
     if any([filter.customer.id, filter.customer.username, filter.customer.email, filter.customer.phone_number]):
@@ -67,8 +70,11 @@ async def get_my_orders(filter: OrderFilterCustomer, customer_id: UUID, page: in
     offset = (page - 1) * per_page
     query = order_query.filter(Order.customer_id == customer_id)
 
-    if any([filter.order_status.id, filter.order_status.status]):
-        query = query.outerjoin(Order.order_status)
+    if filter.order_status.status:
+        os2 = aliased(OrderStatus)
+        subquery = select(func.max(os2.created_at)).where(os2.order_id == Order.id).scalar_subquery()
+        query = query.filter(OrderStatus.created_at == subquery, OrderStatus.status == filter.order_status.status)
+        filter.order_status.status = None
 
     query = filter.filter(query)
     stmt = filter.sort(query)

@@ -14,7 +14,6 @@ from app.constant.city import City
 
 
 class StatusFilter(Filter):
-    id: UUID4 | None = None
     status: Status | None = None
 
     class Constants(Filter.Constants):
