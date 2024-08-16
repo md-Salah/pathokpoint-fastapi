@@ -9,7 +9,10 @@ Welcome to the backend repository of Pathok Point, an innovative ecommerce platf
 To set up the project and install its dependencies, ensure you have Poetry installed. Then execute the following command:
 
 ```bash
+pip install poetry
+poetry shell
 poetry install
+python run.py
 ```
 
 ## Features
