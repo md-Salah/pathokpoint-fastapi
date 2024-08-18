@@ -60,7 +60,8 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=['*'],
-    allow_headers=['*']
+    allow_headers=['*'],
+    expose_headers=['X-Total-Count', 'X-Total-Pages', 'X-Current-Page', 'X-Per-Page']
 )
 
 app.include_router(api_router)
