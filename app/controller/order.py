@@ -33,7 +33,13 @@ async def get_order_by_id(id: UUID, db: AsyncSession) -> Order:
     order = await db.scalar(order_query.where(Order.id == id))
     if not order:
         raise NotFoundException('Order not found')
+    return order
 
+
+async def get_order_by_invoice(invoice: int, db: AsyncSession) -> Order:
+    order = await db.scalar(order_query.where(Order.invoice == invoice))
+    if not order:
+        raise NotFoundException('Order not found')
     return order
 
 
@@ -96,7 +102,7 @@ async def get_my_orders(filter: OrderFilterCustomer, customer_id: UUID, page: in
     return orders, count
 
 
-async def create_order(payload: dict, db: AsyncSession, commit: bool = True) -> Order:
+async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool = True) -> Order:
     order = Order()
     order.is_full_paid = payload['is_full_paid']
 

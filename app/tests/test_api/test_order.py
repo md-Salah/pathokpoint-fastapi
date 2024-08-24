@@ -39,6 +39,12 @@ async def test_get_order_by_id_admin(client: AsyncClient, order_in_db: dict, adm
     response = await client.get(f"/order/admin/id/{order_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= order_in_db.items()
+    
+    
+async def test_get_order_by_invoice_admin(client: AsyncClient, order_in_db: dict, admin_auth_headers: dict):
+    response = await client.get(f"/order/admin/invoice/{order_in_db['invoice']}", headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json().items() >= order_in_db.items()
 
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [

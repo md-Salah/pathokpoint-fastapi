@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter, status, Request, BackgroundTasks
+from fastapi import Depends, APIRouter, status, Request, BackgroundTasks, Response
 from fastapi.security import OAuth2PasswordRequestForm
 import logging
 import json
@@ -20,11 +20,13 @@ router = APIRouter(prefix='/auth')
 
 
 @router.post("/token", response_model=auth_schema.TokenResponse)
-async def login_for_access_token(db: Session, req: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(db: Session, res: Response, req: OAuth2PasswordRequestForm = Depends()):
     # we are using email as username
     user = await auth_service.authenticate_user(db, req.username, req.password)
     token = auth_service.create_jwt_token(user.id, user.role, 'access')
     logger.info(f'{user.username} logged in successfully')
+    
+    res.set_cookie(key="access_token", value=token, httponly=True)
     return {"access_token": token, "token_type": "bearer"}
 
 

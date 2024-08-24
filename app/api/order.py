@@ -26,6 +26,15 @@ async def get_order_by_id_admin(id: UUID, _: AdminAccessToken, db: Session):
     return await order_service.get_order_by_id(id, db)
 
 
+@router.get('/admin/invoice/{invoice}', response_model=schema.OrderOutAdmin)
+async def get_order_by_invoice_admin(invoice: str, _: AdminAccessToken, db: Session):
+    try:
+        invoice_int = int(invoice)
+    except ValueError:
+        raise BadRequestException('Invalid invoice number')
+    return await order_service.get_order_by_invoice(invoice_int, db)
+
+
 @router.get('/my-orders', response_model=list[schema.OrderOut])
 async def get_my_orders(*,
                         page: int = Query(1, ge=1),
