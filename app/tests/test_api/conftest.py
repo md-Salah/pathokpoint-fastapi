@@ -136,19 +136,23 @@ async def create_payment_gateway(client: AsyncClient, admin_auth_headers: dict):
 
 
 @pytest_asyncio.fixture(name="transaction_in_db")
-async def create_transaction(client: AsyncClient, payment_gateway_in_db: dict, order_in_db: dict):
-    payload = {
-        "amount": 150.0,
-        "transaction_id": "some-transaction-id",
-        "reference": "abdul kadir",
-        "account_number": "+8801234567890",
-        "is_manual": False,
-        "gateway_id": payment_gateway_in_db["id"],
-        "order_id": order_in_db["id"],
-    }
-    response = await client.post("/transaction/make-payment", json=payload)
+async def create_transaction(client: AsyncClient, book_in_db:dict, payment_gateway_in_db: dict, admin_auth_headers: dict):
+    response = await client.post("/order/admin/new", json={
+        "order_items": [
+            {
+                "book_id": book_in_db["id"],
+                "quantity": 1,
+            }
+        ], 
+        "transactions": [{
+            "payment_method": payment_gateway_in_db["name"],
+            "amount": 250,
+            "transaction_id": "UIOOE98709",
+            "account_number": "01710002000",
+        }] 
+    }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
-    return response.json()
+    return response.json()["transactions"][0]
 
 
 @pytest_asyncio.fixture(name="review_in_db")

@@ -9,14 +9,11 @@ example_transaction = {
     'transaction_id': 'UEIS78D9D',
     'reference': 'abdul kuddus',
     'account_number': '+8801534567890',
-    'is_manual': False,
 }
 
 example_transaction_in = {
+    'payment_method': 'bkash',
     **example_transaction,
-    'gateway_id': 'valid-uuid4',
-    'order_id': 'valid-uuid4',
-    'customer_id': 'valid-uuid4',
 }
 
 example_refund_transaction_in = {
@@ -40,14 +37,10 @@ class TransactionBase(BaseModel):
     transaction_id: str = Field(..., min_length=3, max_length=100)
     reference: str | None = Field(None, max_length=100)
     account_number: str = Field(..., min_length=3, max_length=17)
-    is_manual: bool = False
 
 
 class CreateTransaction(TransactionBase):
-    gateway_id: UUID4
-    order_id: UUID4
-    customer_id: UUID4 | None = None
-
+    payment_method: str
     model_config = ConfigDict(
         json_schema_extra={"example": example_transaction_in})
 
@@ -60,7 +53,7 @@ class CreateRefundTransaction(CreateTransaction):
         json_schema_extra={"example": example_refund_transaction_in})
 
 
-class TransactionOut(CreateRefundTransaction, IdTimestampMixin):
+class TransactionOut(TransactionBase, IdTimestampMixin):
     gateway: PaymentGatewayOut
     order: OrderOut
     customer: UserOut | None = None

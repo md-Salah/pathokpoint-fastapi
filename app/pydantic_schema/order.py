@@ -4,22 +4,23 @@ from typing import List
 from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.common import UserOut, CouponOut, CourierOut
-from app.pydantic_schema.transaction import TransactionOut
+from app.pydantic_schema.transaction import TransactionOut, CreateTransaction, example_transaction_in
 from app.pydantic_schema.address import AddressOut, CreateAddress, example_address_in
 from app.pydantic_schema.order_item import ItemIn, ItemOut, ItemUpdate
 from app.pydantic_schema.order_status import StatusIn, StatusOut
 
 example_order_base = {
-    'is_full_paid': True,
     'order_items': [ItemIn._example],
+    'coupon_code': 'Welcome10',
+    'is_full_paid': True,
+    'address': example_address_in,
+    'address_id': 'valid-uuid4',
+    'courier_id': 'valid-uuid4',
     'customer_note': 'Please deliver fast',
 }
 
 example_order_in = {
     **example_order_base,
-    'coupon_code': 'Welcome10',
-    'address': example_address_in,
-    'courier_id': 'valid-uuid4',
     'payment_method': 'bkash',
 }
 
@@ -73,38 +74,37 @@ example_order_out_admin = {
 
 
 class OrderBase(BaseModel):
-    is_full_paid: bool = True
     order_items: List[ItemIn]
+    coupon_code: str | None = None
+    is_full_paid: bool = True
+    address: CreateAddress | None = None
+    address_id: UUID4 | None = None
+    courier_id: UUID4
     customer_note: str | None = None
 
 
 class CreateOrder(OrderBase):
-    coupon_code: str | None = None
-    address: CreateAddress | None = None
-    address_id: UUID4 | None = None
-    courier_id: UUID4
     payment_method: str
 
     model_config = ConfigDict(json_schema_extra={"example": example_order_in})
-    
+
     @field_validator('address_id')
     @classmethod
-    def validate_sale_price(cls, v: UUID4 | None, info: ValidationInfo):
+    def validate_address_is_required(cls, v: UUID4 | None, info: ValidationInfo):
         if v is None and info.data['address'] is None:
             raise ValueError('Either address or address_id is required')
         return v
 
 
 class CreateOrderAdmin(OrderBase):
-    coupon_code: str | None = None
-    address: CreateAddress | None = None
     courier_id: UUID4 | None = None
-    payment_method: str | None = None
     customer_id: UUID4 | None = None
+    transactions: List[CreateTransaction] = []
 
     model_config = ConfigDict(json_schema_extra={"example": {
         **example_order_in,
-        'customer_id': 'valid-uuid4'
+        'customer_id': 'valid-uuid4',
+        'transactions': [example_transaction_in]
     }})
 
 
@@ -151,6 +151,7 @@ class UpdateOrderAdmin(BaseModel):
 
 
 class OrderOutAdmin(OrderOut):
+    courier_id: UUID4 | None = None
     shipping_cost: NonNegativeFloat
     cod_receivable: NonNegativeFloat
     cod_received: NonNegativeFloat

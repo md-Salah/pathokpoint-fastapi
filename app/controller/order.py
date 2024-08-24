@@ -11,6 +11,7 @@ from app.models import Order, Book, OrderItem, OrderStatus, Transaction, User, C
 from app.constant.discount_type import DiscountType
 from app.constant.orderstatus import Status
 import app.controller.coupon as coupon_service
+import app.controller.transaction as transaction_service
 from app.controller.courier import get_courier_by_id
 from app.models import Address
 from app.controller.exception import NotFoundException, BadRequestException, ServerErrorException
@@ -42,11 +43,13 @@ async def get_all_orders(filter: OrderFilter, page: int, per_page: int, db: Asyn
 
     if filter.order_status.status:
         os2 = aliased(OrderStatus)
-        subquery = select(func.max(os2.created_at)).where(os2.order_id == Order.id).scalar_subquery()
-        query = query.filter(OrderStatus.created_at == subquery, OrderStatus.status == filter.order_status.status)
+        subquery = select(func.max(os2.created_at)).where(
+            os2.order_id == Order.id).scalar_subquery()
+        query = query.filter(OrderStatus.created_at == subquery,
+                             OrderStatus.status == filter.order_status.status)
         filter.order_status.pop('status')
-    query = query.join(Order.order_status)    
-        
+    query = query.join(Order.order_status)
+
     if any([filter.coupon.id, filter.coupon.code]):
         query = query.outerjoin(Order.coupon)
     if any([filter.customer.id, filter.customer.username, filter.customer.email, filter.customer.phone_number]):
@@ -74,10 +77,12 @@ async def get_my_orders(filter: OrderFilterCustomer, customer_id: UUID, page: in
 
     if filter.order_status.status:
         os2 = aliased(OrderStatus)
-        subquery = select(func.max(os2.created_at)).where(os2.order_id == Order.id).scalar_subquery()
-        query = query.filter(OrderStatus.created_at == subquery, OrderStatus.status == filter.order_status.status)
+        subquery = select(func.max(os2.created_at)).where(
+            os2.order_id == Order.id).scalar_subquery()
+        query = query.filter(OrderStatus.created_at == subquery,
+                             OrderStatus.status == filter.order_status.status)
         filter.order_status.pop('status')
-        
+
     query = query.join(Order.order_status)
     query = filter.filter(query)
     stmt = filter.sort(query)
@@ -147,13 +152,25 @@ async def create_order(payload: dict, db: AsyncSession, commit: bool = True) -> 
         order.coupon, order.discount, order.shipping_charge = await apply_coupon(
             payload['coupon_id'], order.order_items, order.shipping_charge, db, payload.get('customer_id'), payload.get('courier_id'))
 
-    # Status
-    order.order_status = [OrderStatus(
-        status=Status.pending_payment, note='Minimum payment is required to confirm the order')]
-
-    # Payment
+    # Paid
     order.transactions = []
     order.paid = 0
+    if payload.get('transactions'):
+        for transaction in payload['transactions']:
+            transaction['is_manual'] = True  # Manual transaction by admin
+            transaction['order'] = order
+            transaction['customer'] = order.customer
+            order.transactions.append(
+                await transaction_service.validate_transaction(transaction, db)
+            )
+            order.paid += transaction['amount']
+
+    # Status
+    if order.paid > 0:
+        order.order_status = [OrderStatus(status=Status.order_confirmed)]
+    else:
+        order.order_status = [OrderStatus(
+            status=Status.pending_payment, note='Minimum payment is required to confirm the order')]
 
     # Summary
     order.total = order.new_book_total + order.old_book_total + \

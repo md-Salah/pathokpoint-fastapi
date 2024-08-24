@@ -34,29 +34,12 @@ async def get_all_transactions(*, page: int = Query(1, ge=1),
     return transactions
 
 
-@router.post('/add-manual-payment', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
-async def create_manual_transaction_by_admin(payload: schema.CreateTransaction, _: AdminAccessToken, db: Session):
-    return await service.create_transaction({
-        **payload.model_dump(),
-        'is_manual': True,
-        'is_refund': False,
-    }, db)
-
-
-@router.post('/make-payment', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
-async def create_transaction_by_payment_gateway(payload: schema.CreateTransaction, db: Session):
-    return await service.create_transaction({
-        **payload.model_dump(),
-        'is_refund': False,
-    }, db)
-
-
-@router.post('/refund', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
-async def create_refund(payload: schema.CreateRefundTransaction, _: AdminAccessToken, db: Session):
-    return await service.create_transaction({
-        **payload.model_dump(),
-        'is_refund': True,
-    }, db)
+# @router.post('/refund', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
+# async def create_refund(payload: schema.CreateRefundTransaction, _: AdminAccessToken, db: Session):
+#     return await service.create_transaction({
+#         **payload.model_dump(),
+#         'is_refund': True,
+#     }, db)
 
 
 @router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)
