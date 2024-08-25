@@ -166,7 +166,6 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
     if payload.get('transactions'):
         for transaction in payload['transactions']:
             transaction['is_manual'] = True  # Manual transaction by admin
-            transaction['order'] = order
             transaction['customer'] = order.customer
             order.transactions.append(
                 await transaction_service.validate_transaction(transaction, db)
@@ -248,22 +247,14 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
             )
 
     # Payment
-    if payload.get('transaction_id'):
-        transaction = await db.get(Transaction, payload['transaction_id'])
-        if not transaction:
-            raise NotFoundException('Transaction not found')
-        elif transaction.order_id != order.id:
-            raise BadRequestException(
-                'Transaction does not belong to this order')
-        order.transactions.append(transaction)
-
-        if transaction.is_refund:
-            if order.due < 0:
-                order.payment_reversed += transaction.amount
-            else:
-                order.refunded += transaction.amount
-        else:
-            order.paid += transaction.amount
+    if payload.get('transaction'):
+        transaction = payload.pop('transaction')
+        transaction['is_manual'] = True  # Manual transaction by admin
+        transaction['customer'] = order.customer
+        order.transactions.append(
+            await transaction_service.validate_transaction(transaction, db)
+        )
+        order.paid += transaction['amount']
         order.due = order.net_amount - order.paid + order.payment_reversed
 
     if payload.get('discount'):

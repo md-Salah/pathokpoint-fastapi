@@ -39,8 +39,8 @@ async def test_get_order_by_id_admin(client: AsyncClient, order_in_db: dict, adm
     response = await client.get(f"/order/admin/id/{order_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert response.json().items() >= order_in_db.items()
-    
-    
+
+
 async def test_get_order_by_invoice_admin(client: AsyncClient, order_in_db: dict, admin_auth_headers: dict):
     response = await client.get(f"/order/admin/invoice/{order_in_db['invoice']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
@@ -189,22 +189,22 @@ async def test_update_order_status(client: AsyncClient, order_in_db: dict, admin
 
 
 async def test_update_order_payment_by_admin(client: AsyncClient, order_in_db: dict, payment_gateway_in_db: dict, admin_auth_headers: dict):
-    # response = await client.post("/transaction/make-payment", json={
-    #     "amount": 150,
-    #     "transaction_id": '123456',
-    #     'account_number': '+8801234567890',
-    #     'gateway_id': payment_gateway_in_db['id'],
-    #     'order_id': order_in_db['id']
-    # })
-    # assert response.status_code == status.HTTP_201_CREATED
-    # transaction_in_db = response.json()
-
-    # response = await client.patch(f"/order/{order_in_db['id']}", json={
-    #     'transaction_id': transaction_in_db['id']
-    # }, headers=admin_auth_headers)
-    # assert response.status_code == status.HTTP_200_OK
-    # assert response.json()['paid'] == transaction_in_db['amount']
-    pass
+    payload = {
+        'transaction': {
+            'payment_method': payment_gateway_in_db['name'],
+            'transaction_id': 'XYZ123',
+            'account_number': '01700000000',
+            'amount': 100,
+        }
+    }
+    response = await client.patch(f"/order/{order_in_db['id']}", json=payload,
+                                  headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    print(response.json()['transactions'])
+    assert len(response.json()['transactions']) == 1
+    payload['transaction'].pop('payment_method')
+    assert response.json()['transactions'][0].items() >= payload['transaction'].items()
+    assert response.json()['paid'] == payload['transaction']['amount']
 
 
 async def test_update_order_item_by_admin(client: AsyncClient, order_in_db: dict, book_in_db: dict, admin_auth_headers: dict):
