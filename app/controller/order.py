@@ -19,13 +19,14 @@ from app.controller.exception import NotFoundException, BadRequestException, Ser
 logger = logging.getLogger(__name__)
 
 order_query = select(Order).options(
-    selectinload(Order.order_items).selectinload(OrderItem.book),
+    selectinload(Order.order_items).selectinload(OrderItem.book).selectinload(Book.authors),
+    selectinload(Order.order_items).selectinload(OrderItem.book).selectinload(Book.images),
     selectinload(Order.order_status).selectinload(OrderStatus.updated_by),
     selectinload(Order.transactions).selectinload(Transaction.gateway),
     selectinload(Order.address),
     selectinload(Order.courier),
     selectinload(Order.coupon),
-    selectinload(Order.customer)
+    selectinload(Order.customer),
 )
 
 
@@ -311,7 +312,8 @@ async def delete_order(id: UUID, restock: bool, db: AsyncSession) -> None:
 
 async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUID | None = None) -> Tuple[list[OrderItem], float, float, float, float]:
     book_ids = [item['book_id'] for item in items_in]
-    books = {book.id: book for book in (await db.scalars(select(Book).filter(Book.id.in_(book_ids))))}
+    query = select(Book).options(selectinload(Book.authors), selectinload(Book.images))
+    books = {book.id: book for book in (await db.scalars(query.filter(Book.id.in_(book_ids))))}
 
     existing_items = {item.book_id: item for item in
                       (await db.scalars(select(OrderItem).options(
