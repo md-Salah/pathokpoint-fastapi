@@ -80,8 +80,8 @@ async def refund(payload: dict, db: AsyncSession) -> Transaction:
     if not order:
         raise NotFoundException('Order not found', str(payload['order_id']))
     if (order.due < 0):
-        order.payment_reversed = payload['amount']
-        order.due += payload['amount']
+        order.payment_reversed += payload['amount']
+        order.due = order.net_amount - order.paid + order.payment_reversed
     else:
         order.refunded = payload['amount']
 

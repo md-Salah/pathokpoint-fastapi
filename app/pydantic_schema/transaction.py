@@ -28,6 +28,7 @@ example_transaction_out = {
     'gateway': PaymentGatewayOut._example,
     'order': OrderOut._example,
     'customer': UserOut._example,
+    'is_manual': False,
     'refunded_by': UserOut._example,
     'is_refund': True,
 }
@@ -58,6 +59,7 @@ class TransactionOut(TransactionBase, IdTimestampMixin):
     gateway: PaymentGatewayOut
     order: OrderOut
     customer: UserOut | None
+    is_manual: bool
     refunded_by: UserOut | None
     is_refund: bool
     refund_reason: str | None
