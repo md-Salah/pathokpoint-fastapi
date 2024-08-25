@@ -3,6 +3,7 @@ from httpx import AsyncClient
 from starlette import status
 from unittest.mock import patch
 import json
+from typing import Any
 
 
 pytestmark = pytest.mark.asyncio
@@ -76,7 +77,7 @@ async def test_user_signup_with_wrong_otp(client: AsyncClient, get_redis):
     assert response.json()['detail']['message'] == "Invalid OTP, Try again."
 
 
-async def test_signup_with_existing_email(client: AsyncClient, user_in_db: dict):
+async def test_signup_with_existing_email(client: AsyncClient, user_in_db: dict[str, Any]):
     payload = {
         **simple_user,
         "email": user_in_db['user']['email']
@@ -87,7 +88,7 @@ async def test_signup_with_existing_email(client: AsyncClient, user_in_db: dict)
         'detail']['message'] == "Email is already registered, Try login or forget password."
 
 
-async def test_user_login(client: AsyncClient, user_in_db: dict):
+async def test_user_login(client: AsyncClient, user_in_db: dict[str, Any]):
     payload = {
         "username": user_in_db['user']['email'],
         "password": "testPassword2235#"
@@ -99,7 +100,7 @@ async def test_user_login(client: AsyncClient, user_in_db: dict):
     assert response.json().get("token_type") == "bearer"
 
 
-async def test_user_login_with_wrong_password(client: AsyncClient, user_in_db: dict):
+async def test_user_login_with_wrong_password(client: AsyncClient, user_in_db: dict[str, Any]):
     payload = {
         "username": user_in_db['user']['email'],
         "password": "wrongpassword"
@@ -110,7 +111,7 @@ async def test_user_login_with_wrong_password(client: AsyncClient, user_in_db: d
         'detail']['message'] == "Incorrect email or password"
 
 
-async def test_reset_password(send_reset_password_otp, set_redis, client: AsyncClient, user_in_db: dict):
+async def test_reset_password(send_reset_password_otp, set_redis, client: AsyncClient, user_in_db: dict[str, Any]):
     send_reset_password_otp.return_value = None
     set_redis.return_value = None
 
@@ -121,7 +122,7 @@ async def test_reset_password(send_reset_password_otp, set_redis, client: AsyncC
         'detail']['message'] == "OTP has been sent to your email. Please reset your password within {} minutes.".format(10)
 
 
-async def test_set_new_password(get_redis, client: AsyncClient, user_in_db: dict):
+async def test_set_new_password(get_redis, client: AsyncClient, user_in_db: dict[str, Any]):
     get_redis.return_value = "123456"
 
     payload = {"otp": "123456",
@@ -152,7 +153,7 @@ async def test_reset_password_with_wrong_email(client: AsyncClient):
     ("123456", "Invalid OTP, Try again."),
     ("", "OTP expired, Try again.")
 ])
-async def test_set_new_password_with_wrong_otp(get_redis, client: AsyncClient, user_in_db: dict, otp: str, msg: str):
+async def test_set_new_password_with_wrong_otp(get_redis, client: AsyncClient, user_in_db: dict[str, Any], otp: str, msg: str):
     get_redis.return_value = otp
     payload = {"otp": "654321",
                'email': user_in_db['user']['email'], "new_password": "newPassword1234#"}
@@ -167,7 +168,7 @@ async def test_set_new_password_with_wrong_otp(get_redis, client: AsyncClient, u
     [("testPassword2235#", "newPassword2235#"),
      ("testPassword2235#", "newPassword2235#7666778")]
 )
-async def test_change_password(client: AsyncClient, user_in_db: dict, current_password: str, new_password: str):
+async def test_change_password(client: AsyncClient, user_in_db: dict[str, Any], current_password: str, new_password: str):
     payload = {
         'current_password': current_password,
         'new_password': new_password,
@@ -180,7 +181,7 @@ async def test_change_password(client: AsyncClient, user_in_db: dict, current_pa
     assert response.status_code == status.HTTP_200_OK
 
 
-async def test_change_password_with_wrong_password(client: AsyncClient, user_in_db: dict):
+async def test_change_password_with_wrong_password(client: AsyncClient, user_in_db: dict[str, Any]):
     payload = {
         'current_password': "wrongpassword",
         'new_password': "newPassword2235#",
@@ -190,7 +191,7 @@ async def test_change_password_with_wrong_password(client: AsyncClient, user_in_
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
-async def test_get_private_data(client: AsyncClient, user_in_db: dict):
+async def test_get_private_data(client: AsyncClient, user_in_db: dict[str, Any]):
     token = user_in_db['token']['access_token']
     response = await client.get(
         '/auth/get-private-data', headers={"Authorization": f"Bearer {token}"},)

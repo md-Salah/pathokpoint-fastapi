@@ -34,12 +34,12 @@ async def get_all_transactions(*, page: int = Query(1, ge=1),
     return transactions
 
 
-# @router.post('/refund', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
-# async def create_refund(payload: schema.CreateRefundTransaction, _: AdminAccessToken, db: Session):
-#     return await service.create_transaction({
-#         **payload.model_dump(),
-#         'is_refund': True,
-#     }, db)
+@router.post('/refund', response_model=schema.TransactionOut, status_code=status.HTTP_201_CREATED)
+async def create_refund(payload: schema.CreateRefundTransaction, token: AdminAccessToken, db: Session):
+    return await service.refund({
+        **payload.model_dump(),
+        'refunded_by_id': token['id']
+    }, db)
 
 
 @router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)

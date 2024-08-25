@@ -83,6 +83,14 @@ async def create_admin_by_admin(client: AsyncClient, admin_payload: dict, admin_
     return response.json()
 
 
+@pytest_asyncio.fixture(name="admin_in_db_with_token")
+async def create_admin_with_token(client: AsyncClient, admin_in_db: dict, admin_payload: dict):
+    response = await client.post('/auth/token', data={"username": admin_in_db['email'], "password": admin_payload['password']})
+    assert response.status_code == status.HTTP_200_OK
+    access_token = response.json()['access_token']
+    return {**admin_in_db, 'token': access_token}
+
+
 @pytest_asyncio.fixture(name="courier_in_db")
 async def create_courier(client: AsyncClient, courier_payload: dict, admin_auth_headers: dict):
     response = await client.post("/courier", json=courier_payload, headers=admin_auth_headers)
@@ -136,20 +144,20 @@ async def create_payment_gateway(client: AsyncClient, admin_auth_headers: dict):
 
 
 @pytest_asyncio.fixture(name="transaction_in_db")
-async def create_transaction(client: AsyncClient, book_in_db:dict, payment_gateway_in_db: dict, admin_auth_headers: dict):
+async def create_transaction(client: AsyncClient, book_in_db: dict, payment_gateway_in_db: dict, admin_auth_headers: dict):
     response = await client.post("/order/admin/new", json={
         "order_items": [
             {
                 "book_id": book_in_db["id"],
                 "quantity": 1,
             }
-        ], 
+        ],
         "transactions": [{
             "payment_method": payment_gateway_in_db["name"],
             "amount": 250,
             "transaction_id": "UIOOE98709",
             "account_number": "01710002000",
-        }] 
+        }]
     }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()["transactions"][0]

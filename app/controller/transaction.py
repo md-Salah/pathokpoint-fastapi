@@ -6,7 +6,7 @@ from uuid import UUID
 import logging
 
 from app.models.transaction import Transaction
-from app.models import PaymentGateway, User
+from app.models import PaymentGateway, User, Order
 from app.controller.exception import NotFoundException, ConflictException, ForbiddenException
 from app.filter_schema.transaction import TransactionFilter
 from app.constant.role import Role
@@ -73,6 +73,31 @@ async def validate_transaction(payload: dict, db: AsyncSession) -> Transaction:
     #     payload['refunded_by'] = refunded_by
 
     return Transaction(**payload)
+
+
+async def refund(payload: dict, db: AsyncSession) -> Transaction:
+    order = await db.get(Order, payload.pop('order_id'))
+    if not order:
+        raise NotFoundException('Order not found', str(payload['order_id']))
+    if (order.due < 0):
+        order.payment_reversed = payload['amount']
+        order.due += payload['amount']
+    else:
+        order.refunded = payload['amount']
+
+    admin = await db.get(User, payload.pop('refunded_by_id'))
+    if not admin:
+        raise NotFoundException('Invalid admin')
+
+    transaction = await validate_transaction(payload, db)
+    transaction.order = order
+    transaction.is_refund = True
+    transaction.is_manual = True
+    transaction.refunded_by = admin
+
+    db.add(transaction)
+    await db.commit()
+    return transaction
 
 
 async def delete_transaction(id: UUID, db: AsyncSession) -> None:

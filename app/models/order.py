@@ -81,7 +81,7 @@ class Order(TimestampMixin):
     gross_profit: Mapped[float] = mapped_column(Float, default=0.0)
      
     order_status: Mapped[List['OrderStatus']] = relationship(back_populates='order', cascade='all, delete-orphan', lazy='joined', order_by='OrderStatus.created_at')
-    transactions: Mapped[List['Transaction']] = relationship(back_populates='order')
+    transactions: Mapped[List['Transaction']] = relationship(back_populates='order', order_by='Transaction.created_at')
     coupon_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('coupons.id'))
     coupon: Mapped['Coupon'] = relationship(back_populates='orders', lazy='selectin')
     customer_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id')) 

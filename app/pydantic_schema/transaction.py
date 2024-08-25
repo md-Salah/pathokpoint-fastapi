@@ -18,8 +18,8 @@ example_transaction_in = {
 
 example_refund_transaction_in = {
     **example_transaction_in,
-    'refunded_by_id': 'valid-uuid4',
     'refund_reason': 'order cancelled',
+    'order_id': 'valid-uuid4',
 }
 
 example_transaction_out = {
@@ -29,6 +29,7 @@ example_transaction_out = {
     'order': OrderOut._example,
     'customer': UserOut._example,
     'refunded_by': UserOut._example,
+    'is_refund': True,
 }
 
 
@@ -46,7 +47,7 @@ class CreateTransaction(TransactionBase):
 
 
 class CreateRefundTransaction(CreateTransaction):
-    refunded_by_id: UUID4
+    order_id: UUID4
     refund_reason: str | None = Field(None, min_length=3, max_length=100)
 
     model_config = ConfigDict(
@@ -56,9 +57,10 @@ class CreateRefundTransaction(CreateTransaction):
 class TransactionOut(TransactionBase, IdTimestampMixin):
     gateway: PaymentGatewayOut
     order: OrderOut
-    customer: UserOut | None = None
-    refunded_by_id: UUID4 | None = None
-    refunded_by: UserOut | None = None
+    customer: UserOut | None
+    refunded_by: UserOut | None
+    is_refund: bool
+    refund_reason: str | None
 
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_transaction_out})

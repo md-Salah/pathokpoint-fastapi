@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from starlette import status
+from typing import Any
 
 pytestmark = pytest.mark.asyncio
 
@@ -9,7 +10,6 @@ simple_transaction = {
     "transaction_id": "some-transaction-id",
     "reference": "abdul kadir",
     "account_number": "+8801234567890",
-    "is_manual": False,
 }
 
 
@@ -42,6 +42,18 @@ async def test_create_manual_transaction_by_admin(client: AsyncClient, payment_g
     }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()["transactions"][0]
+
+async def test_manual_refund_by_admin(client: AsyncClient, admin_in_db_with_token: dict[str, Any], payment_gateway_in_db: dict, order_in_db: dict):        
+    response = await client.post("/transaction/refund", json={
+        "payment_method": payment_gateway_in_db["name"],
+        "refund_reason": "order cancelled",
+        "order_id": order_in_db["id"],
+        **simple_transaction
+    }, headers={
+        'Authorization': f"Bearer {admin_in_db_with_token['token']}"
+    })
+    assert response.status_code == status.HTTP_201_CREATED
+    return response.json().items() >= simple_transaction.items()
 
 
 async def test_delete_transaction(client: AsyncClient, transaction_in_db: dict, admin_auth_headers: dict):

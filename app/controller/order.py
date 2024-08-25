@@ -23,6 +23,7 @@ order_query = select(Order).options(
     selectinload(Order.order_items).selectinload(OrderItem.book).selectinload(Book.images),
     selectinload(Order.order_status).selectinload(OrderStatus.updated_by),
     selectinload(Order.transactions).selectinload(Transaction.gateway),
+    selectinload(Order.transactions).selectinload(Transaction.refunded_by),
     selectinload(Order.address),
     selectinload(Order.courier),
     selectinload(Order.coupon),
