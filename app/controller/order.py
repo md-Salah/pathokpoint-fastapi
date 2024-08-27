@@ -137,7 +137,7 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
             _,
             order.courier
         ) = await handle_shipping(
-            order.address, payload['courier_id'], weight_kg, db)
+            order.address, payload['courier_id'], weight_kg, order.is_full_paid, db)
     elif payload.get('address_id'):
         (
             order.shipping_charge,
@@ -145,7 +145,7 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
             order.address,
             order.courier
         ) = await handle_shipping(
-            payload['address_id'], payload['courier_id'], weight_kg, db)
+            payload['address_id'], payload['courier_id'], weight_kg, order.is_full_paid, db)
     if (order.courier):
         order.weight_charge += await additional_weight_charge(order.order_items, order.courier.weight_charge_per_kg)
 
@@ -372,7 +372,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
             raise BadRequestException("Coupon '{}' has expired".format(coupon.code))
 
         if coupon.use_limit:
-            use_count = await db.scalar(select(func.count(Order.id)).where(Order.coupon_id == coupon_id))
+            use_count = await db.scalar(select(func.count(Order.id)).where(Order.coupon_id == coupon.id))
             use_count = use_count or 0
             if use_count >= coupon.use_limit:
                 raise BadRequestException(
@@ -381,7 +381,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
         if coupon.use_limit_per_user:
             if not customer_id:
                 raise BadRequestException("Please login to use this coupon")
-            use_count = await db.scalar(select(func.count(Order.id)).where(Order.coupon_id == coupon_id, Order.customer_id == customer_id))
+            use_count = await db.scalar(select(func.count(Order.id)).where(Order.coupon_id == coupon.id, Order.customer_id == customer_id))
             use_count = use_count or 0
             if use_count >= coupon.use_limit_per_user:
                 raise BadRequestException(
@@ -470,7 +470,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
     return coupon, discount, shipping_charge
 
 
-async def handle_shipping(address_id: UUID | Address, courier_id: UUID, weight_kg: float, db: AsyncSession) -> Tuple[float, float, Address, Courier]:
+async def handle_shipping(address_id: UUID | Address, courier_id: UUID, weight_kg: float, is_full_paid: bool, db: AsyncSession) -> Tuple[float, float, Address, Courier]:
     if isinstance(address_id, Address):
         address = address_id
     else:
@@ -481,6 +481,9 @@ async def handle_shipping(address_id: UUID | Address, courier_id: UUID, weight_k
     courier = await db.get(Courier, courier_id)
     if not courier:
         raise NotFoundException('Courier not found')
+    
+    if not is_full_paid and not courier.allow_cash_on_delivery:
+        raise BadRequestException("'{}' does not allow cash on delivery".format(courier.method_name))
 
     if courier.include_country and (address.country not in courier.include_country):
         raise BadRequestException("'{}' does not deliver to {}".format(

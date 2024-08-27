@@ -7,7 +7,7 @@ from app.pydantic_schema.common import BookOut
 
 class ItemIn(BaseModel):
     book_id: UUID4
-    quantity: PositiveInt = 1
+    quantity: PositiveInt
 
     _example: ClassVar = {
         "book_id": "550e8400-e29b-41d4-a716-446655440000",

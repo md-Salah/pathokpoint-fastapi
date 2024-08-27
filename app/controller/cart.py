@@ -55,6 +55,6 @@ async def verify_stock(payload: dict[str, Any], db: AsyncSession):
 
         if book.manage_stock and book.quantity < item['quantity']:
             raise BadRequestException(
-                "Book '{}' has insufficient stock".format(book.name), str(book.id))
+                "Book '{}' has only {} in stock".format(book.name, book.quantity), str(book.id))
 
     return {"status": "ok"}
