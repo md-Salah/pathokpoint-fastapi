@@ -454,16 +454,16 @@ async def apply_coupon(coupon_id: UUID | Coupon,
         if coupon.max_shipping_charge:
             shipping_charge = min(shipping_charge, coupon.max_shipping_charge)
     elif coupon.discount_old and coupon.discount_new:
-        raise BadRequestException('Please buy at least {}৳ old or {}৳ new book to use this coupon'.format(
+        raise BadRequestException('Please buy more {}৳ old or {}৳ new book to use this coupon'.format(
             coupon.min_spend_old - old_book_total, coupon.min_spend_new - new_book_total))
     elif coupon.discount_old:
-        raise BadRequestException('Please buy at least {}৳ old book to use this coupon'.format(
+        raise BadRequestException('Please buy more {}৳ old book to use this coupon'.format(
             coupon.min_spend_old - old_book_total))
     elif coupon.discount_new:
-        raise BadRequestException('Please buy at least {}৳ new book to use this coupon'.format(
+        raise BadRequestException('Please buy more {}৳ new book to use this coupon'.format(
             coupon.min_spend_new - new_book_total))
     else:
-        raise BadRequestException('Please buy at least {}৳ old or {}৳ new book to use this coupon'.format(
+        raise BadRequestException('Please buy more {}৳ old or {}৳ new book to use this coupon'.format(
             coupon.min_spend_old - old_book_total, coupon.min_spend_new - new_book_total))
 
     discount = round(discount_old + discount_new)
