@@ -21,7 +21,7 @@ async def test_apply_coupon(client: AsyncClient, book_in_db: dict, coupon_in_db:
                 "quantity": 2
             }
         ]
-    })
+    }, headers={"Authorization": "Bearer fake-token"})
     assert response.status_code == status.HTTP_200_OK
     assert response.json()['discount'] == book_in_db['sale_price'] * \
         2 * coupon_in_db['discount_old'] / 100

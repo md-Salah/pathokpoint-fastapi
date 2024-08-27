@@ -13,8 +13,9 @@ router = APIRouter(prefix='/cart')
 
 @router.post('/apply-coupon', response_model=schema.ApplyCouponResponse)
 async def apply_coupon(payload: schema.ApplyCoupon, token: AccessTokenOptional, db: Session):
-    payload.customer_id = token['id'] if token else None
-    return await cart_service.apply_coupon(payload.model_dump(), db)
+    data = payload.model_dump()
+    data['customer_id'] = token['id'] if token else None
+    return await cart_service.apply_coupon(data, db)
 
 
 @router.get('/suggested-coupons', response_model=list[coupon_schema.CouponOut])
