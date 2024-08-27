@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from starlette import status
+from typing import Any
 
 pytestmark = pytest.mark.asyncio
 
@@ -30,20 +31,20 @@ async def test_get_category_by_slug(client: AsyncClient, category_in_db: dict):
     assert response.json().items() == category_in_db.items()
 
 
-@pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
+@pytest.mark.parametrize("query_string, expected_length, formatter", [
     ("", 1, lambda qs, _: qs),
     ("?q={}", 1, lambda qs, category_in_db: qs.format(
-        category_in_db['name'][:5])),
+        category_in_db['name'][:5])), # type: ignore
     ("?name={}", 1, lambda qs, category_in_db: qs.format(
-        category_in_db['name'])),
+        category_in_db['name'])), # type: ignore
     ("?slug={}", 1, lambda qs, category_in_db: qs.format(
-        category_in_db['slug'])),
+        category_in_db['slug'])), # type: ignore
     ("?is_popular=true", 1, lambda qs, _: qs),
     ("?q={}&is_popular=true", 1, lambda qs,
-     category_in_db: qs.format(category_in_db['name'][:5])),
+     category_in_db: qs.format(category_in_db['name'][:5])), # type: ignore
 ])
-async def test_get_all_categories(client: AsyncClient, category_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
-    query_string = modify_query_string(query_string_template, category_in_db)
+async def test_get_all_categories(client: AsyncClient, category_in_db: dict[str, Any], query_string: str, expected_length: int, formatter):
+    query_string = formatter(query_string, category_in_db)
     response = await client.get(f"/category/all{query_string}")
     assert len(response.json()) == expected_length
     assert response.json()[0].items() == category_in_db.items()

@@ -2,6 +2,7 @@ import io
 import pytest
 from httpx import AsyncClient
 from starlette import status
+from typing import Any
 
 pytestmark = pytest.mark.asyncio
 
@@ -33,15 +34,15 @@ async def test_get_book_by_public_id(client: AsyncClient, book_in_db: dict):
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 1, lambda qs, book_in_db: qs),
-    ("?q={}", 1, lambda qs, book_in_db: qs.format(book_in_db['name'][:5])),
-    ("?name={}", 1, lambda qs, book_in_db: qs.format(book_in_db['name'])),
-    ("?slug={}", 1, lambda qs, book_in_db: qs.format(book_in_db['slug'])),
+    ("?q={}", 1, lambda qs, book_in_db: qs.format(book_in_db['name'][:5])), # type: ignore
+    ("?name={}", 1, lambda qs, book_in_db: qs.format(book_in_db['name'])), # type: ignore
+    ("?slug={}", 1, lambda qs, book_in_db: qs.format(book_in_db['slug'])), # type: ignore
     ("?country=BD", 1, lambda qs, book_in_db: qs),
     ("?is_popular=true", 1, lambda qs, book_in_db: qs),
     ("?q={}&country=BD&is_popular=true", 1,
-     lambda qs, bdb: qs.format(bdb['name'][:5])),
+     lambda qs, bdb: qs.format(bdb['name'][:5])), # type: ignore
 ])
-async def test_get_all_books(client: AsyncClient, book_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
+async def test_get_all_books(client: AsyncClient, book_in_db: dict[str, Any], query_string_template: str, expected_length: int, modify_query_string):
     query_string = modify_query_string(query_string_template, book_in_db)
     response = await client.get(f"/book/all{query_string}")
     assert len(response.json()) == expected_length

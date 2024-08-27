@@ -91,11 +91,39 @@ async def create_admin_with_token(client: AsyncClient, admin_in_db: dict, admin_
     return {**admin_in_db, 'token': access_token}
 
 
+@pytest_asyncio.fixture(name="courier_payload")
+def courier_payload() -> dict:
+    return {
+        "method_name": "Delivery Tiger - Inside Dhaka",
+        "company_name": "Delivery Tiger",
+        "base_charge": 60.0,
+        "weight_charge_per_kg": 20.0,
+        "allow_cash_on_delivery": True,
+        "include_country": ["BD"],
+        "include_city": ["dhaka"],
+        "exclude_city": [],
+    }
+
+
 @pytest_asyncio.fixture(name="courier_in_db")
 async def create_courier(client: AsyncClient, courier_payload: dict, admin_auth_headers: dict):
     response = await client.post("/courier", json=courier_payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
+
+
+@pytest_asyncio.fixture(name="address_payload")
+def address_payload() -> dict:
+    return {
+        "name": "test user",
+        "phone_number": "+8801710002000",
+        "email": "testemail@gmail.com",
+        "alternative_phone_number": "+8801710000001",
+        "address": "House 1, Road 1, Block A, Dhaka",
+        "thana": "dhanmondi",
+        "city": "dhaka",
+        "country": "BD",
+    }
 
 
 @pytest_asyncio.fixture(name="address_in_db")
@@ -179,26 +207,26 @@ async def create_review(client: AsyncClient, image_in_db: dict, book_in_db: dict
 
 
 @pytest_asyncio.fixture(name="customer_access_token")
-async def get_access_token():
+async def get_access_token() -> str:
     return create_jwt_token(uuid.uuid4(), Role.customer, 'access')
 
 
 @pytest_asyncio.fixture(name="admin_access_token")
-async def get_admin_access_token():
+async def get_admin_access_token() -> str:
     return create_jwt_token(uuid.uuid4(), Role.admin, 'access')
 
 
 @pytest_asyncio.fixture(name='admin_auth_headers')
-async def get_admin_auth_headers_with_bearer_token(admin_access_token: str):
+async def get_admin_auth_headers_with_bearer_token(admin_access_token: str) -> dict:
     return {
         'Authorization': f'Bearer {admin_access_token}'
     }
 
 
 @pytest_asyncio.fixture(name='customer_auth_headers')
-async def get_auth_headers_with_bearer_token(customer_access_token: str):
+async def get_auth_headers_with_bearer_token(user_in_db: dict[str, dict]) -> dict:
     return {
-        'Authorization': f'Bearer {customer_access_token}'
+        'Authorization': f'Bearer {user_in_db["token"]["access_token"]}'
     }
 
 
@@ -269,31 +297,4 @@ def coupon_payload() -> dict:
         "discount_new": 0,
         "min_spend_old": 499,
         "min_spend_new": 0,
-    }
-
-
-@pytest_asyncio.fixture(name="address_payload")
-def address_payload() -> dict:
-    return {
-        "name": "test user",
-        "phone_number": "+8801710002000",
-        "alternative_phone_number": "+8801710000001",
-        "address": "House 1, Road 1, Block A, Dhaka",
-        "thana": "dhanmondi",
-        "city": "dhaka",
-        "country": "BD",
-    }
-
-
-@pytest_asyncio.fixture(name="courier_payload")
-def courier_payload() -> dict:
-    return {
-        "method_name": "Delivery Tiger - Inside Dhaka",
-        "company_name": "Delivery Tiger",
-        "base_charge": 60.0,
-        "weight_charge_per_kg": 20.0,
-        "allow_cash_on_delivery": True,
-        "include_country": ["BD"],
-        "include_city": ["dhaka"],
-        "exclude_city": [],
     }
