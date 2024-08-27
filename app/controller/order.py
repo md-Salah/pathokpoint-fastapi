@@ -183,7 +183,7 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
     order.total = order.new_book_total + order.old_book_total + \
         order.shipping_charge + order.weight_charge
     order.net_amount = order.total - order.discount
-    order.due = order.net_amount - order.paid
+    order.due = max(0, order.net_amount - order.paid)
 
     # Profit
     order.additional_cost = 0
@@ -232,7 +232,7 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
         order.total = order.new_book_total + order.old_book_total + \
             order.shipping_charge + order.weight_charge
         order.net_amount = order.total - order.discount
-        order.due = order.net_amount - order.paid + order.payment_reversed
+        order.due = max(0, order.net_amount - order.paid)
         order.gross_profit = order.net_amount - order.cost_of_good_new - \
             order.cost_of_good_old - order.shipping_cost - order.additional_cost
 
@@ -255,12 +255,12 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
             await transaction_service.validate_transaction(transaction, db)
         )
         order.paid += transaction['amount']
-        order.due = order.net_amount - order.paid + order.payment_reversed
+        order.due = max(0, order.net_amount - order.paid)
 
     if payload.get('discount'):
         order.discount = payload['discount']
         order.net_amount = order.total - order.discount
-        order.due = order.net_amount - order.paid + order.payment_reversed
+        order.due = max(0, order.net_amount - order.paid)
 
     if payload.get('tracking_id'):
         order.tracking_id = payload['tracking_id']
@@ -533,3 +533,4 @@ async def additional_weight_charge(items: List[OrderItem], weight_charge_per_kg)
     sub_total = sum(
         [item.sold_price * item.quantity for item in items if item.book.weight_in_gm == 0])
     return (sub_total//1000) * weight_charge_per_kg
+

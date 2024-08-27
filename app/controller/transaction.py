@@ -65,13 +65,6 @@ async def validate_transaction(payload: dict, db: AsyncSession) -> Transaction:
                                 str(payment_method))
     payload['gateway'] = gateway
 
-    # if 'refunded_by_id' in payload:
-    #     refunded_by = await db.get(User, payload['refunded_by_id'])
-    #     if not refunded_by:
-    #         raise NotFoundException(
-    #             'Admin not found for the refund', str(payload['refunded_by_id']))
-    #     payload['refunded_by'] = refunded_by
-
     return Transaction(**payload)
 
 
@@ -79,15 +72,11 @@ async def refund(payload: dict, db: AsyncSession) -> Transaction:
     order = await db.get(Order, payload.pop('order_id'))
     if not order:
         raise NotFoundException('Order not found', str(payload['order_id']))
-    if (order.due < 0):
-        order.payment_reversed += payload['amount']
-        order.due = order.net_amount - order.paid + order.payment_reversed
-    else:
-        order.refunded = payload['amount']
+    order.refunded = payload['amount']
 
     admin = await db.get(User, payload.pop('refunded_by_id'))
     if not admin:
-        raise NotFoundException('Invalid admin')
+        raise NotFoundException('Admin not found')
 
     transaction = await validate_transaction(payload, db)
     transaction.order = order

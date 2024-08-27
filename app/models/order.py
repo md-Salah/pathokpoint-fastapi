@@ -38,7 +38,6 @@ class OrderStatus(TimestampMixin):
     
     status: Mapped[Status] = mapped_column(Enum(Status))
     note: Mapped[str | None]
-    admin_note: Mapped[str | None]
     
     admin_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id'))
     updated_by: Mapped['User'] = relationship()
@@ -64,7 +63,6 @@ class Order(TimestampMixin):
     discount: Mapped[float] = mapped_column(Float, default=0.0)
     net_amount: Mapped[float]
     paid: Mapped[float]
-    payment_reversed: Mapped[float] = mapped_column(Float, default=0.0)
     due: Mapped[float]
     refunded: Mapped[float] = mapped_column(Float, default=0.0)
     

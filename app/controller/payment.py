@@ -59,14 +59,13 @@ async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
             account_number=data['customerMsisdn']
         )
         payload = payload.model_dump()
-        payload['order'] = order
         payload['customer'] = await order.awaitable_attrs.customer
         payload['is_manual'] = False
         trx = await transaction_service.validate_transaction(payload, db)
 
         (await order.awaitable_attrs.transactions).append(trx)
         order.paid += trx.amount
-        order.due = order.net_amount - order.paid + order.payment_reversed
+        order.due = max(0, order.net_amount - order.paid)
 
         if order.order_status[-1].status == Status.pending_payment:
             order.order_status.append(OrderStatus(

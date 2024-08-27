@@ -49,7 +49,6 @@ example_order_out = {
     'discount': 100,
     'net_amount': 500,
     'paid': 500,
-    'payment_reversed': 0,
     'due': 0,
     'refunded': 0,
     'tracking_id': 'DT-546365',
@@ -119,7 +118,6 @@ class OrderOut(OrderBase, IdTimestampMixin):
     discount: NonNegativeFloat
     net_amount: NonNegativeFloat
     paid: NonNegativeFloat
-    payment_reversed: NonNegativeFloat
     due: FiniteFloat
     refunded: NonNegativeFloat
 
