@@ -5,13 +5,15 @@ import app.pydantic_schema.coupon as coupon_schema
 from app.config.database import Session
 import app.controller.cart as cart_service
 import app.controller.coupon as coupon_service
+from app.controller.auth import AccessTokenOptional
 
 
 router = APIRouter(prefix='/cart')
 
 
 @router.post('/apply-coupon', response_model=schema.ApplyCouponResponse)
-async def apply_coupon(payload: schema.ApplyCoupon, db: Session):
+async def apply_coupon(payload: schema.ApplyCoupon, token: AccessTokenOptional, db: Session):
+    payload.customer_id = token['id'] if token else None
     return await cart_service.apply_coupon(payload.model_dump(), db)
 
 
