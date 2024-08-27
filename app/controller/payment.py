@@ -60,7 +60,7 @@ async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
         )
         payload = payload.model_dump()
         payload['order'] = order
-        payload['customer'] = order.customer
+        payload['customer'] = await order.awaitable_attrs.customer
         payload['is_manual'] = False
         trx = await transaction_service.validate_transaction(payload, db)
 
