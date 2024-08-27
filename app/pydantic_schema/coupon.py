@@ -41,7 +41,7 @@ example_coupon_in = {
     'exclude_publishers': ['example-uuid'],
     'exclude_tags': ['example-uuid'],
 
-    'allowed_users': ['example-uuid'],
+    'user_id': 'example-uuid',
     'exclude_couriers': ['example-uuid'],
 }
 
@@ -60,7 +60,7 @@ example_coupon_out = {
     'exclude_publishers': [PublisherOut._example],
     'exclude_tags': [TagOut._example],
 
-    'allowed_users': [UserOut._example],
+    'user': UserOut._example,
     'exclude_couriers': [CourierOut._example],
 }
 
@@ -107,7 +107,7 @@ class CreateCoupon(CouponBase):
     exclude_publishers: list[UUID4] = []
     exclude_tags: list[UUID4] = []
 
-    allowed_users: list[UUID4] = []
+    user_id: UUID4 | None = None
     exclude_couriers: list[UUID4] = []
 
     model_config = ConfigDict(json_schema_extra={"example": example_coupon_in})
@@ -131,7 +131,7 @@ class CouponOut(CreateCoupon, IdTimestampMixin):
     exclude_publishers: list[PublisherOut] = []
     exclude_tags: list[TagOut] = []
 
-    allowed_users: list[UserOut] = []
+    user: UserOut | None
     exclude_couriers: list[CourierOut] = []
 
     model_config = ConfigDict(json_schema_extra={"example":

@@ -26,8 +26,8 @@ async def test_get_coupon_by_id(client: AsyncClient, coupon_in_db: dict):
     assert response.json().items() <= coupon_in_db.items()
 
 
-async def test_get_all_coupons(client: AsyncClient, coupon_in_db: dict):
-    response = await client.get("/coupon/all")
+async def test_get_all_coupons(client: AsyncClient, coupon_in_db: dict, admin_auth_headers: dict):
+    response = await client.get("/coupon/all", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 1
     assert response.json()[0].items() <= coupon_in_db.items()

@@ -20,6 +20,7 @@ async def get_coupon_by_id(id: UUID, db: Session):
 async def get_all_coupons(*, page: int = Query(1, ge=1),
                           per_page: int = Query(10, ge=1, le=100),
                           filter: CouponFilter = FilterDepends(CouponFilter),
+                          _: AdminAccessToken,
                           db: Session,  response: Response):
     coupons = await coupon_service.get_all_coupons(filter, page, per_page, db)
     total_coupons = await coupon_service.count_coupon(filter, db)

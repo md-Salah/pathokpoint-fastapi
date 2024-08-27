@@ -9,6 +9,7 @@ from app.models.coupon import Coupon
 class CouponFilter(Filter):
     q: str | None = Field(Query(None, description='Search by coupon code or description'))
     is_active: bool | None = None
+    code: str | None = None
     order_by: list[str] | None = Field(Query(None, description='Sort by fields created_at, expiry_date, discount_old, discount_new. Add "-" for descending order'))
     
     @field_validator('order_by')

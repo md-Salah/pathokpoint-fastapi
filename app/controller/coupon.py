@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from typing import Sequence
 from uuid import UUID
 import logging
+from datetime import timezone, datetime
 
 from app.models.coupon import Coupon
 from app.models import Book, Publisher, Author, Category, Tag, User, Courier
@@ -25,7 +26,7 @@ query = select(Coupon).options(
     selectinload(Coupon.exclude_publishers),
     selectinload(Coupon.exclude_tags),
 
-    selectinload(Coupon.allowed_users),
+    selectinload(Coupon.user),
     selectinload(Coupon.exclude_couriers),
 )
 
@@ -56,10 +57,13 @@ async def get_all_coupons(filter: CouponFilter, page: int, per_page: int, db: As
 async def get_suggested_coupons(page: int, per_page: int, db: AsyncSession) -> Sequence[Coupon]:
     offset = (page - 1) * per_page
 
-    stmt = query.filter(Coupon.is_active,
-                        func.cardinality(Coupon.allowed_users) == 0,
-                        Coupon.expiry_date > func.now())
-    stmt = query.offset(offset).limit(per_page)
+    stmt = query.filter(
+        Coupon.is_active,
+        Coupon.user_id.is_(None),
+        or_(Coupon.expiry_date > datetime.now(
+            timezone.utc), Coupon.expiry_date.is_(None))
+    )
+    stmt = stmt.offset(offset).limit(per_page)
     result = await db.execute(stmt)
     return result.scalars().unique().all()
 

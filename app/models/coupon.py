@@ -1,4 +1,4 @@
-from sqlalchemy import String, ARRAY, Column, Table, ForeignKey, Boolean, Enum, Float
+from sqlalchemy import String, ARRAY, Column, Table, ForeignKey, Boolean, Enum, Float, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
@@ -22,7 +22,7 @@ class Coupon(TimestampMixin):
         as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(20), index=True, unique=True)
     short_description: Mapped[str | None] = mapped_column(String(100))
-    expiry_date: Mapped[datetime | None]
+    expiry_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     discount_type: Mapped[DiscountType] = mapped_column(Enum(DiscountType))
     discount_old: Mapped[float | None]
@@ -63,8 +63,9 @@ class Coupon(TimestampMixin):
     exclude_tags: Mapped[List['Tag']] = relationship(
         secondary='coupon_tag_exclude_link')
 
-    allowed_users: Mapped[List['User']] = relationship(
-        secondary='coupon_user_link')
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id'))
+    user: Mapped['User'] = relationship(foreign_keys=[user_id])
+        
     exclude_couriers: Mapped[List['Courier']] = relationship(
         secondary='coupon_courier_exclude_link')
 
@@ -160,15 +161,6 @@ coupon_tag_exclude_link = Table(
            ForeignKey('coupons.id'), primary_key=True),
     Column('tag_id', UUID(as_uuid=True),
            ForeignKey('tags.id'), primary_key=True),
-)
-
-coupon_user_link = Table(
-    'coupon_user_link',
-    Base.metadata,
-    Column('coupon_id', UUID(as_uuid=True),
-           ForeignKey('coupons.id'), primary_key=True),
-    Column('user_id', UUID(as_uuid=True),
-           ForeignKey('users.id'), primary_key=True),
 )
 
 coupon_courier_exclude_link = Table(

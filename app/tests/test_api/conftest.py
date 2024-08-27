@@ -263,7 +263,7 @@ def coupon_payload() -> dict:
     return {
         "code": "NewYear",
         "short_description": "New year coupon",
-        "expiry_date": "2040-12-31T00:00:00",
+        "expiry_date": "3024-12-10T23:59:59.999999Z",
         "discount_type": "percentage",
         "discount_old": 15,
         "discount_new": 0,

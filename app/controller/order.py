@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Sequence, List, Tuple, Any
 from sqlalchemy.orm import selectinload, aliased
 import logging
@@ -364,16 +364,12 @@ async def apply_coupon(coupon_id: UUID | Coupon,
     coupon = coupon_id if isinstance(coupon_id, Coupon) else await coupon_service.get_coupon_by_id(coupon_id, db)
 
     if new_order:
-        logger.debug('Expiry datetime: {}, Current datetime: {}'.format(
-            coupon.expiry_date, datetime.now()
-        ))
         if not coupon.is_active:
             raise BadRequestException(
                 "Coupon '{}' is disabled".format(coupon.code))
 
-        if coupon.expiry_date and coupon.expiry_date < datetime.now():
-            raise BadRequestException(
-                "Coupon '{}' has expired".format(coupon.code))
+        if coupon.expiry_date and coupon.expiry_date < datetime.now(timezone.utc):
+            raise BadRequestException("Coupon '{}' has expired".format(coupon.code))
 
         if coupon.use_limit:
             use_count = await db.scalar(select(func.count(Order.id)).where(Order.coupon_id == coupon_id))
@@ -382,17 +378,18 @@ async def apply_coupon(coupon_id: UUID | Coupon,
                 raise BadRequestException(
                     "Coupon '{}' has reached its limit".format(coupon.code))
 
-        if coupon.use_limit_per_user and customer_id:
+        if coupon.use_limit_per_user:
+            if not customer_id:
+                raise BadRequestException("Please login to use this coupon")
             use_count = await db.scalar(select(func.count(Order.id)).where(Order.coupon_id == coupon_id, Order.customer_id == customer_id))
             use_count = use_count or 0
             if use_count >= coupon.use_limit_per_user:
                 raise BadRequestException(
                     "You have reached the limit of using coupon '{}'".format(coupon.code))
 
-        if coupon.allowed_users:
-            if customer_id not in coupon.allowed_users:
-                raise BadRequestException(
-                    "Coupon '{}' is not applicable for you".format(coupon.code))
+        if coupon.user_id and coupon.user_id != customer_id:
+            raise BadRequestException(
+                "Coupon '{}' is not applicable for you".format(coupon.code))
 
     if courier_id and coupon.exclude_couriers:
         courier = await get_courier_by_id(courier_id, db)
