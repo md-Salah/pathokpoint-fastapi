@@ -73,6 +73,8 @@ async def test_delete_address_by_admin(client: AsyncClient, address_in_db: dict[
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
-async def test_delete_address_by_other_customer(client: AsyncClient, address_in_db: dict[str, Any], customer_auth_headers: dict):
-    response = await client.delete("/address/{}".format(address_in_db['address']['id']), headers=customer_auth_headers)
+async def test_delete_address_by_other_customer(client: AsyncClient, address_in_db: dict[str, Any], customer_access_token: str):
+    response = await client.delete("/address/{}".format(address_in_db['address']['id']), headers={
+        'Authorization': "Bearer {}".format(customer_access_token)
+    })
     assert response.status_code == status.HTTP_403_FORBIDDEN
