@@ -1,13 +1,69 @@
 from fastapi import status
 from httpx import AsyncClient
 import pytest_asyncio
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import uuid
-
+import pytest
+from typing import Any, Callable, Dict, Generator
 
 from app.constant import Country
 from app.controller.auth import create_jwt_token
 from app.constant.role import Role
+
+
+@pytest.fixture(name="mock_upload_file")
+def mock_upload_file() -> Generator:
+    with patch("app.controller.image.upload_file_to_cloudinary") as mock_upload_file:
+        yield mock_upload_file
+
+
+@pytest.fixture(name="mock_delete_file")
+def mock_delete_file() -> Generator:
+    with patch("app.models.image.delete_file_from_cloudinary_sync") as mock_delete_file:
+        yield mock_delete_file
+
+
+@pytest_asyncio.fixture(name="img_uploader")
+async def img_uploader(client: AsyncClient) -> Callable:
+
+    async def _create_image(url: str, headers: dict, mock_upload_file: MagicMock) -> Dict[str, Any]:
+        mock_upload_file.return_value = {
+            'public_id': 'dummy',
+            'secure_url': 'https://res.cloudinary.com/dummy/image/upload/v1631234567/dummy/test.jpg',
+            'filename': 'image.jpg'
+        }
+        with open("dummy/test.jpg", "rb") as f:
+            response = await client.post(url,
+                                         files=[
+                                             ("files", ("image.jpg", f, "image/jpeg"))],
+                                         headers=headers
+                                         )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        mock_upload_file.assert_called_once()
+
+        img = response.json()[0]
+        img.pop('public_id')
+        img.pop('folder')
+        return img
+
+    return _create_image
+
+
+@pytest_asyncio.fixture(name="book_payload")
+def book_payload() -> dict:
+    return {
+        "sku": "99-5432",
+        "name": "The Alchemist",
+        "slug": "the-alchemist",
+        "regular_price": 700,
+        "sale_price": 250,
+        "manage_stock": True,
+        "quantity": 10,
+        "is_used": True,
+        "condition": "old-like-new",
+        "is_popular": True,
+    }
 
 
 @pytest_asyncio.fixture(name="book_in_db")
@@ -18,19 +74,41 @@ async def create_book(client: AsyncClient, book_payload: dict, admin_auth_header
 
 
 @pytest_asyncio.fixture(name="image_in_db")
-@patch("app.controller.image.upload_file_to_cloudinary")
-async def create_image(upload_file, client: AsyncClient, admin_auth_headers: dict):
-    upload_file.return_value = {
+async def create_image(mock_upload_file: MagicMock, client: AsyncClient, author_in_db: dict, admin_auth_headers: dict):
+    mock_upload_file.return_value = {
         'public_id': 'dummy',
         'secure_url': 'https://res.cloudinary.com/dummy/image/upload/v1631234567/dummy/test.jpg',
+        'filename': 'image.jpg'
     }
 
     with open("dummy/test.jpg", "rb") as f:
-        response = await client.post("/image",
-                                     files={"file": ("image.jpg", f, "image/jpeg")}, data={'alt': 'test-image'}, headers=admin_auth_headers)
+        response = await client.post("/image/admin?author_id={}".format(author_in_db['id']),
+                                     files=[
+                                         ("files", ("image.jpg", f, "image/jpeg"))
+        ],
+            headers=admin_auth_headers)
+
     assert response.status_code == status.HTTP_201_CREATED
-    upload_file.assert_called_once()
-    return response.json()
+    mock_upload_file.assert_called_once()
+    img = response.json()[0]
+    img.pop('public_id')
+    img.pop('folder')
+    return img
+
+
+@pytest_asyncio.fixture(name="author_payload")
+def author_payload() -> dict:
+    return {
+        "birth_date": "1948-11-13",
+        "book_published": 200,
+        "city": "dhaka",
+        "country": "BD",
+        "death_date": "2012-07-19",
+        "description": "বাংলাদেশের প্রখ্যাত লেখক",
+        "is_popular": True,
+        "name": "হুমায়ূন আহমেদ",
+        "slug": "humayun-ahmed"
+    }
 
 
 @pytest_asyncio.fixture(name="author_in_db")
@@ -63,6 +141,18 @@ async def create_category(client: AsyncClient, admin_auth_headers: dict):
     return response.json()
 
 
+@pytest_asyncio.fixture(name="user_payload")
+def user_payload() -> dict:
+    return {
+        "email": "testuser@gmail.com",
+        "password": "testPassword2235#",
+        "phone_number": "+8801311701123",
+        "first_name": "test",
+        "last_name": "user",
+        "role": "customer"
+    }
+
+
 @pytest_asyncio.fixture(name="user_in_db")
 async def create_user_by_admin(client: AsyncClient, user_payload: dict, admin_auth_headers: dict) -> dict[str, dict]:
     response = await client.post("/user", json=user_payload, headers=admin_auth_headers)
@@ -73,6 +163,18 @@ async def create_user_by_admin(client: AsyncClient, user_payload: dict, admin_au
         'token': {
             'access_token': create_jwt_token(user['id'], Role.customer, 'access'),
         }
+    }
+
+
+@pytest_asyncio.fixture(name="admin_payload")
+def admin_payload() -> dict:
+    return {
+        "email": "testadmin@gmail.com",
+        "password": "testPassword2235#",
+        "phone_number": "+8801478639075",
+        "first_name": "test",
+        "last_name": "user",
+        "role": "admin"
     }
 
 
@@ -139,6 +241,20 @@ async def create_address(client: AsyncClient, address_payload: dict, user_in_db:
     }
 
 
+@pytest_asyncio.fixture(name="coupon_payload")
+def coupon_payload() -> dict:
+    return {
+        "code": "NewYear",
+        "short_description": "New year coupon",
+        "expiry_date": "3024-12-10T23:59:59.999999Z",
+        "discount_type": "percentage",
+        "discount_old": 15,
+        "discount_new": 0,
+        "min_spend_old": 499,
+        "min_spend_new": 0,
+    }
+
+
 @pytest_asyncio.fixture(name="coupon_in_db")
 async def create_coupon(client: AsyncClient, coupon_payload: dict, admin_auth_headers: dict):
     response = await client.post("/coupon", json=coupon_payload, headers=admin_auth_headers)
@@ -191,19 +307,35 @@ async def create_transaction(client: AsyncClient, book_in_db: dict, payment_gate
     return response.json()["transactions"][0]
 
 
-@pytest_asyncio.fixture(name="review_in_db")
-async def create_review(client: AsyncClient, image_in_db: dict, book_in_db: dict, user_in_db: dict[str, dict]):
-    response = await client.post("/review/new", json={
+@pytest_asyncio.fixture(name="review_payload")
+def review_payload() -> dict:
+    return {
         "product_rating": 5,
         "time_rating": 5,
         "delivery_rating": 5,
         "website_rating": 5,
-        "comment": "Great book I have ever read!",
-        "book_id": book_in_db["id"],
-        "images": [image_in_db["id"]],
-    }, headers={"Authorization": f"Bearer {user_in_db["token"]['access_token']}"})
+        "comment": "Great book I have ever read!"
+    }
+
+
+@pytest_asyncio.fixture(name="review_in_db")
+async def create_review(client: AsyncClient, review_payload: dict, book_in_db: dict[str, Any],
+                        user_in_db: dict[str, dict], img_uploader: Callable, mock_upload_file: MagicMock):
+    headers = {"Authorization": "Bearer {}".format(
+        user_in_db["token"]['access_token'])}
+
+    response = await client.post("/review/new", json={
+        **review_payload,
+        "book_id": book_in_db["id"]
+    }, headers=headers)
     assert response.status_code == status.HTTP_201_CREATED
-    return {**response.json(), 'access_token': user_in_db["token"]['access_token']}
+    data = response.json()
+
+    img = await img_uploader("/image/user?review_id={}".format(data["id"]), headers, mock_upload_file)
+    data["images"] = [img]
+    data['headers'] = headers
+
+    return data
 
 
 @pytest_asyncio.fixture(name="customer_access_token")
@@ -230,71 +362,16 @@ async def get_auth_headers_with_bearer_token(user_in_db: dict[str, dict]) -> dic
     }
 
 
-# Payload fixtures
-@pytest_asyncio.fixture(name="book_payload")
-def book_payload() -> dict:
-    return {
-        "sku": "99-5432",
-        "name": "The Alchemist",
-        "slug": "the-alchemist",
-        "regular_price": 700,
-        "sale_price": 250,
-        "manage_stock": True,
-        "quantity": 10,
-        "is_used": True,
-        "condition": "old-like-new",
-        "is_popular": True,
-    }
+@pytest_asyncio.fixture
+def diff() -> Callable:
+    def compare(big: dict[str, Any], small: dict[str, Any]) -> None:
+        for key, val in small.items():
+            if key not in big:
+                print(f"Mismatch: {key} not found in greater dict")
+            elif isinstance(val, dict):
+                print('COMPARING:', key)
+                compare(val, big[key])
+            elif big[key] != val:
+                print("Mismatch:", key, val, big[key])
 
-
-@pytest_asyncio.fixture(name="author_payload")
-def author_payload() -> dict:
-    return {
-        "birth_date": "1948-11-13",
-        "book_published": 200,
-        "city": "dhaka",
-        "country": "BD",
-        "death_date": "2012-07-19",
-        "description": "বাংলাদেশের প্রখ্যাত লেখক",
-        "is_popular": True,
-        "name": "হুমায়ূন আহমেদ",
-        "slug": "humayun-ahmed"
-    }
-
-
-@pytest_asyncio.fixture(name="user_payload")
-def user_payload() -> dict:
-    return {
-        "email": "testuser@gmail.com",
-        "password": "testPassword2235#",
-        "phone_number": "+8801311701123",
-        "first_name": "test",
-        "last_name": "user",
-        "role": "customer"
-    }
-
-
-@pytest_asyncio.fixture(name="admin_payload")
-def admin_payload() -> dict:
-    return {
-        "email": "testadmin@gmail.com",
-        "password": "testPassword2235#",
-        "phone_number": "+8801478639075",
-        "first_name": "test",
-        "last_name": "user",
-        "role": "admin"
-    }
-
-
-@pytest_asyncio.fixture(name="coupon_payload")
-def coupon_payload() -> dict:
-    return {
-        "code": "NewYear",
-        "short_description": "New year coupon",
-        "expiry_date": "3024-12-10T23:59:59.999999Z",
-        "discount_type": "percentage",
-        "discount_old": 15,
-        "discount_new": 0,
-        "min_spend_old": 499,
-        "min_spend_new": 0,
-    }
+    return compare

@@ -2,10 +2,11 @@ from PIL import Image
 import io
 import logging
 import aiofiles
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
-async def img_resize(file_path: str, dimension: tuple, max_kb: int) -> None:
+async def img_resize(file_path: str, dimension: Tuple[int, int], max_kb: int) -> None:
     try:
         logger.debug(f"Resizing image: {file_path}")
         with Image.open(file_path) as image: 

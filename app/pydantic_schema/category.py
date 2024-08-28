@@ -21,10 +21,9 @@ example_category = {
 
 example_category_in = {
     **example_category,
-    'image_id': '5b36385d-27bf-47dd-9126-df04bccfc773',
-    'banner_id': '5b36385d-27bf-47dd-9126-df04bccfc773',
-    'parent': ['5b36385d-27bf-47dd-9126-df04bccfc773'],
-    'children': ['5b36385d-27bf-47dd-9126-df04bccfc773', '5b36385d-27bf-47dd-9126-df04bccfc773'],
+    'image_id': 'valid-uuid4',
+    'banner_id': 'valid-uuid4',
+    'parent': ['valid-uuid4'],
 }
 
 example_category_out = {
@@ -50,7 +49,6 @@ class CategoryBase(NameSlugMixin):
 
 class CreateCategory(CategoryBase):
     parent: List[UUID4] = []
-    children: List[UUID4] = []
     image_id: UUID4 | None = None
     banner_id: UUID4 | None = None
 
@@ -65,7 +63,7 @@ class CategoryOut(CreateCategory, IdTimestampMixin):
     image: ImageOut | None = None
     banner: ImageOut | None = None
     parent: list[ParentChildCategory] | None = None
-    children: list[ParentChildCategory] | None = None
+    # children: list[ParentChildCategory] | None = None
 
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_category_out})

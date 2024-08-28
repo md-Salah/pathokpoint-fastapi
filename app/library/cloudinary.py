@@ -63,3 +63,13 @@ async def delete_file_from_cloudinary(public_id: str) -> bool:
     except Exception:
         logger.error(f'{traceback.format_exc()}')
         return False
+
+
+def delete_file_from_cloudinary_sync(public_id: str) -> bool:
+    try:
+        response = cloudinary.uploader.destroy(public_id)
+        logger.debug(response)
+        return response['result'] == 'ok' or response['result'] == 'not found'
+    except Exception:
+        logger.error(f'{traceback.format_exc()}')
+        return False

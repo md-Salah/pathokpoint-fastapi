@@ -38,11 +38,11 @@ class Author(TimestampMixin):
         secondary='book_translator_link', back_populates='translators')
 
     image_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('images.id'))
-    image: Mapped['Image'] = relationship(foreign_keys=[image_id])
+    image: Mapped['Image'] = relationship(foreign_keys=[image_id], cascade='all, delete-orphan', single_parent=True)
 
     banner_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey('images.id'))
-    banner: Mapped['Image'] = relationship(foreign_keys=[banner_id])
+    banner: Mapped['Image'] = relationship(foreign_keys=[banner_id], cascade='all, delete-orphan', single_parent=True)
 
     followers_count: Mapped[int] = mapped_column(Integer, default=0)
     followers: Mapped[List['User']] = relationship(

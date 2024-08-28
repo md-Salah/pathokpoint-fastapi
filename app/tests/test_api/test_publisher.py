@@ -33,15 +33,15 @@ async def test_get_publisher_by_slug(client: AsyncClient, publisher_in_db: dict)
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 1, lambda qs, _: qs),
     ("?q={}", 1, lambda qs, publisher_in_db: qs.format(
-        publisher_in_db['name'][:5])),
+        publisher_in_db['name'][:5])),  # type: ignore
     ("?name={}", 1, lambda qs, publisher_in_db: qs.format(
-        publisher_in_db['name'])),
+        publisher_in_db['name'])),  # type: ignore
     ("?slug={}", 1, lambda qs, publisher_in_db: qs.format(
-        publisher_in_db['slug'])),
+        publisher_in_db['slug'])),  # type: ignore
     ("?country=BD", 1, lambda qs, _: qs),
     ("?is_popular=true", 1, lambda qs, _: qs),
     ("?q={}&country=BD&is_popular=true", 1, lambda qs,
-     publisher_in_db: qs.format(publisher_in_db['name'][:5])),
+     publisher_in_db: qs.format(publisher_in_db['name'][:5])),  # type: ignore
 ])
 async def test_get_all_publishers(client: AsyncClient, publisher_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
     query_string = modify_query_string(query_string_template, publisher_in_db)

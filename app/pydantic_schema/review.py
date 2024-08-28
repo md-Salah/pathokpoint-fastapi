@@ -15,14 +15,12 @@ example_review = {
 
 example_review_update = {
     **example_review,
-    "images": ["uuid4"]
 }
 
 example_review_in = {
     **example_review,
     "order_id": "uuid4",
     "book_id": "uuid4",
-    "images": ["uuid4"],
 }
 
 example_review_out = {
@@ -58,7 +56,6 @@ class ReviewBase(BaseModel):
 class CreateReview(ReviewBase):
     order_id: UUID4 | None = None
     book_id: UUID4 | None = None
-    images: list[UUID4] = []
     model_config = ConfigDict(json_schema_extra={"example": example_review_in})
 
     @field_validator('book_id')
@@ -76,7 +73,6 @@ class UpdateReview(ReviewBase):
     time_rating: PositiveInt | None = Field(None, ge=1, le=5)
     delivery_rating: PositiveInt | None = Field(None, ge=1, le=5)
     website_rating: PositiveInt | None = Field(None, ge=1, le=5)
-    images: list[UUID4] | None = None
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_review_update})

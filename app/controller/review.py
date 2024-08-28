@@ -1,27 +1,24 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 from typing import Sequence
 from uuid import UUID
 import logging
 
 from app.filter_schema.review import ReviewFilter
-from app.models.review import Review, review_image_link
+from app.models.review import Review
 from app.models.book import Book
 from app.models.order import Order
-from app.controller.exception import NotFoundException, ForbiddenException
+from app.controller.exception import NotFoundException, ForbiddenException, BadRequestException
 from app.controller.user import get_user_by_id
-from app.controller.image import handle_multiple_image_attachment
 from app.controller.auth import Role
+
 
 logger = logging.getLogger(__name__)
 
 
 async def get_review_by_id(id: UUID, db: AsyncSession) -> Review:
-    stmt = select(Review).options(selectinload(Review.user),
-                                  selectinload(Review.images)).filter(Review.id == id)
-
-    review = await db.scalar(stmt)
+    review = await db.get(Review, id)
     if not review:
         raise NotFoundException('Review not found', str(id))
     return review
@@ -63,13 +60,13 @@ async def create_review(payload: dict, db: AsyncSession) -> Review:
             raise ForbiddenException(
                 'You are not allowed to review this order', str(order_id))
         payload['order'] = order
-
-    if 'images' in payload:
-        # payload['images'] = await attach_images(payload['images'], [], db)
-        payload['images'] = await handle_multiple_image_attachment(payload['images'], [], db, review_image_link)
+    else:
+        raise BadRequestException('Book or order id is required')
 
     payload['average_rating'] = (payload['product_rating'] + payload['delivery_rating'] +
                                  payload['time_rating'] + payload['website_rating']) / 4
+
+    payload['images'] = []
 
     logger.debug(payload)
     review = Review(**payload)
@@ -83,10 +80,6 @@ async def update_review(id: UUID, user_id: UUID, payload: dict, db: AsyncSession
     review = await get_review_by_id(id, db)
     if review.user_id != user_id:
         raise ForbiddenException('You are not allowed to update this review.')
-
-    if 'images' in payload:
-        previous_ids = [image.id for image in review.images]
-        payload['images'] = await handle_multiple_image_attachment(payload['images'], previous_ids, db, review_image_link)
 
     logger.debug(payload)
     [setattr(review, key, value)
@@ -113,12 +106,10 @@ async def delete_review(id: UUID, user_id: UUID, user_role: str, db: AsyncSessio
     review = await db.get(Review, id)
     if not review:
         raise NotFoundException('Review not found', str(id))
-    
+
     if user_id != review.user_id and user_role != Role.admin.value:
         raise ForbiddenException('You are not allowed to delete this review.')
-    
-    image_ids = [image.id for image in await review.awaitable_attrs.images]
-    await handle_multiple_image_attachment([], image_ids, db, review_image_link)
+
     await db.delete(review)
     await db.commit()
 

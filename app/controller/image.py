@@ -1,17 +1,18 @@
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, Table
+from sqlalchemy import select, func, delete
 from typing import Sequence
 from uuid import UUID
 import os
 import logging
 import tempfile
 import aiofiles
+from typing import Tuple, List
 
-from app.models.image import Image
+from app.models import Image, User, Book, Author, Category, Publisher, Review
 from app.controller.exception import NotFoundException, ServerErrorException, BadRequestException
 from app.library.cloudinary import upload_file_to_cloudinary, delete_file_from_cloudinary, update_file
-from app.constant.image_folder import ImageFolder
+from app.constant.image import ImageFolder
 from app.library.img_resize import img_resize
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ async def count_image(db: AsyncSession) -> int:
     return result.scalar_one()
 
 
-async def validate_n_resize_image(file: UploadFile) -> str:
+async def validate_n_resize_image(file: UploadFile, dimension: Tuple[int, int], max_kb: int) -> str:
     CHUNK_SIZE = 1 * 1024 * 1024
 
     if file.size is None:
@@ -53,27 +54,146 @@ async def validate_n_resize_image(file: UploadFile) -> str:
                 while chunk := await file.read(CHUNK_SIZE):
                     await f.write(chunk)
 
-            await img_resize(tmp_file, (260, 372), 20)
+            await img_resize(tmp_file, dimension, max_kb)
             return tmp_file
     except Exception as err:
         logger.error(f'Error while uploading image: {err}')
         raise ServerErrorException('Error while uploading image')
 
 
-async def create_image(file: UploadFile, filename: str | None, alt: str, folder: ImageFolder, db: AsyncSession) -> Image:
-    tmp_file = await validate_n_resize_image(file)
-    filename = filename or file.filename or ""
+async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[int, int], max_kb: int, db: AsyncSession) -> Image:
+    tmp_file = await validate_n_resize_image(file, dimension, max_kb)
 
-    response = await upload_file_to_cloudinary(tmp_file, filename, folder.value)
+    response = await upload_file_to_cloudinary(tmp_file, filename=file.filename, folder=folder.value)
     os.remove(tmp_file)
     if not response:
         raise ServerErrorException('Image upload failed')
 
-    image = Image(name=filename,
-                  src=response['secure_url'], alt=alt, public_id=response['public_id'], folder=folder)
+    image = Image(name=response['filename'],
+                  src=response['secure_url'], public_id=response['public_id'], folder=folder)
     db.add(image)
-    await db.commit()
     return image
+
+
+async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kwargs) -> Sequence[Image]:
+    if kwargs.get('book_id'):
+        book = await db.get(Book, kwargs['book_id'])
+        if not book:
+            raise NotFoundException('Book not found', str(kwargs['book_id']))
+        dimension, max_kb = (260, 372), 20
+
+        _ = await book.awaitable_attrs.images
+        if kwargs['is_append']:
+            [book.images.append(
+                await create_image(file, ImageFolder.book, dimension, max_kb, db)
+            )
+                for file in files]
+        else:
+            book.images = [await create_image(file, ImageFolder.book, dimension, max_kb, db)
+                           for file in files]
+
+        await db.commit()
+        return book.images
+
+    elif kwargs.get('author_id'):
+        author = await db.get(Author, kwargs['author_id'])
+        if not author:
+            raise NotFoundException(
+                'Author not found', str(kwargs['author_id']))
+
+        if kwargs['is_cover_photo']:
+            dimension, max_kb = (1328, 256), 20
+            _ = await author.awaitable_attrs.banner
+            author.banner = await create_image(files[0], ImageFolder.author, dimension, max_kb, db)
+
+            await db.commit()
+            return [author.banner]
+        else:
+            dimension, max_kb = (120, 120), 10
+            _ = await author.awaitable_attrs.image
+            author.image = await create_image(files[0], ImageFolder.author, dimension, max_kb, db)
+
+            await db.commit()
+            return [author.image]
+
+    elif kwargs.get('category_id'):
+        category = await db.get(Category, kwargs['category_id'])
+        if not category:
+            raise NotFoundException(
+                'Category not found', str(kwargs['category_id']))
+
+        if kwargs['is_cover_photo']:
+            dimension, max_kb = (1328, 256), 20
+            _ = await category.awaitable_attrs.banner
+            category.banner = await create_image(files[0], ImageFolder.category, dimension, max_kb, db)
+
+            await db.commit()
+            return [category.banner]
+        else:
+            dimension, max_kb = (237, 181), 10
+            _ = await category.awaitable_attrs.image
+            category.image = await create_image(files[0], ImageFolder.category, dimension, max_kb, db)
+
+            await db.commit()
+            return [category.image]
+
+    elif kwargs.get('publisher_id'):
+        publisher = await db.get(Publisher, kwargs['publisher_id'])
+        if not publisher:
+            raise NotFoundException(
+                'Publisher not found', str(kwargs['publisher_id']))
+
+        if kwargs['is_cover_photo']:
+            dimension, max_kb = (1328, 256), 20
+            _ = await publisher.awaitable_attrs.banner
+            publisher.banner = await create_image(files[0], ImageFolder.publisher, dimension, max_kb, db)
+
+            await db.commit()
+            return [publisher.banner]
+        else:
+            dimension, max_kb = (187, 133), 10
+            _ = await publisher.awaitable_attrs.image
+            publisher.image = await create_image(files[0], ImageFolder.publisher, dimension, max_kb, db)
+
+            await db.commit()
+            return [publisher.image]
+    else:
+        raise BadRequestException(
+            'book_id, author_id, category_id or publisher_id is required')
+
+
+async def customer_img_uploader(files: list[UploadFile], user_id: UUID, db: AsyncSession, **kwargs) -> Sequence[Image]:
+    if kwargs.get('review_id') and kwargs.get('is_profile_pic'):
+        raise BadRequestException(
+            'review_id and is_profile_pic cannot be used together')
+
+    user = await db.get(User, user_id)
+    if not user:
+        raise NotFoundException('User not found', str(user_id))
+
+    if kwargs.get('is_profile_pic'):
+        dimension, max_kb = (120, 120), 10
+        _ = await user.awaitable_attrs.image
+        user.image = await create_image(files[0], ImageFolder.profile_picture, dimension, max_kb, db)
+
+        await db.commit()
+        return [user.image]
+
+    elif kwargs.get('review_id'):
+        review = await db.get(Review, kwargs['review_id'])
+        if not review:
+            raise NotFoundException(
+                'Review not found', str(kwargs['review_id']))
+        if review.user_id != user_id:
+            raise BadRequestException(
+                'You are not authorized to update this review')
+        _ = await review.awaitable_attrs.images
+        review.images = [await create_image(file, ImageFolder.review, (260, 372), 20, db) for file in files]
+
+        await db.commit()
+        return review.images
+    else:
+        raise BadRequestException('review_id or is_profile_pic is required')
 
 
 async def update_image(id: UUID, file: UploadFile, filename: str | None, alt: str, db: AsyncSession) -> Image:
@@ -81,7 +201,7 @@ async def update_image(id: UUID, file: UploadFile, filename: str | None, alt: st
     if not image:
         raise NotFoundException('Image not found', str(id))
 
-    tmp_file = await validate_n_resize_image(file)
+    tmp_file = await validate_n_resize_image(file, (260, 372), 20)
     filename = filename or file.filename or ""
 
     response = await update_file(tmp_file, public_id=image.public_id, filename=filename)
@@ -92,7 +212,6 @@ async def update_image(id: UUID, file: UploadFile, filename: str | None, alt: st
     image.public_id = response['public_id']
     image.src = response['secure_url']
     image.name = filename
-    image.alt = alt
     await db.commit()
     return image
 
@@ -118,36 +237,21 @@ async def delete_image_bulk(ids: Sequence[UUID], db: AsyncSession) -> None:
     await db.commit()
 
 
-# Additional functions for attaching and detaching images from other models
-async def attach_image(id: UUID | None, previous_id: UUID | None, db: AsyncSession) -> Image | None:
-    if previous_id and previous_id != id:
-        await delete_image(previous_id, db)
-    return await db.get(Image, id) if id else None
+async def validate_img(id: UUID | None, db: AsyncSession) -> Image | None:
+    if id:
+        img = await db.get(Image, id)
+        if not img:
+            raise NotFoundException('Image not found', str(id))
+        return img
+    return None
 
 
-async def handle_multiple_image_attachment(ids: list[UUID], previous_ids: list[UUID], db: AsyncSession, link_table: Table | None = None) -> list[Image]:
-    images = []
-    if ids:
-        stmt = select(Image).filter(Image.id.in_(ids))
-        images = list((await db.scalars(stmt)).all())
-
-        not_found = [id for id in ids if id not in [
-            image.id for image in images]]
-        if not_found:
-            raise NotFoundException(
-                'Image not found', ','.join(str(id) for id in not_found))
-
-    to_remove = [id for id in previous_ids if id not in ids]
-    if to_remove:
-        if isinstance(link_table, Table):
-            await db.execute(link_table.delete().where(link_table.c.image_id.in_(previous_ids)))
-
-        await delete_image_bulk(to_remove, db)
-
-    return images
-
-
-async def detach_images(db: AsyncSession, *ids: UUID | None) -> None:
-    image_ids = [id for id in ids if id]
-    if image_ids:
-        await delete_image_bulk(image_ids, db)
+async def validate_imgs(ids: List[UUID], db: AsyncSession) -> Sequence[Image]:
+    if not ids:
+        return []
+    imgs = (await db.scalars(select(Image).filter(Image.id.in_(ids)))).all()
+    missing_ids = [id for id in ids if id not in [img.id for img in imgs]]
+    if missing_ids:
+        raise NotFoundException('Image not found', ','.join(
+            str(id) for id in missing_ids))
+    return imgs

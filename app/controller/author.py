@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from typing import Sequence
 from uuid import UUID
 import logging
@@ -8,12 +8,12 @@ import logging
 from app.models import Author, User
 from app.filter_schema.author import AuthorFilter
 from app.controller.exception import NotFoundException, ConflictException
-from app.controller.image import attach_image, detach_images
+from app.controller.image import validate_img
 
 logger = logging.getLogger(__name__)
 
-query = select(Author).options(joinedload(
-    Author.image), joinedload(Author.banner))
+query = select(Author).options(selectinload(
+    Author.image), selectinload(Author.banner))
 
 
 async def get_author_by_id(id: UUID, db: AsyncSession) -> Author:
@@ -50,14 +50,16 @@ async def create_author(payload: dict, db: AsyncSession) -> Author:
     _author = await db.scalar(select(Author).filter(or_(Author.name == payload['name'], Author.slug == payload['slug'])))
     if _author:
         if _author.name == payload['name']:
-            raise ConflictException('Author name already exists', str(_author.id))
+            raise ConflictException(
+                'Author name already exists', str(_author.id))
         else:
-            raise ConflictException('Author slug already exists', str(_author.id))
+            raise ConflictException(
+                'Author slug already exists', str(_author.id))
 
     if 'image_id' in payload:
-        payload['image'] = await attach_image(payload.pop('image_id'), None, db)
+        payload['image'] = await validate_img(payload['image_id'], db)
     if 'banner_id' in payload:
-        payload['banner'] = await attach_image(payload.pop('banner_id'), None, db)
+        payload['banner'] = await validate_img(payload['banner_id'], db)
 
     author = Author(**payload)
     db.add(author)
@@ -72,16 +74,18 @@ async def update_author(id: UUID, payload: dict, db: AsyncSession) -> Author:
     if payload.get('name') and author.name != payload['name']:
         _author = await db.scalar(select(Author).filter(Author.name == payload['name']))
         if _author:
-            raise ConflictException('Author name already exists', str(_author.id))
+            raise ConflictException(
+                'Author name already exists', str(_author.id))
     if payload.get('slug') and author.slug != payload['slug']:
         _author = await db.scalar(select(Author).filter(Author.slug == payload['slug']))
         if _author:
-            raise ConflictException('Author slug already exists', str(_author.id))
+            raise ConflictException(
+                'Author slug already exists', str(_author.id))
 
     if 'image_id' in payload:
-        payload['image'] = await attach_image(payload.pop('image_id'), author.image_id, db)
+        payload['image'] = await validate_img(payload['image_id'], db)
     if 'banner_id' in payload:
-        payload['banner'] = await attach_image(payload.pop('banner_id'), author.banner_id, db)
+        payload['banner'] = await validate_img(payload['banner_id'], db)
 
     [setattr(author, key, value) for key, value in payload.items()]
     await db.commit()
@@ -128,7 +132,6 @@ async def unfollow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> A
 
 async def delete_author(id: UUID, db: AsyncSession) -> None:
     author = await get_author_by_id(id, db)
-    await detach_images(db, author.image_id, author.banner_id)
     await db.delete(author)
     await db.commit()
 

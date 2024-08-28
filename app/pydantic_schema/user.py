@@ -4,6 +4,7 @@ from app.constant.gender import Gender
 from app.pydantic_schema.mixins import IdTimestampMixin
 from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.field import PhoneNumberField, UsernameField, PasswordField, FirstLastNameField
+from app.pydantic_schema.common import ImageOut
 
 from app.constant.role import Role
 
@@ -76,6 +77,7 @@ class UserOut(UserBase, IdTimestampMixin):
     username: str = UsernameField()
     email: EmailStr
     role: Role
+    image: ImageOut | None = None
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_user_out})

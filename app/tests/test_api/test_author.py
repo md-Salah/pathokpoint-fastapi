@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from starlette import status
-from typing import Any
+from typing import Any, Callable
 
 pytestmark = pytest.mark.asyncio
 
@@ -13,8 +13,8 @@ simple_author = {
     "death_date": "2012-07-19",
     "description": "বাংলাদেশের প্রখ্যাত লেখক",
     "is_popular": True,
-    "name": "হুমায়ূন আহমেদ",
-    "slug": "humayun-ahmed",
+    "name": "John green",
+    "slug": "john-green",
     "image_id": None,
     "banner_id": None,
 }
@@ -34,13 +34,16 @@ async def test_get_author_by_slug(client: AsyncClient, author_in_db: dict):
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 1, lambda qs, _: qs),
-    ("?q={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'][:5])), # type: ignore
-    ("?name={}", 1, lambda qs, author_in_db: qs.format(author_in_db['name'])), # type: ignore
-    ("?slug={}", 1, lambda qs, author_in_db: qs.format(author_in_db['slug'])), # type: ignore
+    ("?q={}", 1, lambda qs, author_in_db: qs.format(
+        author_in_db['name'][:5])),  # type: ignore
+    ("?name={}", 1, lambda qs, author_in_db: qs.format(
+        author_in_db['name'])),  # type: ignore
+    ("?slug={}", 1, lambda qs, author_in_db: qs.format(
+        author_in_db['slug'])),  # type: ignore
     ("?country=BD", 1, lambda qs, _: qs),
     ("?is_popular=true", 1, lambda qs, _: qs),
     ("?q={}&country=BD&is_popular=true", 1, lambda qs,
-     author_in_db: qs.format(author_in_db['name'][:5])), # type: ignore
+     author_in_db: qs.format(author_in_db['name'][:5])),  # type: ignore
     ("?followers_count__lte=1", 1, lambda qs, _: qs),
 ])
 async def test_get_all_authors(client: AsyncClient, author_in_db: dict, query_string_template: str, expected_length: int, modify_query_string):
@@ -59,7 +62,6 @@ async def test_create_author(client: AsyncClient, image_in_db: dict, admin_auth_
     }
     response = await client.post("/author", json=payload, headers=admin_auth_headers)
     assert response.status_code == 201
-    payload.update({'image': image_in_db, 'banner': image_in_db})
     assert response.json().items() >= payload.items()
 
 

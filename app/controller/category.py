@@ -8,7 +8,7 @@ import logging
 from app.filter_schema.category import CategoryFilter
 from app.models import Category
 from app.controller.exception import NotFoundException, ConflictException
-from app.controller.image import attach_image, detach_images
+from app.controller.image import validate_img
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +59,9 @@ async def create_category(payload: dict, db: AsyncSession) -> Category:
                 _category.slug), str(_category.id))
 
     if 'image_id' in payload:
-        payload['image'] = await attach_image(payload['image_id'], None, db)
+        payload['image'] = await validate_img(payload['image_id'], db)
     if 'banner_id' in payload:
-        payload['banner'] = await attach_image(payload['banner_id'], None, db)
+        payload['banner'] = await validate_img(payload['banner_id'], db)
     if payload.get('parent'):
         payload['parent'] = (await db.scalars(select(Category).filter(Category.id.in_(payload['parent'])))).all()
 
@@ -86,14 +86,14 @@ async def update_category(id: UUID, payload: dict, db: AsyncSession) -> Category
                 _category.slug), str(_category.id))
 
     if 'image_id' in payload:
-        payload['image'] = await attach_image(payload['image_id'], category.image_id, db)
+        payload['image'] = await validate_img(payload['image_id'], db)
     if 'banner_id' in payload:
-        payload['banner'] = await attach_image(payload['banner_id'], category.banner_id, db)
+        payload['banner'] = await validate_img(payload['banner_id'], db)
+
     if 'parent' in payload:
-        if payload['parent']:
-            payload['parent'] = (await db.scalars(select(Category).filter(Category.id.in_(payload['parent'])))).all()
-        else:
-            payload['parent'] = []
+        payload['parent'] = (await db.scalars(select(Category).filter(
+            Category.id.in_(payload['parent'])
+        ))).all() if payload['parent'] else []
 
     [setattr(category, key, value) for key, value in payload.items()]
 
@@ -107,7 +107,6 @@ async def delete_category(id: UUID, db: AsyncSession) -> None:
     if not category:
         raise NotFoundException('Category not found', str(id))
 
-    await detach_images(db, category.image_id, category.banner_id)
     await db.delete(category)
     await db.commit()
 

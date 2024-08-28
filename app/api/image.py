@@ -4,14 +4,13 @@ from uuid import UUID
 from app.config.database import Session
 import app.controller.image as image_service
 import app.pydantic_schema.image as image_schema
-from app.constant.image_folder import ImageFolder
-from app.controller.auth import AdminAccessToken
+from app.controller.auth import AdminAccessToken, AccessToken
 
 router = APIRouter(prefix='/image')
 
 
 @router.get('/id/{id}', response_model=image_schema.ImageOut)
-async def get_image_by_id(id: UUID, db: Session):
+async def get_image_by_id(id: UUID, _: AdminAccessToken, db: Session):
     return await image_service.get_image_by_id(id, db)
 
 
@@ -31,9 +30,38 @@ async def get_all_images(*, page: int = Query(1, ge=1),
     return images
 
 
-@router.post('', response_model=image_schema.ImageOut, status_code=status.HTTP_201_CREATED)
-async def upload_image_by_admin(*, file: UploadFile = File(...), filename: str = Form(None), alt: str = Form(""), folder: ImageFolder = Form(ImageFolder.dummy), _: AdminAccessToken, db: Session):
-    return await image_service.create_image(file, filename, alt, folder, db)
+@router.post('/admin', response_model=list[image_schema.ImageOut], status_code=status.HTTP_201_CREATED)
+async def inventory_img_uploader(*, files: list[UploadFile] = File(...),
+                                 book_id: UUID | None = None,
+                                 author_id: UUID | None = None,
+                                 category_id: UUID | None = None,
+                                 publisher_id: UUID | None = None,
+                                 is_cover_photo: bool = Query(False, description="Cover photo of author/publisher/category"),
+                                 is_append: bool = Query(False, description="Appending image to book"),
+                                 _: AdminAccessToken,
+                                 db: Session):
+    return await image_service.inventory_img_uploader(
+        files, db,
+        book_id=book_id,
+        author_id=author_id,
+        category_id=category_id,
+        publisher_id=publisher_id,
+        is_cover_photo=is_cover_photo,
+        is_append=is_append
+    )
+
+
+@router.post('/user', response_model=list[image_schema.ImageOut], status_code=status.HTTP_201_CREATED)
+async def customer_img_uploader(*, files: list[UploadFile] = File(...),
+                       is_profile_pic: bool = False,
+                       review_id: UUID | None = None,
+                       token: AccessToken,
+                       db: Session):
+    return await image_service.customer_img_uploader(
+        files, token['id'], db,
+        is_profile_pic=is_profile_pic,
+        review_id=review_id,
+    )
 
 
 @router.put('/{id}', response_model=image_schema.ImageOut)

@@ -1,8 +1,9 @@
 import io
 import pytest
 from httpx import AsyncClient
+from unittest.mock import MagicMock
 from starlette import status
-from typing import Any
+from typing import Any, Callable
 
 pytestmark = pytest.mark.asyncio
 
@@ -34,13 +35,16 @@ async def test_get_book_by_public_id(client: AsyncClient, book_in_db: dict):
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 1, lambda qs, book_in_db: qs),
-    ("?q={}", 1, lambda qs, book_in_db: qs.format(book_in_db['name'][:5])), # type: ignore
-    ("?name={}", 1, lambda qs, book_in_db: qs.format(book_in_db['name'])), # type: ignore
-    ("?slug={}", 1, lambda qs, book_in_db: qs.format(book_in_db['slug'])), # type: ignore
+    ("?q={}", 1, lambda qs, book_in_db: qs.format(
+        book_in_db['name'][:5])),  # type: ignore
+    ("?name={}", 1, lambda qs, book_in_db: qs.format(
+        book_in_db['name'])),  # type: ignore
+    ("?slug={}", 1, lambda qs, book_in_db: qs.format(
+        book_in_db['slug'])),  # type: ignore
     ("?country=BD", 1, lambda qs, book_in_db: qs),
     ("?is_popular=true", 1, lambda qs, book_in_db: qs),
     ("?q={}&country=BD&is_popular=true", 1,
-     lambda qs, bdb: qs.format(bdb['name'][:5])), # type: ignore
+     lambda qs, bdb: qs.format(bdb['name'][:5])),  # type: ignore
 ])
 async def test_get_all_books(client: AsyncClient, book_in_db: dict[str, Any], query_string_template: str, expected_length: int, modify_query_string):
     query_string = modify_query_string(query_string_template, book_in_db)
@@ -100,6 +104,19 @@ async def test_update_book(client: AsyncClient, book_in_db: dict, admin_auth_hea
     assert response.json()["name"] == payload["name"]
     payload.pop('updated_at')
     assert payload.items() <= response.json().items()
+
+
+async def test_upload_book_images(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict, 
+                                  img_uploader: Callable, mock_upload_file: MagicMock, mock_delete_file: MagicMock):
+    await img_uploader("/image/admin?book_id={}".format(book_in_db['id']), admin_auth_headers, mock_upload_file)
+    res = await client.get(f"/book/id/{book_in_db['id']}")
+    assert res.status_code == status.HTTP_200_OK
+    assert len(res.json()['images']) == 1
+
+    # Test image deletion on book deletion
+    response = await client.delete(f"/book/{book_in_db['id']}", headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    mock_delete_file.assert_called_once()
 
 
 async def test_delete_book(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):

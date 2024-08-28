@@ -6,7 +6,7 @@ import logging
 
 from app.models import Publisher
 from app.filter_schema.publisher import PublisherFilter
-from app.controller.image import attach_image, detach_images
+from app.controller.image import validate_img
 from app.controller.exception import NotFoundException, ConflictException
 
 logger = logging.getLogger(__name__)
@@ -54,9 +54,9 @@ async def create_publisher(payload: dict, db: AsyncSession) -> Publisher:
                 _publisher.slug), str(_publisher.id))
 
     if 'image_id' in payload:
-        payload['image'] = await attach_image(payload['image_id'], None, db)
+        payload['image'] = await validate_img(payload['image_id'], db)
     if 'banner_id' in payload:
-        payload['banner'] = await attach_image(payload['banner_id'], None, db)
+        payload['banner'] = await validate_img(payload['banner_id'], db)
 
     publisher = Publisher(**payload)
     db.add(publisher)
@@ -80,9 +80,9 @@ async def update_publisher(id: UUID, payload: dict, db: AsyncSession) -> Publish
                 _publisher.slug), str(_publisher.id))
 
     if 'image_id' in payload:
-        payload['image'] = await attach_image(payload['image_id'], publisher.image_id, db)
+        payload['image'] = await validate_img(payload['image_id'], db)
     if 'banner_id' in payload:
-        payload['banner'] = await attach_image(payload['banner_id'], publisher.banner_id, db)
+        payload['banner'] = await validate_img(payload['banner_id'], db)
 
     [setattr(publisher, key, value) for key, value in payload.items()]
     await db.commit()
@@ -93,7 +93,6 @@ async def update_publisher(id: UUID, payload: dict, db: AsyncSession) -> Publish
 
 async def delete_publisher(id: UUID, db: AsyncSession) -> None:
     publisher = await get_publisher_by_id(id, db)
-    await detach_images(db, publisher.image_id, publisher.banner_id)
     await db.delete(publisher)
     await db.commit()
 

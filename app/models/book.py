@@ -59,7 +59,6 @@ class Book(TimestampMixin):
     bar_code: Mapped[str | None]
     weight_in_gm: Mapped[float] = mapped_column(Float, default=0)
     cost: Mapped[float] = mapped_column(Float, default=0)
-    sold_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationship
     authors: Mapped[List['Author']] = relationship(secondary='book_author_link', back_populates='books')
@@ -67,7 +66,7 @@ class Book(TimestampMixin):
     publisher_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('publishers.id'))
     publisher: Mapped['Publisher'] = relationship(back_populates='books')
     categories: Mapped[List['Category']] = relationship(secondary='book_category_link', back_populates='books')
-    images: Mapped[List['Image']] = relationship(secondary='book_image_link', backref='books')
+    images: Mapped[List['Image']] = relationship(secondary='book_image_link', cascade="all, delete-orphan", lazy="selectin", single_parent=True)
     tags: Mapped[List['Tag']] = relationship(secondary='book_tag_link', back_populates='books')
     
 
@@ -78,7 +77,7 @@ class Book(TimestampMixin):
 book_image_link = Table(
     'book_image_link',
     Base.metadata,
-    Column('book_id', UUID(as_uuid=True), ForeignKey('books.id'), primary_key=True),
-    Column('image_id', UUID(as_uuid=True), ForeignKey('images.id'), primary_key=True)
+    Column('book_id', UUID(as_uuid=True), ForeignKey('books.id', ondelete="CASCADE"), primary_key=True),
+    Column('image_id', UUID(as_uuid=True), ForeignKey('images.id', ondelete="CASCADE"), primary_key=True, unique=True)
 )
 

@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from uuid import UUID
 from typing import Sequence, Tuple
 from sqlalchemy.orm import selectinload, joinedload
@@ -12,9 +12,8 @@ import time
 
 from app.filter_schema.book import BookFilter, BookFilterMinimal
 from app.models import Book, Author, Category, Image, Publisher, Tag
-from app.models.book import book_image_link
 from app.controller.exception import NotFoundException, ConflictException, UnhandledException
-from app.controller.image import handle_multiple_image_attachment
+from app.controller.image import validate_imgs
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +112,7 @@ async def create_book(payload: dict, db: AsyncSession) -> Book:
     payload['slug'] = slugify(payload['slug'])
     payload = await handle_relationship(payload, db)
     if payload.get('images'):
-        payload['images'] = (await db.scalars(select(Image).where(Image.id.in_(payload['images'])))).all()
+        payload['images'] = await validate_imgs(payload['images'], db)
 
     logger.debug(f'Creating book with payload: {payload}')
     book = Book(**payload)
@@ -191,9 +190,9 @@ async def update_book(id: UUID, payload: dict, db: AsyncSession) -> Book:
     if payload.get('slug'):
         payload['slug'] = slugify(payload['slug'])
     payload = await handle_relationship(payload, db)
+
     if 'images' in payload:
-        previous_ids = [image.id for image in book.images]
-        payload['images'] = await handle_multiple_image_attachment(payload['images'], previous_ids, db, book_image_link)
+        payload['images'] = await validate_imgs(payload['images'], db)
 
     logger.debug(f'Updating book with payload: {payload}')
     [setattr(book, key, value) for key, value in payload.items()]
@@ -208,7 +207,6 @@ async def delete_book(id: UUID, db: AsyncSession) -> None:
     if not book:
         raise NotFoundException('Book not found')
 
-    await handle_multiple_image_attachment([], [image.id for image in await book.awaitable_attrs.images], db, book_image_link)
     await db.delete(book)
     await db.commit()
 
@@ -216,16 +214,7 @@ async def delete_book(id: UUID, db: AsyncSession) -> None:
 
 
 async def delete_book_bulk(ids: list[UUID], db: AsyncSession) -> None:
-    books = (await db.scalars(select(Book).options(selectinload(Book.images)).where(Book.id.in_(ids)))).all()
-
-    img_ids = []
-    for book in books:
-        img_ids.extend([img.id for img in book.images])
-        await db.delete(book)
-
-    if img_ids:
-        await handle_multiple_image_attachment([], img_ids, db, book_image_link)
-
+    await db.execute(delete(Book).filter(Book.id.in_(ids)))
     await db.commit()
     logger.info(f'{len(ids)} Books deleted successfully')
 

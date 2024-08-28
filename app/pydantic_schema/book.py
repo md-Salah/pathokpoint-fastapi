@@ -144,7 +144,6 @@ class BookBaseAdmin(BookBase):
     shelf: str | None = Field(None, min_length=2, max_length=20)
     row_col: str | None = Field(None, min_length=2, max_length=20)
     cost: float = Field(0, ge=0, le=_10_lakh)
-    sold_count: int = 0
 
 
 class CreateBook(BookBaseAdmin):

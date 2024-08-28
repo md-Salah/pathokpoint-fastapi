@@ -1,4 +1,4 @@
-from sqlalchemy import String, Enum
+from sqlalchemy import String, Enum, ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -10,7 +10,7 @@ from app.constant.gender import Gender
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models import Order, Address, Review, Author
+    from app.models import Order, Address, Review, Author, Image
 
 
 class User(TimestampMixin):
@@ -25,11 +25,12 @@ class User(TimestampMixin):
     email: Mapped[str] = mapped_column(String, index=True, unique=True)
     password: Mapped[str]
     phone_number: Mapped[str | None]
-    image: Mapped[str | None]
     date_of_birth: Mapped[date | None]
     gender: Mapped[Gender | None]
-
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.customer)
+    
+    image_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('images.id'))
+    image: Mapped['Image'] = relationship(foreign_keys=[image_id], cascade='all, delete-orphan', lazy='selectin', single_parent=True)
 
     orders: Mapped[list["Order"]] = relationship(back_populates='customer')
     addresses: Mapped[list["Address"]] = relationship(
