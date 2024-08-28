@@ -10,13 +10,14 @@ router = APIRouter(prefix='/payment_gateway')
 
 
 @router.get('/id/{id}', response_model=schema.PaymentGatewayOut)
-async def get_payment_gateway_by_id(id: UUID, db: Session):
+async def get_payment_gateway_by_id(id: UUID, _: AdminAccessToken, db: Session):
     return await service.get_payment_gateway_by_id(id, db)
 
 
 @router.get('/all', response_model=list[schema.PaymentGatewayOut])
 async def get_all_payment_gateways(*, page: int = Query(1, ge=1),
                                    per_page: int = Query(10, ge=1, le=100),
+                                   _: AdminAccessToken,
                                    db: Session,  response: Response):
     payment_gateways = await service.get_all_payment_gateways(page, per_page, db)
     total_payment_gateways = await service.count_payment_gateway(db)
@@ -27,6 +28,11 @@ async def get_all_payment_gateways(*, page: int = Query(1, ge=1),
     response.headers['X-Per-Page'] = str(per_page)
 
     return payment_gateways
+
+
+@router.get('/customer', response_model=list[schema.PaymentGatewayOut])
+async def gateways_for_customer(db: Session):
+    return await service.gateways_for_customer(db)
 
 
 @router.post('', response_model=schema.PaymentGatewayOut, status_code=status.HTTP_201_CREATED)

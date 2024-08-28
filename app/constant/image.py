@@ -8,4 +8,5 @@ class ImageFolder(str, Enum):
     profile_picture = 'profile_picture'
     review = 'review'
     dummy = 'dummy'
+    payment_gateway = 'payment_gateway'
     

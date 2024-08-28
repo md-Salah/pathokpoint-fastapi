@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Query, Response, File, UploadFile, Form
+from fastapi import APIRouter, status, Query, Response, File, UploadFile
 from uuid import UUID
 
 from app.config.database import Session
@@ -36,8 +36,10 @@ async def inventory_img_uploader(*, files: list[UploadFile] = File(...),
                                  author_id: UUID | None = None,
                                  category_id: UUID | None = None,
                                  publisher_id: UUID | None = None,
+                                 payment_gateway_id: UUID | None = None,
                                  is_cover_photo: bool = Query(False, description="Cover photo of author/publisher/category"),
                                  is_append: bool = Query(False, description="Appending image to book"),
+                                 optimizer: bool = Query(True, description="Optimize image"),
                                  _: AdminAccessToken,
                                  db: Session):
     return await image_service.inventory_img_uploader(
@@ -46,8 +48,10 @@ async def inventory_img_uploader(*, files: list[UploadFile] = File(...),
         author_id=author_id,
         category_id=category_id,
         publisher_id=publisher_id,
+        payment_gateway_id=payment_gateway_id,
         is_cover_photo=is_cover_photo,
-        is_append=is_append
+        is_append=is_append,
+        optimizer=optimizer,
     )
 
 
@@ -64,9 +68,9 @@ async def customer_img_uploader(*, files: list[UploadFile] = File(...),
     )
 
 
-@router.put('/{id}', response_model=image_schema.ImageOut)
-async def update_image(*, id: UUID, file: UploadFile = File(...), filename: str = Form(None), alt: str = Form(""), _: AdminAccessToken, db: Session):
-    return await image_service.update_image(id, file, filename, alt, db)
+# @router.put('/{id}', response_model=image_schema.ImageOut)
+# async def update_image(*, id: UUID, file: UploadFile = File(...), filename: str = Form(None), alt: str = Form(""), _: AdminAccessToken, db: Session):
+#     return await image_service.update_image(id, file, filename, alt, db)
 
 
 @router.delete('/{id}', status_code=status.HTTP_204_NO_CONTENT)

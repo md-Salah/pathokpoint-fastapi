@@ -9,7 +9,7 @@ import tempfile
 import aiofiles
 from typing import Tuple, List
 
-from app.models import Image, User, Book, Author, Category, Publisher, Review
+from app.models import Image, User, Book, Author, Category, Publisher, Review, PaymentGateway
 from app.controller.exception import NotFoundException, ServerErrorException, BadRequestException
 from app.library.cloudinary import upload_file_to_cloudinary, delete_file_from_cloudinary, update_file
 from app.constant.image import ImageFolder
@@ -36,13 +36,13 @@ async def count_image(db: AsyncSession) -> int:
     return result.scalar_one()
 
 
-async def validate_n_resize_image(file: UploadFile, dimension: Tuple[int, int], max_kb: int) -> str:
+async def read_file(file: UploadFile, MAX_MB: int = 2) -> str:
     CHUNK_SIZE = 1 * 1024 * 1024
 
     if file.size is None:
         raise BadRequestException('File size is unknown')
-    elif file.size > 2 * CHUNK_SIZE:
-        raise BadRequestException('File size should not exceed 2MB')
+    elif file.size > MAX_MB * CHUNK_SIZE:
+        raise BadRequestException('File size should not exceed {}MB'.format(MAX_MB))
 
     try:
         tmp_dir = 'dummy/tmp'
@@ -53,16 +53,16 @@ async def validate_n_resize_image(file: UploadFile, dimension: Tuple[int, int], 
             async with aiofiles.open(tmp_file, 'wb') as f:
                 while chunk := await file.read(CHUNK_SIZE):
                     await f.write(chunk)
-
-            await img_resize(tmp_file, dimension, max_kb)
             return tmp_file
     except Exception as err:
         logger.error(f'Error while uploading image: {err}')
         raise ServerErrorException('Error while uploading image')
 
 
-async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[int, int], max_kb: int, db: AsyncSession) -> Image:
-    tmp_file = await validate_n_resize_image(file, dimension, max_kb)
+async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[int, int], max_kb: int, db: AsyncSession, optimizer: bool = True) -> Image:
+    tmp_file = await read_file(file)
+    if optimizer:
+        await img_resize(tmp_file, dimension, max_kb)
 
     response = await upload_file_to_cloudinary(tmp_file, filename=file.filename, folder=folder.value)
     os.remove(tmp_file)
@@ -157,9 +157,24 @@ async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kw
 
             await db.commit()
             return [publisher.image]
+    
+    elif kwargs.get('payment_gateway_id'):
+        payment_gateway = await db.get(PaymentGateway, kwargs['payment_gateway_id'])
+        if not payment_gateway:
+            raise NotFoundException(
+                'Payment Gateway not found', str(kwargs['payment_gateway_id']))
+
+        dimension, max_kb = (64, 40), 5
+        _ = await payment_gateway.awaitable_attrs.image
+        payment_gateway.image = await create_image(files[0], ImageFolder.payment_gateway, 
+                                                   dimension, max_kb, db, kwargs.get('optimizer', True))
+
+        await db.commit()
+        return [payment_gateway.image]
+    
     else:
         raise BadRequestException(
-            'book_id, author_id, category_id or publisher_id is required')
+            'book_id, author_id, category_id, publisher_id or payment_gateway_id is required')
 
 
 async def customer_img_uploader(files: list[UploadFile], user_id: UUID, db: AsyncSession, **kwargs) -> Sequence[Image]:
@@ -196,24 +211,25 @@ async def customer_img_uploader(files: list[UploadFile], user_id: UUID, db: Asyn
         raise BadRequestException('review_id or is_profile_pic is required')
 
 
-async def update_image(id: UUID, file: UploadFile, filename: str | None, alt: str, db: AsyncSession) -> Image:
-    image = await db.get(Image, id)
-    if not image:
-        raise NotFoundException('Image not found', str(id))
+# async def update_image(id: UUID, file: UploadFile, filename: str | None, alt: str, db: AsyncSession) -> Image:
+#     image = await db.get(Image, id)
+#     if not image:
+#         raise NotFoundException('Image not found', str(id))
 
-    tmp_file = await validate_n_resize_image(file, (260, 372), 20)
-    filename = filename or file.filename or ""
+#     tmp_file = await read_file(file)
+#     await img_resize(tmp_file, (260, 372), 20)
+#     filename = filename or file.filename or ""
 
-    response = await update_file(tmp_file, public_id=image.public_id, filename=filename)
-    os.remove(tmp_file)
-    if not response:
-        raise ServerErrorException('Image upload failed')
+#     response = await update_file(tmp_file, public_id=image.public_id, filename=filename)
+#     os.remove(tmp_file)
+#     if not response:
+#         raise ServerErrorException('Image upload failed')
 
-    image.public_id = response['public_id']
-    image.src = response['secure_url']
-    image.name = filename
-    await db.commit()
-    return image
+#     image.public_id = response['public_id']
+#     image.src = response['secure_url']
+#     image.name = filename
+#     await db.commit()
+#     return image
 
 
 async def delete_image(id: UUID, db: AsyncSession) -> None:

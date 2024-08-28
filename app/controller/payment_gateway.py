@@ -23,6 +23,11 @@ async def get_all_payment_gateways(page: int, per_page: int, db: AsyncSession) -
     return result.scalars().all()
 
 
+async def gateways_for_customer(db: AsyncSession) -> Sequence[PaymentGateway]:
+    result = await db.execute(select(PaymentGateway).filter(PaymentGateway.is_admin_only.is_(False)).order_by(PaymentGateway.is_disabled))
+    return result.scalars().all()
+
+
 async def count_payment_gateway(db: AsyncSession) -> int:
     result = await db.execute(select(func.count()).select_from(PaymentGateway))
     return result.scalar_one()
@@ -63,4 +68,3 @@ async def delete_payment_gateway(id: UUID, db: AsyncSession) -> None:
     await db.commit()
 
     logger.info(f'Payment Gateway deleted {payment_gateway}')
-
