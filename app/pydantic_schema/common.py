@@ -98,14 +98,16 @@ class OrderOut(BaseModel):
 class PaymentGatewayOut(BaseModel):
     id: UUID4
     name: str
-    description: str | None
-    is_enabled: bool
+    title: str
+    is_disabled: bool
+    is_admin_only: bool
 
     _example: ClassVar = {
         'id': "valid-uuid4",
-        'name': 'bKash',
-        'description': 'bKash Payment Gateway',
-        'is_enabled': True,
+        'name': 'bkash',
+        'title': 'bKash',
+        'is_disabled': False,
+        'is_admin_only': False,
     }
 
 

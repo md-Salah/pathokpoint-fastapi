@@ -280,8 +280,8 @@ async def create_order(client: AsyncClient, book_in_db: dict, admin_auth_headers
 async def create_payment_gateway(client: AsyncClient, admin_auth_headers: dict):
     response = await client.post("/payment_gateway", json={
         "name": "bkash",
-        "description": "Bkash Payment Gateway",
-        "is_enabled": True
+        "title": "Bkash",
+        "is_disabled": False
     }, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     return response.json()
