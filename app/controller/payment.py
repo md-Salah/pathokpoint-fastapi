@@ -67,9 +67,9 @@ async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
         order.paid += trx.amount
         order.due = max(0, order.net_amount - order.paid)
 
-        if order.order_status[-1].status == Status.pending_payment:
+        if order.order_status[-1].status == Status.pending:
             order.order_status.append(OrderStatus(
-                status=Status.order_confirmed
+                status=Status.processing
             ))
         await db.commit()
         return str(order.invoice)

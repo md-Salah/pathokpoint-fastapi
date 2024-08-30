@@ -49,7 +49,7 @@ async def test_get_order_by_invoice_admin(client: AsyncClient, order_in_db: dict
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 1, lambda qs, _: qs),
-    ("?order_status__status=pending-payment", 1, lambda qs, _: qs),
+    ("?order_status__status=pending", 1, lambda qs, _: qs),
     ("?customer__email=admin@gmail.com", 0, lambda qs, _: qs),
 ])
 async def test_get_all_orders_by_admin(client: AsyncClient, order_in_db: dict, admin_auth_headers: dict, query_string_template: str, expected_length: int, modify_query_string):
@@ -63,7 +63,7 @@ async def test_get_all_orders_by_admin(client: AsyncClient, order_in_db: dict, a
 
 @pytest.mark.parametrize("query_string_template, expected_length, modify_query_string", [
     ("", 0, lambda qs, _: qs),
-    ("?order_status__status=pending-payment", 0, lambda qs, _: qs)
+    ("?order_status__status=pending", 0, lambda qs, _: qs)
 ])
 async def test_get_my_orders(client: AsyncClient, order_in_db: dict, customer_auth_headers: dict, query_string_template: str, expected_length: int, modify_query_string):
     query_string = modify_query_string(query_string_template, order_in_db)
@@ -103,7 +103,7 @@ async def test_create_order_by_customer(client: AsyncClient, user_in_db: dict[st
 
     # Status
     assert len(response_data["order_status"]) == 1
-    assert response_data["order_status"][0]["status"] == "pending-payment"
+    assert response_data["order_status"][0]["status"] == "pending"
 
     # Payment
     assert response_data['paid'] == 0
@@ -178,7 +178,7 @@ async def test_update_order_status(client: AsyncClient, order_in_db: dict, admin
     assert len(order_in_db['order_status']) == 1
     payload = {
         "order_status": {
-            "status": "order-confirmed",
+            "status": "processing",
             "note": "payment received, preparing for shipment"
         }
     }

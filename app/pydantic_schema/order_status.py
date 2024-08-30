@@ -10,8 +10,8 @@ class StatusBase(BaseModel):
     note: str | None = None
     
     _example: ClassVar = {
-        'status': Status.order_confirmed,
-        'note': 'This is a note',
+        'status': Status.processing,
+        'note': 'We are processing your order',
     }
 
 class StatusIn(StatusBase):

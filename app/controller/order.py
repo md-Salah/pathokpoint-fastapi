@@ -174,10 +174,10 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
 
     # Status
     if order.paid > 0:
-        order.order_status = [OrderStatus(status=Status.order_confirmed)]
+        order.order_status = [OrderStatus(status=Status.processing)]
     else:
         order.order_status = [OrderStatus(
-            status=Status.pending_payment, note='Minimum payment is required to confirm the order')]
+            status=Status.pending, note='Minimum payment is required to confirm the order')]
 
     # Summary
     order.total = order.new_book_total + order.old_book_total + \
