@@ -1,10 +1,12 @@
 from fastapi import APIRouter, status, Query, Response
 from uuid import UUID
+from fastapi_filter import FilterDepends
 
 from app.config.database import Session
 from app.controller.auth import AdminAccessToken
 import app.controller.payment_gateway as service
 import app.pydantic_schema.payment_gateway as schema
+from app.filter_schema.payment_gateway import PaymentGatewayFilter
 
 router = APIRouter(prefix='/payment_gateway')
 
@@ -17,10 +19,11 @@ async def get_payment_gateway_by_id(id: UUID, _: AdminAccessToken, db: Session):
 @router.get('/all', response_model=list[schema.PaymentGatewayOut])
 async def get_all_payment_gateways(*, page: int = Query(1, ge=1),
                                    per_page: int = Query(10, ge=1, le=100),
+                                   filter: PaymentGatewayFilter = FilterDepends(PaymentGatewayFilter),
                                    _: AdminAccessToken,
                                    db: Session,  response: Response):
-    payment_gateways = await service.get_all_payment_gateways(page, per_page, db)
-    total_payment_gateways = await service.count_payment_gateway(db)
+    payment_gateways = await service.get_all_payment_gateways(filter, page, per_page, db)
+    total_payment_gateways = await service.count_payment_gateway(filter, db)
 
     response.headers['X-Total-Count'] = str(total_payment_gateways)
     response.headers['X-Total-Pages'] = str(-(-total_payment_gateways // per_page))

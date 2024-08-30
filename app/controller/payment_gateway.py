@@ -6,6 +6,7 @@ import logging
 
 from app.models.payment_gateway import PaymentGateway
 from app.controller.exception import NotFoundException, ConflictException
+from app.filter_schema.payment_gateway import PaymentGatewayFilter
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,11 @@ async def get_payment_gateway_by_id(id: UUID, db: AsyncSession) -> PaymentGatewa
     return payment_gateway
 
 
-async def get_all_payment_gateways(page: int, per_page: int, db: AsyncSession) -> Sequence[PaymentGateway]:
+async def get_all_payment_gateways(filter: PaymentGatewayFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[PaymentGateway]:
     offset = (page - 1) * per_page
-    result = await db.execute(select(PaymentGateway).offset(offset).limit(per_page))
+    stmt = select(PaymentGateway).offset(offset).limit(per_page)
+    stmt = filter.filter(stmt)
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 
@@ -28,7 +31,7 @@ async def gateways_for_customer(db: AsyncSession) -> Sequence[PaymentGateway]:
     return result.scalars().all()
 
 
-async def count_payment_gateway(db: AsyncSession) -> int:
+async def count_payment_gateway(filter: PaymentGatewayFilter, db: AsyncSession) -> int:
     result = await db.execute(select(func.count()).select_from(PaymentGateway))
     return result.scalar_one()
 
