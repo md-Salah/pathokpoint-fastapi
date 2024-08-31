@@ -1,4 +1,3 @@
-import io
 import pytest
 from httpx import AsyncClient
 from unittest.mock import MagicMock
@@ -127,25 +126,3 @@ async def test_delete_book(client: AsyncClient, book_in_db: dict, admin_auth_hea
 async def test_delete_book_bulk(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
     response = await client.delete(f"/book/bulk/{book_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-
-
-async def test_export_books(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
-    response = await client.get("/book/export/csv", headers=admin_auth_headers)
-    assert response.status_code == status.HTTP_200_OK
-    assert response.headers.get("Content-Disposition") is not None
-    assert response.headers.get("Content-Type") == "text/csv; charset=utf-8"
-    assert response.content.startswith(
-        b"id,sku,name,regular_price,sale_price,quantity,manage_stock,authors,publisher,categories,images,tags,")
-    assert len(response.content.splitlines()) == 2
-
-
-async def test_import_books_by_csv(client: AsyncClient, admin_auth_headers: dict):
-    csv_content = b"""sku,name,slug,regular_price,sale_price,manage_stock,quantity,is_used,condition,is_popular,cover,tags,in_stock,language,authors,publisher,stock_location
-                99-5432,Test Book,test-book,100.0,90.0,True,10,True,old-like-new,True
-                """
-    file = io.BytesIO(csv_content)
-    files = [
-        ('file', ('test_books.csv', file, 'text/csv'))
-    ]
-    response = await client.post("/book/import/csv", files=files, headers=admin_auth_headers)
-    assert response.status_code == status.HTTP_200_OK

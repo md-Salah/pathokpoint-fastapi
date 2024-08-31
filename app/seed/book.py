@@ -76,8 +76,8 @@ async def seed_book(n: int, headers: dict):
                 print(response.json())
             else:
                 counter += 1
-    print(f"{counter}/{n} books seeded successfully, Average time taken: {
-          ((time.time() - st) / n):.2f} sec")
+    print("{}/{} books seeded successfully, Average time taken: {:.2f} sec".format(
+        counter, n, ((time.time() - st) / n)))
 
 
 async def seed_book_bulk(n: int, headers: dict):
@@ -88,7 +88,7 @@ async def seed_book_bulk(n: int, headers: dict):
 
     payload = [generate_book(authors, categories, publishers, tags)
                for _ in range(n)]
-    async with httpx.AsyncClient(timeout= 10 * 60) as client:
+    async with httpx.AsyncClient(timeout=10 * 60) as client:
         response = await client.post(f"{settings.BASE_URL}/book/bulk", json=payload, headers=headers)
         if response.status_code != 201:
             print(response.json())
