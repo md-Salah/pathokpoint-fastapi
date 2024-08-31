@@ -98,7 +98,7 @@ async def find_or_create_relation(name_str: str | None, slug_str: str | None,
                                   cls: Any, db: AsyncSession):
     if not name_str:
         return []
-    
+
     if isinstance(slug_str, float):
         print("slug str debug:", name_str, slug_str)
     slug = {name.strip(): slug.strip() for name, slug in zip(
@@ -178,7 +178,7 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
                 if images:
                     _book.images = images
 
-                await db.commit() 
+                await db.commit()
                 df.at[idx, 'status'] = 'successfully updated'  # type: ignore
             else:
                 # Insert
@@ -193,7 +193,7 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
 
                 db.add(book)
                 await db.commit()
-                df.at[idx, 'status'] = 'successfully inserted' # type: ignore
+                df.at[idx, 'status'] = 'successfully inserted'  # type: ignore
         except Exception as e:
             logger.error(f'{traceback.format_exc()}')
             df.at[idx, 'status'] = 'error: {}: {}'.format(  # type: ignore
@@ -207,9 +207,11 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
             except Exception:
                 pass
 
-    logger.info('{}'.format(
-        df['status'].value_counts().to_dict()
-    ))
+    count = df['status'].value_counts().to_dict()
+    logger.info('{}:{}\n{}:{}'.format(
+        "successfully inserted", count.get('successfully inserted', 0),
+        "successfully updated", count.get('successfully updated', 0))
+    )
 
     buffer = io.StringIO()
     df.to_csv(buffer, index=False, encoding='utf-8-sig')
