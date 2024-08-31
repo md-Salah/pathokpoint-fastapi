@@ -94,6 +94,6 @@ async def seed_book_bulk(n: int, headers: dict):
             print(response.json())
         else:
             counter = len(response.json())
-    print(f"{counter}/{n} books seeded successfully, Average time taken: {
-          ((time.time() - st) / n):.6f} sec")
+    print("{}/{} books seeded successfully, Average time taken: {:.2f} sec".format(
+        counter, n, ((time.time() - st) / n)))
     print(f"Required time: {(time.time() - st):.2f} sec")
