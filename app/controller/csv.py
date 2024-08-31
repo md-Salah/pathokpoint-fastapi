@@ -178,8 +178,8 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
                 if images:
                     _book.images = images
 
-                await db.commit()
-                df.at[idx, 'status'] = 'successfully updated'
+                await db.commit() 
+                df.at[idx, 'status'] = 'successfully updated'  # type: ignore
             else:
                 # Insert
                 pydantic_book = CreateBook(**payload)
@@ -187,15 +187,16 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
                 book.authors = authors
                 book.categories = categories
                 book.tags = tags
-                book.publisher = publisher[0]
+                if publisher:
+                    book.publisher = publisher[0]
                 book.images = images
 
                 db.add(book)
                 await db.commit()
-                df.at[idx, 'status'] = 'successfully inserted'
+                df.at[idx, 'status'] = 'successfully inserted' # type: ignore
         except Exception as e:
             logger.error(f'{traceback.format_exc()}')
-            df.at[idx, 'status'] = 'error: {}: {}'.format(
+            df.at[idx, 'status'] = 'error: {}: {}'.format(  # type: ignore
                 e.__class__, str(e))
 
             try:
@@ -205,6 +206,10 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
                         await delete_file_from_cloudinary(image.public_id)
             except Exception:
                 pass
+
+    logger.info('{}'.format(
+        df['status'].value_counts().to_dict()
+    ))
 
     buffer = io.StringIO()
     df.to_csv(buffer, index=False, encoding='utf-8-sig')
