@@ -9,6 +9,7 @@ from fastapi import UploadFile
 import logging
 from typing import Any
 import traceback
+import time
 
 from app.constant import ImageFolder
 from app.filter_schema.book import BookFilter
@@ -17,6 +18,7 @@ from app.controller.book import get_all_books
 from app.library.cloudinary import upload_file_to_cloudinary, delete_file_from_cloudinary
 from app.controller.exception import NotFoundException, BadRequestException
 from app.controller.utility import unique_slug
+import app.controller.email as email_service
 
 from app.pydantic_schema.book import CreateBook, UpdateBook
 from app.pydantic_schema.author import CreateAuthor
@@ -133,6 +135,7 @@ async def upload_images(images: str | None) -> list[Image]:
 
 
 async def import_books_from_csv(file: UploadFile, db: AsyncSession):
+    st = time.time()
     if not file.filename:
         raise BadRequestException('Filename not found.')
     elif not file.filename.endswith('.csv'):
@@ -208,20 +211,25 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
                 pass
 
     count = df['status'].value_counts().to_dict()
-    logger.info('{}:{}\n{}:{}'.format(
-        "successfully inserted", count.get('successfully inserted', 0),
-        "successfully updated", count.get('successfully updated', 0))
-    )
-
-    buffer = io.StringIO()
-    df.to_csv(buffer, index=False, encoding='utf-8-sig')
-    buffer.seek(0)
-    response = StreamingResponse(
-        iter([buffer.getvalue()]), media_type='text/csv')
-    response.headers['Content-Disposition'] = (
-        f'attachment; filename="{file.filename}"'
-    )
-    return response
+    et = time.strftime("%H:%M:%S", time.gmtime(time.time() - st))
+    logger.info('Total: {}, successfully inserted: {}, successfully updated: {}, Execution time: {}'.format(
+        len(df),
+        count.get('successfully inserted', 0),
+        count.get('successfully updated', 0),
+        et
+    ))
+    
+    df.to_csv('dummy/books_import_status.csv', index=False)
+    await email_service.send_reset_password_otp('mdsalah.connect@gmail.com', 'done', 10)
+    # buffer = io.StringIO()
+    # df.to_csv(buffer, index=False, encoding='utf-8-sig')
+    # buffer.seek(0)
+    # response = StreamingResponse(
+    #     iter([buffer.getvalue()]), media_type='text/csv')
+    # response.headers['Content-Disposition'] = (
+    #     f'attachment; filename="{file.filename}"'
+    # )
+    # return response
 
 
 async def template_for_import_csv(reqd_cols_only: bool = False):

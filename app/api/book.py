@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Query, Response, File, UploadFile
+from fastapi import APIRouter, status, Query, Response, File, UploadFile, BackgroundTasks
 from uuid import UUID
 from fastapi_filter import FilterDepends
 
@@ -6,8 +6,9 @@ from app.filter_schema.book import BookFilter, BookFilterMinimal
 import app.pydantic_schema.book as schema
 from app.config.database import Session
 import app.controller.book as book_service
+import app.controller.email as email_service
 import app.controller.csv as csv_service
-from app.controller.auth import AdminAccessToken
+from app.controller.auth import AdminAccessToken, CurrentAdmin
 from app.controller.exception import BadRequestException
 
 router = APIRouter(prefix='/book')
@@ -126,8 +127,12 @@ async def export_books_to_csv(*,
 
 
 @router.post('/import/csv')
-async def import_books_from_csv(*, file: UploadFile = File(...), _: AdminAccessToken, db: Session):
-    return await csv_service.import_books_from_csv(file, db)
+async def import_books_from_csv(*, file: UploadFile = File(...), user: CurrentAdmin, bg_task: BackgroundTasks, email: str | None = Query(None), db: Session):
+    
+    # email_service.send_email(user, email, 'Book Import Started', 'Book import has started. You will be notified once it is completed.')
+    bg_task.add_task(csv_service.import_books_from_csv, file, db)
+    # return await csv_service.import_books_from_csv(file, db)
+    return {'message': 'Book import has started. You will be notified once it is completed.'}
 
 
 @router.post('/template-for-import-csv')

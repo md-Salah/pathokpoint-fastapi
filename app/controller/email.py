@@ -2,7 +2,7 @@ import logging
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
 
-from app.models import Order
+from app.models import Order, User
 from app.config.email import conf, templates, logo_url
 
 logger = logging.getLogger(__name__)
@@ -57,3 +57,23 @@ async def send_reset_password_otp(email: EmailStr, otp: str, expiry_min: int):
     
     logger.info("Reset password OTP has been sent to email: %s", email)
     
+
+
+
+# async def send_email(user: User, email: EmailStr, subject: str, template_name: str, **kwargs):
+#     template = templates.get_template('reset_password_otp.html')
+#     body = template.render(email=email, otp=otp, expiry_min=expiry_min, logo_url=logo_url)
+    
+#     message = MessageSchema(
+#         subject='{} is your reset password code'.format(otp),
+#         recipients=[email],
+#         body=body,
+#         subtype=MessageType.html
+#     )
+    
+#     fm = FastMail(conf)
+#     await fm.send_message(message)
+    
+#     logger.info("Reset password OTP has been sent to email: %s", email)
+    
+
