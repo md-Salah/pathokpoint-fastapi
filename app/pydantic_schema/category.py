@@ -17,6 +17,8 @@ example_category = {
     'is_comics': False,
     'is_popular': False,
     'is_big_sale': False,
+    'is_in_menu': False,
+    'is_in_hero': False,
 }
 
 example_category_in = {
@@ -45,6 +47,8 @@ class CategoryBase(NameSlugMixin):
     is_comics: bool = False
     is_popular: bool = False
     is_big_sale: bool = False
+    is_in_menu: bool = False
+    is_in_hero: bool = False
 
 
 class CreateCategory(CategoryBase):

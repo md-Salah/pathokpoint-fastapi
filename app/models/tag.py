@@ -15,6 +15,8 @@ class Tag(TimestampMixin):
     name: Mapped[str] = mapped_column(String(100), index=True)
     slug: Mapped[str] = mapped_column(String(100), index=True)
     private: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_menu: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_hero: Mapped[bool] = mapped_column(Boolean, default=False)
     
     books: Mapped[list['Book']] = relationship(secondary='book_tag_link', back_populates='tags')
     

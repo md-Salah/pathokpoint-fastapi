@@ -6,6 +6,8 @@ example_tag = {
     'name': 'indian bangla books',
     'slug': 'indian-bangla-books',
     'private': True,
+    'is_in_menu': True,
+    'is_in_hero': True
 }
 
 example_tag_in = {
@@ -20,6 +22,8 @@ example_tag_out = {
 
 class TagBase(NameSlugMixin):
     private: bool = False
+    is_in_menu: bool = False
+    is_in_hero: bool = False
 
 
 class CreateTag(TagBase):

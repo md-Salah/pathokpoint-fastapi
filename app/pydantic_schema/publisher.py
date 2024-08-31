@@ -13,6 +13,8 @@ example_publisher = {
     'is_english': True,
     'is_popular': True,
     'is_big_sale': False,
+    'is_in_menu': True,
+    'is_in_hero': False,
     'country': Country.US,
     'book_published': 200,
 }
@@ -37,6 +39,8 @@ class PublisherBase(NameSlugMixin):
     is_english: bool = False
     is_popular: bool = False
     is_big_sale: bool = False
+    is_in_menu: bool = False
+    is_in_hero: bool = False
 
     country: Country | None = None
     book_published: NonNegativeInt | None = None

@@ -23,6 +23,8 @@ class Publisher(TimestampMixin):
     is_english: Mapped[bool] = mapped_column(Boolean, default=False)
     is_popular: Mapped[bool] = mapped_column(Boolean, default=False)
     is_big_sale: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_menu: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_hero: Mapped[bool] = mapped_column(Boolean, default=False)
     country: Mapped[Country | None]
     book_published: Mapped[int | None]
 

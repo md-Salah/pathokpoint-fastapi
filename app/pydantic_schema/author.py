@@ -13,7 +13,9 @@ example_author = {
     'book_published': 200,
     'city': 'dhaka',
     'country': Country.BD,
-    'is_popular': True
+    'is_popular': True,
+    'is_in_menu': True,
+    'is_in_hero': True
 }
 
 example_author_in = {
@@ -39,6 +41,8 @@ class AuthorBase(NameSlugMixin):
     city: str | None = None
     country: Country | None = None
     is_popular: bool = False
+    is_in_menu: bool = False
+    is_in_hero: bool = False
 
 
 class CreateAuthor(AuthorBase):

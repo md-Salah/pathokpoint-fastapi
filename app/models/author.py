@@ -29,6 +29,8 @@ class Author(TimestampMixin):
     country: Mapped[Country | None]
     is_popular: Mapped[bool] = mapped_column(Boolean, default=False)
     is_big_sale: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_menu: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_hero: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
     # Relationship

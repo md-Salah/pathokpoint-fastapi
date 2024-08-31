@@ -26,6 +26,8 @@ class Category(TimestampMixin):
     is_comics: Mapped[bool] = mapped_column(Boolean, default=False)
     is_popular: Mapped[bool] = mapped_column(Boolean, default=False)
     is_big_sale: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_menu: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_in_hero: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationship
     books: Mapped[List['Book']] = relationship(
