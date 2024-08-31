@@ -7,8 +7,8 @@ from datetime import datetime
 from app.models.mixins import TimestampMixin
 
 
-class Meta(TimestampMixin):
-    __tablename__ = 'meta'
+class Setting(TimestampMixin):
+    __tablename__ = 'settings'
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
@@ -19,4 +19,4 @@ class Meta(TimestampMixin):
         DateTime(timezone=True))
 
     def __repr__(self):
-        return f'<Author (name={self.key}, slug={self.value})>'
+        return f'<Setting (name={self.key}, slug={self.value})>'

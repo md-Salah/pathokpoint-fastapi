@@ -14,3 +14,4 @@ from .tag import Tag # noqa: F401
 from .transaction import Transaction # noqa: F401
 from .payment_gateway import PaymentGateway # noqa: F401
 from .review import Review # noqa: F401
+from .setting import Setting # noqa: F401

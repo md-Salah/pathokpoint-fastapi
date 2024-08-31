@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     app.state.redis = await get_redis()
 
     try:
-        # await drop_tables()
+        await drop_tables()
         await create_tables()
     except Exception as err:
         logger.error(
