@@ -18,7 +18,9 @@ async def apply_coupon(payload: dict[str, Any], db: AsyncSession):
     books = {book.id: book for book in books}
     items = []
     for item in payload['order_items']:
-        book = books[item['book_id']]
+        book = books.get(item['book_id'])
+        if not book:
+            raise NotFoundException('Book not found', str(item['book_id']))
         items.append(OrderItem(
             book=book,
             regular_price=book.regular_price,
