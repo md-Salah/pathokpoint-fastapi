@@ -17,15 +17,20 @@ async def test_export_books(client: AsyncClient, book_in_db: dict, admin_auth_he
         b"id,sku,name,regular_price,sale_price,quantity,manage_stock,authors,publisher,categories,images,tags,")
     assert len(response.content.splitlines()) == 2
 
+@patch("app.controller.csv.email_service.send_email")
 @patch("app.controller.csv.delete_file_from_cloudinary")
 @patch("app.controller.csv.upload_file_to_cloudinary")
-async def test_import_books_by_csv(mock_upload_file: MagicMock, mock_delete_file: MagicMock, client: AsyncClient, admin_auth_headers: dict):
+async def test_import_books_by_csv(mock_upload_file: MagicMock, mock_delete_file: MagicMock, send_email: MagicMock, client: AsyncClient, admin_in_db_with_token: dict):
     mock_upload_file.return_value = {
         'filename': 'test_book.jpg',
         'public_id': 'test_book',
         'secure_url': 'https://res.cloudinary.com/test_book.jpg',
     }
     mock_delete_file.return_value = True
+    send_email.return_value = None
+    headers = {
+        'Authorization': "Bearer {}".format(admin_in_db_with_token['token'])
+    }
 
     data = [
         {'condition': 'old-good-enough',
@@ -101,15 +106,11 @@ async def test_import_books_by_csv(mock_upload_file: MagicMock, mock_delete_file
     files = [
         ('file', ('test_books.csv', file, 'text/csv'))
     ]
-    response = await client.post("/book/import/csv", files=files, headers=admin_auth_headers)
+    response = await client.post("/book/import/csv", files=files, headers=headers)
     assert response.status_code == status.HTTP_200_OK
-
-    response_df = pd.read_csv(io.StringIO(response.content.decode('utf-8')))
-    assert not response_df.empty
-    assert 'status' in response_df.columns
-    assert all(response_df['status'] == 'successfully inserted')
     mock_upload_file.assert_called_once
     mock_delete_file.assert_not_called
+    send_email.assert_called_once
 
     # Test update books
     payload = []
@@ -117,6 +118,7 @@ async def test_import_books_by_csv(mock_upload_file: MagicMock, mock_delete_file
         payload.append({
             'sku': book['sku'],
             'quantity': 100,
+            'images': book.get('images', []),
         })
     df = pd.DataFrame(payload)
     csv_content = df.to_csv(index=False).encode("utf-8")
@@ -124,10 +126,9 @@ async def test_import_books_by_csv(mock_upload_file: MagicMock, mock_delete_file
     files = [
         ('file', ('test_books.csv', file, 'text/csv'))
     ]
-    response = await client.post("/book/import/csv", files=files, headers=admin_auth_headers)
+    response = await client.post("/book/import/csv", files=files, headers=headers)
     assert response.status_code == status.HTTP_200_OK
-
-    response_df = pd.read_csv(io.StringIO(response.content.decode('utf-8')))
-    assert not response_df.empty
-    assert 'status' in response_df.columns
-    assert all(response_df['status'] == 'successfully updated')
+    mock_upload_file.assert_called_once
+    mock_delete_file.assert_called_once
+    send_email.assert_called_once
+    

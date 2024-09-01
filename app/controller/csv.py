@@ -5,15 +5,16 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, joinedload
-from fastapi import UploadFile
+from fastapi import UploadFile, BackgroundTasks
 import logging
 from typing import Any
 import traceback
 import time
+import os
 
 from app.constant import ImageFolder
 from app.filter_schema.book import BookFilter
-from app.models import Book, Author, Publisher, Category, Tag, Image
+from app.models import Book, Author, Publisher, Category, Tag, Image, User
 from app.controller.book import get_all_books
 from app.library.cloudinary import upload_file_to_cloudinary, delete_file_from_cloudinary
 from app.controller.exception import NotFoundException, BadRequestException
@@ -134,19 +135,8 @@ async def upload_images(images: str | None) -> list[Image]:
     return items
 
 
-async def import_books_from_csv(file: UploadFile, db: AsyncSession):
+async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email: str | None = None):
     st = time.time()
-    if not file.filename:
-        raise BadRequestException('Filename not found.')
-    elif not file.filename.endswith('.csv'):
-        raise BadRequestException(
-            'Invalid file format. Only CSV files are allowed.')
-    try:
-        df = pd.read_csv(file.file, dtype={
-                         'edition': str, 'isbn': str, 'translators': str, 'categories': str, 'tags': str, 'authors': str})
-    except Exception as e:
-        raise BadRequestException(f'Error reading CSV file: {str(e)}')
-
     df = df.drop_duplicates(subset=['sku'])
     df.set_index('sku', inplace=True, drop=False)
     df['status'] = ''
@@ -210,26 +200,51 @@ async def import_books_from_csv(file: UploadFile, db: AsyncSession):
             except Exception:
                 pass
 
-    count = df['status'].value_counts().to_dict()
     et = time.strftime("%H:%M:%S", time.gmtime(time.time() - st))
+    count = df['status'].value_counts().to_dict()
     logger.info('Total: {}, successfully inserted: {}, successfully updated: {}, Execution time: {}'.format(
         len(df),
         count.get('successfully inserted', 0),
         count.get('successfully updated', 0),
         et
     ))
-    
-    df.to_csv('dummy/books_import_status.csv', index=False)
-    await email_service.send_reset_password_otp('mdsalah.connect@gmail.com', 'done', 10)
-    # buffer = io.StringIO()
-    # df.to_csv(buffer, index=False, encoding='utf-8-sig')
-    # buffer.seek(0)
-    # response = StreamingResponse(
-    #     iter([buffer.getvalue()]), media_type='text/csv')
-    # response.headers['Content-Disposition'] = (
-    #     f'attachment; filename="{file.filename}"'
-    # )
-    # return response
+
+    filename = 'dummy/books_import_status.csv'
+    df.to_csv(filename, index=False)
+
+    if email:
+        body = '''
+        Hello,
+        Your bulk book import has been completed.
+        Total: {}
+        Successfully inserted: {}
+        Successfully updated: {}
+        Execution time: {}
+        '''.format(len(df), count.get('successfully inserted', 0), count.get('successfully updated', 0), et)
+        await email_service.send_email(email_service.MessageSchema(
+            subject='Bulk book import status',
+            recipients=[email],
+            body=body,
+            subtype=email_service.MessageType.plain,
+            attachments=[filename]
+        ))
+    os.remove(filename)
+
+
+async def import_books_from_csv(file: UploadFile, user: User,  bg_task: BackgroundTasks, db: AsyncSession):
+    if not file.filename:
+        raise BadRequestException('Filename not found.')
+    elif not file.filename.endswith('.csv'):
+        raise BadRequestException(
+            'Invalid file format. Only CSV files are allowed.')
+    try:
+        df = pd.read_csv(file.file, dtype={
+                         'edition': str, 'isbn': str, 'translators': str, 'categories': str, 'tags': str, 'authors': str})
+    except Exception as e:
+        raise BadRequestException(f'Error reading CSV file: {str(e)}')
+
+    bg_task.add_task(process_books_in_background, df, db, user.email)
+    return {'message': 'Processing CSV file in background, we will email you once it is completed.'}
 
 
 async def template_for_import_csv(reqd_cols_only: bool = False):
