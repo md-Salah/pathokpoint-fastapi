@@ -20,6 +20,7 @@ from app.library.cloudinary import upload_file_to_cloudinary, delete_file_from_c
 from app.controller.exception import NotFoundException, BadRequestException
 from app.controller.utility import unique_slug
 import app.controller.email as email_service
+from app.controller.image import read_file
 
 from app.pydantic_schema.book import CreateBook, UpdateBook
 from app.pydantic_schema.author import CreateAuthor
@@ -237,9 +238,12 @@ async def import_books_from_csv(file: UploadFile, user: User,  bg_task: Backgrou
     elif not file.filename.endswith('.csv'):
         raise BadRequestException(
             'Invalid file format. Only CSV files are allowed.')
+        
+    filename = await read_file(file, 5)
     try:
-        df = pd.read_csv(file.file, dtype={
+        df = pd.read_csv(filename, dtype={
                          'edition': str, 'isbn': str, 'translators': str, 'categories': str, 'tags': str, 'authors': str})
+        os.remove(filename)
     except Exception as e:
         raise BadRequestException(f'Error reading CSV file: {str(e)}')
 
