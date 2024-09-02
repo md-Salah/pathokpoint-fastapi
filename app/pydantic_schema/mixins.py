@@ -20,12 +20,12 @@ class IdTimestampMixin(BaseModel):
     }
 
 class NameSlugMixin(BaseModel):
-    name: str = Field(..., min_length=3, max_length=100, pattern=name_regex)
-    slug: str = Field(..., min_length=3, max_length=100, pattern=slug_regex)
+    name: str = Field(..., min_length=2, max_length=100, pattern=name_regex)
+    slug: str = Field(..., min_length=2, max_length=100, pattern=slug_regex)
     
 class NameSlugMixinOptional(BaseModel):
-    name: str = Field(None, min_length=3, max_length=100, pattern=name_regex)
-    slug: str = Field(None, min_length=3, max_length=100, pattern=slug_regex)
+    name: str = Field(None, min_length=2, max_length=100, pattern=name_regex)
+    slug: str = Field(None, min_length=2, max_length=100, pattern=slug_regex)
     
 class IdNameSlugMixin(NameSlugMixin):
     id: UUID
