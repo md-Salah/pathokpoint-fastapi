@@ -54,7 +54,7 @@ origins = [
     settings.BKASH_URL
 ]
 app.add_middleware(CorrelationIdMiddleware)
-app.add_middleware(Analytics, api_key=settings.FASTAPI_ANALYTICS_API_KEY)
+# app.add_middleware(Analytics, api_key=settings.FASTAPI_ANALYTICS_API_KEY)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
