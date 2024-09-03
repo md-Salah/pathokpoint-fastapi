@@ -38,7 +38,12 @@ async def get_order_by_id(id: UUID, db: AsyncSession) -> Order:
     return order
 
 
-async def get_order_by_invoice(invoice: int, db: AsyncSession) -> Order:
+async def get_order_by_invoice(invoice: int | str, db: AsyncSession) -> Order:
+    if isinstance(invoice, str):
+        try:
+            invoice = int(invoice)
+        except ValueError:
+            raise BadRequestException('Invalid invoice number')
     order = await db.scalar(order_query.where(Order.invoice == invoice))
     if not order:
         raise NotFoundException('Order not found')

@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Invoice</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f4f4f4;
@@ -25,16 +27,9 @@
         .section2,
         .section3,
         .section4,
+        .section5,
         .footer {
             margin-bottom: 30px;
-        }
-
-        .left {
-            float: left;
-        }
-
-        .right {
-            float: right;
         }
 
         .section1 img {
@@ -49,7 +44,8 @@
             margin-top: 20px;
         }
 
-        th, td {
+        th,
+        td {
             border: 1px solid #ddd;
             padding: 12px;
             text-align: left;
@@ -73,39 +69,37 @@
         }
 
         @media screen and (max-width: 600px) {
-            .left, .right {
+
+            .left,
+            .right {
                 float: none;
                 width: 100%;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="invoice">
         <div class="section1">
-            <div class="left">
+            <div>
                 <img src="{{ logo_url }}" alt="Pathok Point">
             </div>
-            <div class="right">
-                <p>INVOICE: {{ order.invoice }}</p>
-                <p>Order date</p>
-                <p>{{ order.created_at }}</p>
+            <div>
+                <p style="font-weight: bold;">INVOICE: {{ order.invoice }}</p>
+                <p>Date</p>
+                <p>{{ timestamp }}</p>
             </div>
         </div>
+        <div class="section2" style="text-align: center;">
+            Dear {{ order.address.name }},<br>
+            <p>Thank you for your order. Your order has been received.</p>
+        </div>
         <div class="section2">
-            <div class="left">
-                <p>Contact Info</p>
-                {% if order.customer %}
-                    <p>{{ order.customer.first_name + ' ' + order.customer.last_name }}</p>
-                    <p>{{ order.customer.phone_number }}</p>
-                    <p>{{ order.customer.email }}</p>
-                {% else %}
-                    <p>Guest order</p>
-                {% endif %}
-            </div>
-            <div class="right">
-                <p>Delivery Address</p>
-                <p>{{ '{}, {}, {}, {}'.format(order.address.address, order.address.thana, order.address.city, order.address.country) }}</p>
+            <div>
+                <p style="font-weight: bold;">Delivery Address</p>
+                <p>{{ '{}, {}'.format(order.address.address, order.address.thana) }}</p>
+                <p>{{ '{}, {}'.format(order.address.city.value, order.address.country.value) }}</p>
             </div>
         </div>
         <div class="section3">
@@ -114,48 +108,57 @@
                     <tr>
                         <th>S. No</th>
                         <th>Item</th>
-                        <th>Unit Price</th>
-                        <th>Sale Price</th>
-                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Qty</th>
                         <th>Total</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in order.order_items %}
-                        <tr>
-                            <td>{{ loop.index }}</td>
-                            <td>{{ item.book.name }}</td>
-                            <td>{{ item.regular_price }}</td>
-                            <td>{{ item.sold_price }}</td>
-                            <td>{{ item.quantity }}</td>
-                            <td>{{ item.sold_price * item.quantity }}</td>
-                        </tr>
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ item.book.name }}</td>
+                        <td>
+                            <span>{{ item.sold_price }}</span>
+                            {% if item.regular_price > item.sold_price %}
+                            <span style="text-decoration: line-through;">{{ item.regular_price }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.sold_price * item.quantity }}</td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         <div class="section4">
-            <div class="left">
-                <p>Shipping Method</p>
+            <div>
+                <p style="font-weight: bold;">Shipping Method</p>
                 <p>{{ order.courier.method_name }}</p>
-                <p>{{ order.courier.company_name }}</p>
             </div>
-            <div class="right">
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+            <div style="width: fit-content; display: inline-block; text-align: right;">
                 <p>Sub Total: ৳{{ order.new_book_total + order.old_book_total }}</p>
-                <p>Discount: ৳{{ order.discount }}</p>
-                <p>Shipping Cost: ৳{{ order.shipping_charge }}</p>
-                <p>Grand Total: ৳{{ order.total }}</p>
+                <p>Shipping Charge: ৳{{ order.shipping_charge }}</p>
+                <p>Weight Charge: ৳{{ order.weight_charge }}</p>
+                <p>Discount: - ৳{{ order.discount }}</p>
+                <p style="font-weight: bold; border-top: 1px solid #000; padding-top: 5px;">Grand Total: ৳{{
+                    order.net_amount }}</p>
                 <p>Paid: ৳{{ order.paid }}</p>
+                {% if order.is_full_paid %}
+                <p>Due: ৳{{ order.due }}</p>
+                {% else %}
+                <p>COD: ৳{{ order.due }}</p>
+                {% endif %}
             </div>
         </div>
         <div class="footer">
-            <div class="left">
+            <div>
                 <p>Office Address: House-4/7, Av-3, Mirpur-11, Dhaka-1216</p>
-            </div>
-            <div class="right">
-                <button onclick="window.print()">Print</button>
             </div>
         </div>
     </div>
 </body>
+
 </html>

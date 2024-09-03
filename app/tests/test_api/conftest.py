@@ -23,6 +23,12 @@ def mock_delete_file() -> Generator:
         yield mock_delete_file
 
 
+@pytest.fixture(name="send_invoice")
+def send_invoice() -> Generator:
+    with patch("app.api.order.email_service.send_invoice_email") as send_invoice:
+        yield send_invoice
+
+
 @pytest_asyncio.fixture(name="img_uploader")
 async def img_uploader(client: AsyncClient) -> Callable:
 
@@ -263,7 +269,7 @@ async def create_coupon(client: AsyncClient, coupon_payload: dict, admin_auth_he
 
 
 @pytest_asyncio.fixture(name="order_in_db")
-async def create_order(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
+async def create_order(send_invoice: MagicMock, client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
     response = await client.post("/order/admin/new", json={
         "order_items": [
             {

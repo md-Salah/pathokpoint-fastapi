@@ -12,6 +12,7 @@ from app.pydantic_schema.transaction import CreateTransaction as CreateTransacti
 import app.controller.transaction as transaction_service
 from app.constant.orderstatus import Status
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +38,7 @@ async def pay_with_bkash(order_id: UUID, callback_url: str, db: AsyncSession) ->
         raise ServerErrorException(str(err))
 
 
-async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
+async def execute_payment(payment_id: str, db: AsyncSession) -> Order | None:
     try:
         token = await bkash.grant_token()
         data = await bkash.execute_payment(payment_id, token)
@@ -72,7 +73,7 @@ async def execute_payment(payment_id: str, db: AsyncSession) -> str | None:
                 status=Status.processing
             ))
         await db.commit()
-        return str(order.invoice)
+        return order
     elif data:
         logger.error('Bkash payment failed. statusMessage: {}'.format(
             data.get('statusMessage')))

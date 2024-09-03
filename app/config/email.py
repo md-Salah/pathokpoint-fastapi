@@ -15,4 +15,4 @@ conf = ConnectionConfig(
     )
 
 templates = Jinja2Templates(directory="app/templates")
-logo_url = 'https://pathokpoint.com/wp-content/uploads/2023/05/Pathok-Point-Logo-An-Old-And-New-Book-Shop.png'
+logo_url = settings.LOGO_URL

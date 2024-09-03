@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from starlette import status
 from typing import Any
+from unittest.mock import MagicMock
 
 pytestmark = pytest.mark.asyncio
 
@@ -76,7 +77,7 @@ async def test_get_my_orders(client: AsyncClient, order_in_db: dict, customer_au
 
 
 @pytest.mark.parametrize('quantity', [1, 2])
-async def test_create_order_by_customer(client: AsyncClient, user_in_db: dict[str, Any], book_in_db: dict, coupon_in_db: dict, address_payload: dict[str, Any], courier_in_db: dict, quantity: int):
+async def test_create_order_by_customer(send_invoice: MagicMock, client: AsyncClient, user_in_db: dict[str, Any], book_in_db: dict, coupon_in_db: dict, address_payload: dict[str, Any], courier_in_db: dict, quantity: int):
     payload = {
         "coupon_code": coupon_in_db["code"],
         "address": address_payload,
@@ -124,9 +125,10 @@ async def test_create_order_by_customer(client: AsyncClient, user_in_db: dict[st
         else:
             assert response_data['discount'] == book_in_db['sale_price'] * \
                 quantity * (coupon_in_db['discount_old'] / 100)
+    send_invoice.assert_called_once()
 
 
-async def test_create_order_by_admin_without_shipping(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
+async def test_create_order_by_admin_without_shipping(send_invoice: MagicMock, client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
     payload = {
         "order_items": [
             {
@@ -203,7 +205,8 @@ async def test_update_order_payment_by_admin(client: AsyncClient, order_in_db: d
     print(response.json()['transactions'])
     assert len(response.json()['transactions']) == 1
     payload['transaction'].pop('payment_method')
-    assert response.json()['transactions'][0].items() >= payload['transaction'].items()
+    assert response.json()['transactions'][0].items(
+    ) >= payload['transaction'].items()
     assert response.json()['paid'] == payload['transaction']['amount']
 
 

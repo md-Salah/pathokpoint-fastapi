@@ -3,6 +3,8 @@ import slugify as slg
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Any
+from datetime import datetime
+import pytz
 
 def slugify(text):
     """_summary_
@@ -24,3 +26,14 @@ async def unique_slug(base_slug: str, cls: Any, db: AsyncSession) -> str:
         slug = f"{base_slug}-{counter}"
         counter += 1
     return slug
+
+
+def bangladesh_time(utc_time: datetime) -> str:
+    """_summary_
+    Args:
+        utc_time (str): UTC time string (e.g. '2022-02-02T12:00:00Z')
+    Returns:
+        str: BST time string (e.g. '24-Aug-2022 12:00 PM')
+    """
+    return utc_time.astimezone(pytz.timezone('Asia/Dhaka')).strftime('%d-%b-%Y %I:%M %p')
+    

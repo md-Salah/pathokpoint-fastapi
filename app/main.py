@@ -50,8 +50,8 @@ app = FastAPI(
 )
 
 origins = [
-    "http://localhost:3000",
-    "https://beta1.pathokpoint.com"
+    settings.FRONTEND_URL,
+    settings.BKASH_URL
 ]
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(Analytics, api_key=settings.FASTAPI_ANALYTICS_API_KEY)
@@ -61,7 +61,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
-    expose_headers=['X-Total-Count', 'X-Total-Pages', 'X-Current-Page', 'X-Per-Page']
+    expose_headers=['X-Total-Count', 'X-Total-Pages',
+                    'X-Current-Page', 'X-Per-Page']
 )
 
 app.include_router(api_router)

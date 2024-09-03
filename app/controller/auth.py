@@ -14,7 +14,7 @@ from app.config.settings import settings
 from app.models.user import User
 from app.controller.exception import UnauthorizedException, NotFoundException
 
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
 class Token(TypedDict):

@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     PRODUCTION: bool = False
 
     BASE_URL: str = "http://localhost:8000"
+    FRONTEND_URL: str = "http://localhost:3000"
+    LOGO_URL: str
 
     DATABASE_URL: str
     TEST_DATABASE_URL: str

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Query, Response
+from fastapi import APIRouter, status, Query, Response, BackgroundTasks
 from uuid import UUID
 from fastapi_filter import FilterDepends
 
@@ -9,6 +9,7 @@ from app.controller.auth import AccessToken, AdminAccessToken, AccessTokenOption
 import app.pydantic_schema.order as schema
 from app.config.database import Session
 import app.controller.order as order_service
+import app.controller.email as email_service
 
 router = APIRouter(prefix='/order')
 
@@ -74,16 +75,22 @@ async def get_all_orders_by_admin(*,
 
 
 @router.post('/new', response_model=schema.OrderOut, status_code=status.HTTP_201_CREATED)
-async def create_order(payload: schema.CreateOrder, token: AccessTokenOptional, db: Session):
+async def create_order(payload: schema.CreateOrder, token: AccessTokenOptional, bg_task: BackgroundTasks, db: Session):
     data = payload.model_dump()
     if token:
         data['customer_id'] = token['id']
-    return await order_service.create_order(data, db)
+    order = await order_service.create_order(data, db)
+    if order.address and order.address.email:
+        bg_task.add_task(email_service.send_invoice_email, order)
+    return order
 
 
 @router.post('/admin/new', response_model=schema.OrderOutAdmin, status_code=status.HTTP_201_CREATED)
-async def create_order_by_admin(payload: schema.CreateOrderAdmin, _: AdminAccessToken, db: Session):
-    return await order_service.create_order(payload.model_dump(), db)
+async def create_order_by_admin(payload: schema.CreateOrderAdmin, _: AdminAccessToken, bg_task: BackgroundTasks, db: Session):
+    order = await order_service.create_order(payload.model_dump(), db)
+    if order.address and order.address.email:
+        bg_task.add_task(email_service.send_invoice_email, order)
+    return order
 
 
 @router.patch('/{id}', response_model=schema.OrderOutAdmin)
@@ -96,12 +103,9 @@ async def delete_order(id: UUID, _: AdminAccessToken, db: Session, restock: bool
     await order_service.delete_order(id, restock, db)
 
 
-# @router.post('/{id}/invoice')
-# async def send_invoice_email(id: UUID, db: Session):
-#     order = await order_service.get_order_by_id(id, db)
-#     customer = await order.awaitable_attrs.customer
-#     if customer:
-#         return await email_service.send_invoice_email(order)
-#     else:
-#         raise bad_request_exception(
-#             str(id), 'Guest order does not have email address')
+@router.post('/resend-invoice/{invoice}')
+async def resend_invoice(invoice: str, _: AdminAccessToken, bg_task: BackgroundTasks, db: Session):
+    order = await order_service.get_order_by_invoice(invoice, db)
+    if order.address.email:
+        bg_task.add_task(email_service.send_invoice_email, order)
+    return {"message": "ok"}
