@@ -23,7 +23,7 @@ async def pay_with_bkash_callback(*, payment_id: str = Query(alias="paymentID"),
     if status == 'success':
         order = await service.execute_payment(payment_id, db)
         if order:
-            if order.address and order.address.email:
+            if (await order.awaitable_attrs.address) and order.address.email:
                 bg_task.add_task(email_service.payment_recieved_email, order)
             return RedirectResponse(f'{settings.FRONTEND_URL}/checkout/success?invoice={order.invoice}&id={order.id}')
         else:
