@@ -1,9 +1,15 @@
 
 import os
 from logging.config import dictConfig
+from datetime import datetime
+from logging import Formatter
+import pytz
 
 from app.config.settings import settings
 
+class BangladeshTimeFormatter(Formatter):
+    def formatTime(self, record, datefmt=None):
+        return datetime.fromtimestamp(record.created, pytz.utc).astimezone(pytz.timezone('Asia/Dhaka'))
 
 def configure_logging() -> None:
     log_path = os.path.join('logs', 'app.log')
@@ -21,13 +27,13 @@ def configure_logging() -> None:
         },
         'formatters': {
             'console': {
-                'class': 'logging.Formatter',
-                'datefmt': '%Y-%m-%d %H:%M:%S',
+                '()': BangladeshTimeFormatter,
+                'datefmt': '%Y-%b-%d %I:%M:%S %p',
                 'format': '[%(correlation_id)s] %(name)s:%(lineno)s | %(message)s',
             },
             'file': {
-                'class': 'logging.Formatter',
-                'datefmt': '%Y-%m-%d %H:%M:%S',
+                '()': BangladeshTimeFormatter,
+                'datefmt': '%Y-%b-%d %I:%M:%S %p',
                 'format': '%(asctime)s %(levelname)s | [%(correlation_id)s] %(name)s:%(lineno)s | %(message)s',
             }
         },
@@ -42,7 +48,7 @@ def configure_logging() -> None:
                 'class': 'logging.handlers.RotatingFileHandler',
                 'filename': log_path,
                 'maxBytes': 1024 * 1024,
-                'backupCount': 3,
+                'backupCount': 10,
                 'level': 'INFO',
                 'formatter': 'file',
                 "encoding": "utf8",
