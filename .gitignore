@@ -1,7 +1,5 @@
 *.db
-alembic.ini
 confusion.txt
-alembic/versions/
 *.log.*
 t.py
 .env*
