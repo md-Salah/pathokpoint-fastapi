@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 query = select(Transaction).options(
     joinedload(Transaction.gateway),
-    selectinload(Transaction.order),
+    selectinload(Transaction.customer),
     selectinload(Transaction.refunded_by),
 )
 

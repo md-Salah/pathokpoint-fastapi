@@ -57,7 +57,6 @@ class CreateRefundTransaction(CreateTransaction):
 
 class TransactionOut(TransactionBase, IdTimestampMixin):
     gateway: PaymentGatewayOut
-    order: OrderOut
     customer: UserOut | None
     is_manual: bool
     refunded_by: UserOut | None

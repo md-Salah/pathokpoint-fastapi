@@ -1,4 +1,4 @@
-from pydantic import UUID4, PositiveInt, PositiveFloat, NonNegativeInt
+from pydantic import UUID4, PositiveInt, NonNegativeFloat, NonNegativeInt
 from typing import ClassVar
 
 from app.pydantic_schema.base import BaseModel
@@ -17,7 +17,7 @@ class ItemIn(BaseModel):
 
 class ItemUpdate(BaseModel):
     book_id: UUID4
-    quantity: NonNegativeInt = 1
+    quantity: NonNegativeInt
 
     _example: ClassVar = {
         **ItemIn._example,
@@ -27,8 +27,8 @@ class ItemUpdate(BaseModel):
 class ItemOut(BaseModel):
     book: BookOut
     quantity: NonNegativeInt
-    regular_price: PositiveFloat
-    sold_price: PositiveFloat
+    regular_price: NonNegativeFloat
+    sold_price: NonNegativeFloat
 
     _example: ClassVar = {
         'book': BookOut._example,
