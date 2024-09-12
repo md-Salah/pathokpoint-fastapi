@@ -51,7 +51,8 @@ app = FastAPI(
 
 origins = [
     settings.FRONTEND_URL,
-    settings.BKASH_URL
+    settings.BKASH_URL,
+    "https://test.pathokpoint.com"
 ]
 app.add_middleware(CorrelationIdMiddleware)
 # app.add_middleware(Analytics, api_key=settings.FASTAPI_ANALYTICS_API_KEY)
