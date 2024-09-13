@@ -34,15 +34,10 @@ async def get_transaction_by_id(id: UUID, customer_id: UUID, role: str, db: Asyn
 
 
 async def get_all_transactions(filter: TransactionFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Transaction]:
-    query = select(Transaction).options(
-        joinedload(Transaction.gateway),
-        joinedload(Transaction.order),
-        joinedload(Transaction.refunded_by),
-    )
-    query = filter.filter(query)
+    stmt = filter.filter(query)
 
     offset = (page - 1) * per_page
-    result = await db.execute(query.offset(offset).limit(per_page))
+    result = await db.execute(stmt.offset(offset).limit(per_page))
     return result.scalars().unique().all()
 
 
