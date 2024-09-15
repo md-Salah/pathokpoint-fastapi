@@ -189,7 +189,7 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
                 await db.commit()
                 df.at[idx, 'status'] = 'successfully inserted'  # type: ignore
         except Exception as e:
-            logger.error(f'{traceback.format_exc()}')
+            # logger.error(f'{traceback.format_exc()}')
             df.at[idx, 'status'] = 'error: {}: {}'.format(  # type: ignore
                 e.__class__, str(e))
 
@@ -203,10 +203,13 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
 
     et = time.strftime("%H:%M:%S", time.gmtime(time.time() - st))
     count = df['status'].value_counts().to_dict()
-    logger.info('Total: {}, successfully inserted: {}, successfully updated: {}, Execution time: {}'.format(
+    error_count = len(df) - count.get('successfully inserted', 0) - count.get('successfully updated', 0)
+    
+    logger.info('Total: {}, Successfully inserted: {}, Successfully updated: {}, Error: {}, Execution time: {}'.format(
         len(df),
         count.get('successfully inserted', 0),
         count.get('successfully updated', 0),
+        error_count,
         et
     ))
 
@@ -220,8 +223,9 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
         Total: {}
         Successfully inserted: {}
         Successfully updated: {}
+        Error: {}
         Execution time: {}
-        '''.format(len(df), count.get('successfully inserted', 0), count.get('successfully updated', 0), et)
+        '''.format(len(df), count.get('successfully inserted', 0), count.get('successfully updated', 0), error_count, et)
         await email_service.send_email(email_service.MessageSchema(
             subject='Bulk book import status',
             recipients=[email],
