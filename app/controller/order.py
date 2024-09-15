@@ -233,6 +233,7 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
                 order.courier_id,
                 False
             )
+        logger.debug('Updated order items: {}'.format(order.order_items))
 
         order.total = order.new_book_total + order.old_book_total + \
             order.shipping_charge + order.weight_charge
@@ -335,6 +336,7 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
         else:
             await reduce_stock(book, item['quantity'])
             items.append(OrderItem(
+                book_id=book.id,
                 book=book,
                 regular_price=book.regular_price,
                 sold_price=book.sale_price,
@@ -356,16 +358,18 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
             new_book_total += item.sold_price * item.quantity
             cog_new += item.book.cost * item.quantity
 
+    logger.debug("Order items: {}, Old: {}, New: {}".format(items, old_book_total, new_book_total))
     return items, old_book_total, new_book_total, cog_old, cog_new
 
 
 async def apply_coupon(coupon_id: UUID | Coupon,
-                       items: List[OrderItem],
+                       order_items: List[OrderItem],
                        shipping_charge: float,
                        db: AsyncSession,
                        customer_id: UUID | None = None,
                        courier_id: UUID | None = None,
                        new_order: bool = True) -> Tuple[Coupon, float, float]:
+    items = order_items.copy()
     coupon = coupon_id if isinstance(coupon_id, Coupon) else await coupon_service.get_coupon_by_id(coupon_id, db)
 
     if new_order:
@@ -434,7 +438,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
         [item.sold_price * item.quantity for item in items if item.book.is_used])
     new_book_total = sum(
         [item.sold_price * item.quantity for item in items if not item.book.is_used])
-    logger.debug('Old book total: {}, New book total: {}'.format(
+    logger.debug('Applying coupon, Old book total: {}, New book total: {}'.format(
         old_book_total, new_book_total))
 
     discount_old = 0
