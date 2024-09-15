@@ -29,7 +29,7 @@ async def apply_coupon(payload: dict[str, Any], db: AsyncSession):
         ))
     _, discount, shipping_charge = await order_service.apply_coupon(
         coupon_id=coupon,
-        items=items,
+        order_items=items,
         shipping_charge=float('inf'),
         db=db,
         customer_id=payload.get('customer_id')
