@@ -42,7 +42,8 @@ async def read_file(file: UploadFile, MAX_MB: int = 2) -> str:
     if file.size is None:
         raise BadRequestException('File size is unknown')
     elif file.size > MAX_MB * CHUNK_SIZE:
-        raise BadRequestException('File size should not exceed {}MB'.format(MAX_MB))
+        raise BadRequestException(
+            'File size should not exceed {}MB'.format(MAX_MB))
 
     try:
         tmp_dir = 'dummy/tmp'
@@ -76,6 +77,8 @@ async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[i
 
 
 async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kwargs) -> Sequence[Image]:
+    optimizer = kwargs.get('optimizer', False)
+
     if kwargs.get('book_id'):
         book = await db.get(Book, kwargs['book_id'])
         if not book:
@@ -85,11 +88,11 @@ async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kw
         _ = await book.awaitable_attrs.images
         if kwargs['is_append']:
             [book.images.append(
-                await create_image(file, ImageFolder.book, dimension, max_kb, db)
+                await create_image(file, ImageFolder.book, dimension, max_kb, db, optimizer)
             )
                 for file in files]
         else:
-            book.images = [await create_image(file, ImageFolder.book, dimension, max_kb, db)
+            book.images = [await create_image(file, ImageFolder.book, dimension, max_kb, db, optimizer)
                            for file in files]
 
         await db.commit()
@@ -101,17 +104,17 @@ async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kw
             raise NotFoundException(
                 'Author not found', str(kwargs['author_id']))
 
-        if kwargs['is_cover_photo']:
+        if kwargs['is_banner']:
             dimension, max_kb = (1328, 256), 20
             _ = await author.awaitable_attrs.banner
-            author.banner = await create_image(files[0], ImageFolder.author, dimension, max_kb, db)
+            author.banner = await create_image(files[0], ImageFolder.author, dimension, max_kb, db, optimizer)
 
             await db.commit()
             return [author.banner]
         else:
             dimension, max_kb = (120, 120), 10
             _ = await author.awaitable_attrs.image
-            author.image = await create_image(files[0], ImageFolder.author, dimension, max_kb, db)
+            author.image = await create_image(files[0], ImageFolder.author, dimension, max_kb, db, optimizer)
 
             await db.commit()
             return [author.image]
@@ -122,17 +125,17 @@ async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kw
             raise NotFoundException(
                 'Category not found', str(kwargs['category_id']))
 
-        if kwargs['is_cover_photo']:
+        if kwargs['is_banner']:
             dimension, max_kb = (1328, 256), 20
             _ = await category.awaitable_attrs.banner
-            category.banner = await create_image(files[0], ImageFolder.category, dimension, max_kb, db)
+            category.banner = await create_image(files[0], ImageFolder.category, dimension, max_kb, db, optimizer)
 
             await db.commit()
             return [category.banner]
         else:
             dimension, max_kb = (237, 181), 10
             _ = await category.awaitable_attrs.image
-            category.image = await create_image(files[0], ImageFolder.category, dimension, max_kb, db)
+            category.image = await create_image(files[0], ImageFolder.category, dimension, max_kb, db, optimizer)
 
             await db.commit()
             return [category.image]
@@ -143,21 +146,21 @@ async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kw
             raise NotFoundException(
                 'Publisher not found', str(kwargs['publisher_id']))
 
-        if kwargs['is_cover_photo']:
+        if kwargs['is_banner']:
             dimension, max_kb = (1328, 256), 20
             _ = await publisher.awaitable_attrs.banner
-            publisher.banner = await create_image(files[0], ImageFolder.publisher, dimension, max_kb, db)
+            publisher.banner = await create_image(files[0], ImageFolder.publisher, dimension, max_kb, db, optimizer)
 
             await db.commit()
             return [publisher.banner]
         else:
             dimension, max_kb = (187, 133), 10
             _ = await publisher.awaitable_attrs.image
-            publisher.image = await create_image(files[0], ImageFolder.publisher, dimension, max_kb, db)
+            publisher.image = await create_image(files[0], ImageFolder.publisher, dimension, max_kb, db, optimizer)
 
             await db.commit()
             return [publisher.image]
-    
+
     elif kwargs.get('payment_gateway_id'):
         payment_gateway = await db.get(PaymentGateway, kwargs['payment_gateway_id'])
         if not payment_gateway:
@@ -166,12 +169,12 @@ async def inventory_img_uploader(files: list[UploadFile], db: AsyncSession, **kw
 
         dimension, max_kb = (64, 40), 5
         _ = await payment_gateway.awaitable_attrs.image
-        payment_gateway.image = await create_image(files[0], ImageFolder.payment_gateway, 
-                                                   dimension, max_kb, db, kwargs.get('optimizer', True))
+        payment_gateway.image = await create_image(files[0], ImageFolder.payment_gateway,
+                                                   dimension, max_kb, db, optimizer)
 
         await db.commit()
         return [payment_gateway.image]
-    
+
     else:
         raise BadRequestException(
             'book_id, author_id, category_id, publisher_id or payment_gateway_id is required')
