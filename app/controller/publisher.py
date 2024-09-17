@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, selectinload, joinedload
+from sqlalchemy import select, func, or_
+from sqlalchemy.orm import selectinload, joinedload
 from typing import Sequence
 from uuid import UUID
 import logging
