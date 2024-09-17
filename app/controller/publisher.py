@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, selectinload, joinedload
 from typing import Sequence
 from uuid import UUID
 import logging
@@ -11,16 +11,22 @@ from app.controller.exception import NotFoundException, ConflictException
 
 logger = logging.getLogger(__name__)
 
+query_selectinload = select(Publisher).options(selectinload(
+    Publisher.image), selectinload(Publisher.banner))
+
+query_joinedload = select(Publisher).options(joinedload(
+    Publisher.image), joinedload(Publisher.banner))
+
 
 async def get_publisher_by_id(id: UUID, db: AsyncSession) -> Publisher:
-    publisher = await db.scalar(select(Publisher).filter(Publisher.id == id))
+    publisher = await db.scalar(query_selectinload.filter(Publisher.id == id))
     if not publisher:
         raise NotFoundException('Publisher not found', str(id))
     return publisher
 
 
 async def get_publisher_by_slug(slug: str, db: AsyncSession) -> Publisher:
-    publisher = await db.scalar(select(Publisher).filter(Publisher.slug == slug))
+    publisher = await db.scalar(query_selectinload.filter(Publisher.slug == slug))
     if not publisher:
         raise NotFoundException('Publisher not found')
     return publisher
@@ -29,8 +35,7 @@ async def get_publisher_by_slug(slug: str, db: AsyncSession) -> Publisher:
 async def get_all_publishers(filter: PublisherFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Publisher]:
     offset = (page - 1) * per_page
 
-    query = select(Publisher)
-    query = filter.filter(query)
+    query = filter.filter(query_selectinload)
     query = query.offset(offset).limit(per_page)
     result = await db.execute(query)
     return result.scalars().all()
