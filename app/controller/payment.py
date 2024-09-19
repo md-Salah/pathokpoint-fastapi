@@ -1,80 +1,100 @@
+from fastapi import Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-import traceback
 import logging
 from uuid import UUID
-from sqlalchemy import select
+import json
 
 import app.library.bkash as bkash
-from app.controller.exception import ServerErrorException
-from app.models import Order, OrderStatus
-from app.controller.exception import NotFoundException
+from app.controller.exception import PaymentGatewayException
+from app.models import Order
+from app.controller.exception import BadRequestException, ServerErrorException, PaymentRequiredException
 from app.pydantic_schema.transaction import CreateTransaction as CreateTransactionSchema
-import app.controller.transaction as transaction_service
-from app.constant.orderstatus import Status
-
+import app.controller.order as order_service
+import app.controller.redis as redis_service
+import app.controller.utility as utility_service
+import app.controller.email as email_service
 
 logger = logging.getLogger(__name__)
 
 
-async def pay_with_bkash(order_id: UUID, callback_url: str, db: AsyncSession) -> str:
-    order = await db.get(Order, order_id)
-    if not order:
-        raise NotFoundException('Order not found', str(order_id))
+async def initiate_bkash_payment(order_id: UUID, amount: int, reference: str, callback_url: str) -> dict:
     payload = {
         "mode": "0011",
-        "payerReference": order.address.name if (await order.awaitable_attrs.address) else 'Anonymous',
+        "payerReference": reference,
         "callbackURL": callback_url,
-        "amount": str(int(order.due if order.is_full_paid else 100)),
+        "amount": str(amount),
         "currency": "BDT",
         "intent": "sale",
-        "merchantInvoiceNumber": str(order.invoice),
+        "merchantInvoiceNumber": str(order_id),
     }
-    try:
-        token = await bkash.grant_token()
-        data = await bkash.create_payment(token, payload=payload)
-        return data['bkashURL']
-    except Exception as err:
-        logger.error(traceback.format_exc())
-        raise ServerErrorException(str(err))
+
+    token = await bkash.grant_token()
+    if not token:
+        raise PaymentGatewayException(
+            "Payment gateway error. Please try again later.")
+
+    payment = await bkash.initiate_payment(token, payload=payload)
+    logger.debug('Init bkash payment: {}'.format(payment))
+    if not payment:
+        raise PaymentGatewayException(
+            "Payment gateway error. Please try again later.")
+    return {
+        'payment_url': payment['bkashURL'],
+        'payment_id': payment['paymentID']
+    }
 
 
-async def execute_payment(payment_id: str, db: AsyncSession) -> Order | None:
-    try:
-        token = await bkash.grant_token()
-        data = await bkash.execute_payment(payment_id, token)
-    except Exception:
-        logger.error(traceback.format_exc())
-        raise ServerErrorException('Bkash payment failed. Try again later.')
+async def execute_payment(payment_id: str, status: str, request: Request, bg_task: BackgroundTasks, db: AsyncSession) -> Order | None:
+    redis_data = await redis_service.get_redis(request, payment_id)
+    if not redis_data:
+        logger.error('Bkash Payment ID is invalid.')
+        raise BadRequestException('Invalid payment id.')
+    bg_task.add_task(redis_service.delete_redis, request, payment_id)
 
-    if data and data['statusMessage'] == 'Successful':
-        order = await db.scalar(select(Order).filter(Order.invoice == int(data['merchantInvoiceNumber'])))
-        if not order:
-            raise NotFoundException(
-                'Order not found', data['merchantInvoiceNumber'])
+    order_payload = utility_service.convert_str_to_uuid(json.loads(redis_data))
+    if not isinstance(order_payload, dict):
+        logger.error('Order payload from redis is not a dict type.')
+        raise ServerErrorException(
+            'Something went wrong, please try again later.')
 
+    if status != "success":
+        if order_payload['address']['email']:
+            bg_task.add_task(email_service.order_failed_email,
+                             order_payload['address']['email'])
+        logger.error('Bkash payment failed. status: {}'.format(status))
+        raise PaymentRequiredException(
+            'Payment failed. Please try again later.')
+
+    token = await bkash.grant_token()
+    if not token:
+        raise PaymentGatewayException(
+            "Payment gateway error. Please try again later.")
+
+    payment = await bkash.execute_payment(payment_id, token)
+    if not payment:
+        raise PaymentGatewayException(
+            "Payment gateway error. Please try again later.")
+
+    if payment['statusMessage'] == 'Successful':
         payload = CreateTransactionSchema(
             payment_method='bkash',
-            amount=data['amount'],
-            transaction_id=data['trxID'],
-            reference=data['merchantInvoiceNumber'],
-            account_number=data['customerMsisdn']
+            amount=payment['amount'],
+            transaction_id=payment['trxID'],
+            reference=payment['merchantInvoiceNumber'],
+            account_number=payment['customerMsisdn']
         )
         payload = payload.model_dump()
-        payload['customer'] = await order.awaitable_attrs.customer
-        payload['is_manual'] = False
-        trx = await transaction_service.validate_transaction(payload, db)
+        payload['is_manual'] = False  # Payment is verified by bkash API
+        order_payload['transactions'] = [payload]
 
-        (await order.awaitable_attrs.transactions).append(trx)
-        order.paid += trx.amount
-        order.due = max(0, order.net_amount - order.paid)
-
-        if order.order_status[-1].status == Status.pending:
-            order.order_status.append(OrderStatus(
-                status=Status.processing
-            ))
-        await db.commit()
+        order = await order_service.create_order(order_payload, db, commit=True,
+                                                 order_id=payment['merchantInvoiceNumber'])
+        bg_task.add_task(email_service.send_invoice_email, order)
         return order
-    elif data:
-        logger.error('Bkash payment failed. statusMessage: {}'.format(
-            data.get('statusMessage')))
-    return None
+
+    # Failed
+    if order_payload['address']['email']:
+        bg_task.add_task(email_service.order_failed_email,
+                         order_payload['address']['email'])
+    logger.error('Bkash execute payment failed. response: {}'.format(payment))
+    raise PaymentRequiredException('Payment failed. Please try again later.')

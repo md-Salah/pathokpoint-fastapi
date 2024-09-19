@@ -18,7 +18,7 @@ async def send_invoice_email(order: Order, test_email: str | None = None):
 
     if test_email:
         email = test_email
-    elif order.address and order.address.email:
+    elif (await order.awaitable_attrs.address) and order.address.email:
         email = order.address.email
     else:
         return {"message": "Email address not found."}
@@ -33,7 +33,19 @@ async def send_invoice_email(order: Order, test_email: str | None = None):
     fm = FastMail(conf)
     await fm.send_message(message)
 
-    return {"message": "Invoice has been sent to your email."}
+    return {"message": "Invoice has been sent to customer email."}
+
+
+async def order_failed_email(email: str):
+    fm = FastMail(conf)
+    message = MessageSchema(
+        subject='Order Failed',
+        recipients=[email],
+        body="Your order has been failed. Please try again.",
+        subtype=MessageType.plain
+    )
+    await fm.send_message(message)
+    logger.info("Order failed email has been sent to email.")
 
 
 async def send_signup_otp(email: EmailStr, otp: str, expiry_min: int):
@@ -86,7 +98,7 @@ async def payment_recieved_email(order: Order):
     Amount: {}\n
     Thank you for shopping with us.\n
     '''.format(order.address.name, order.invoice, order.paid)
-    
+
     if order.address and order.address.email:
         message = MessageSchema(
             subject='Payment Received for Order #{}'.format(order.invoice),
@@ -99,7 +111,6 @@ async def payment_recieved_email(order: Order):
         await fm.send_message(message)
 
         logger.info("Payment received email has been sent.")
-
 
 
 # Test email sending

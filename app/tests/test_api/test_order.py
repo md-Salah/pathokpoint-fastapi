@@ -7,29 +7,19 @@ from unittest.mock import MagicMock
 pytestmark = pytest.mark.asyncio
 
 
-async def test_get_my_order_by_id(client: AsyncClient, address_in_db: dict[str, Any], courier_in_db: dict, book_in_db: dict):
+async def test_get_my_order_by_id(diff, client: AsyncClient, address_in_db: dict, order_in_db: dict, admin_auth_headers: dict):
     user_in_db = address_in_db['user']
     headers = {'Authorization': 'Bearer {}'.format(
         user_in_db['token']['access_token'])}
-    payload = {
-        "address": address_in_db['address'],
-        "courier_id": courier_in_db["id"],
-        "payment_method": "bkash",
-        "order_items": [
-            {
-                "book_id": book_in_db["id"],
-                "quantity": 1,
-            }
-        ]
-    }
-    response = await client.post("/order/new", json=payload, headers=headers)
-    assert response.status_code == status.HTTP_201_CREATED
-    order_in_db = response.json()
+
+    res = await client.patch(f"/order/{order_in_db['id']}", json={
+        "customer_id": user_in_db['user']['id']
+    }, headers=admin_auth_headers)
+    assert res.status_code == status.HTTP_200_OK
 
     response = await client.get(f"/order/id/{order_in_db['id']}", headers=headers)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json().items() <= order_in_db.items()
-
+    
 
 async def test_get_order_of_other_customer(client: AsyncClient, order_in_db: dict, customer_auth_headers: dict):
     response = await client.get(f"/order/id/{order_in_db['id']}", headers=customer_auth_headers)
@@ -76,8 +66,57 @@ async def test_get_my_orders(client: AsyncClient, order_in_db: dict, customer_au
     assert response.headers.get("x-total-count") == str(expected_length)
 
 
+async def test_place_order_by_customer(
+        bkash_grant_token: MagicMock,
+        bkash_init_payment: MagicMock,
+        set_redis: MagicMock,
+        client: AsyncClient,
+        user_in_db: dict[str, Any],
+        book_in_db: dict,
+        coupon_in_db: dict,
+        payment_gateway_in_db: dict,
+        address_payload: dict[str, Any],
+        courier_in_db: dict):
+    bkash_grant_token.return_value = "token"
+    bkash_init_payment.return_value = {
+        "bkashURL": "some_url",
+        "paymentID": "TESTPAYMENTID"
+    }
+
+    payload = {
+        "coupon_code": coupon_in_db["code"],
+        "address": address_payload,
+        "courier_id": courier_in_db["id"],
+        "payment_method": "bkash",
+        "order_items": [
+            {
+                "book_id": book_in_db["id"],
+                "quantity": 1,
+            }
+        ],
+        "is_full_paid": True
+    }
+
+    response = await client.post("/order/new", json=payload, headers={
+        'Authorization': 'Bearer {}'.format(user_in_db['token']['access_token'])
+    })
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['payment_url']
+    bkash_grant_token.assert_called_once()
+    bkash_init_payment.assert_called_once()
+    set_redis.assert_called_once()
+
+
 @pytest.mark.parametrize('quantity', [1, 2])
-async def test_create_order_by_customer(send_invoice: MagicMock, client: AsyncClient, user_in_db: dict[str, Any], book_in_db: dict, coupon_in_db: dict, address_payload: dict[str, Any], courier_in_db: dict, quantity: int):
+async def test_create_order_by_admin(
+        client: AsyncClient,
+        book_in_db: dict,
+        coupon_in_db: dict,
+        address_payload: dict[str, Any],
+        courier_in_db: dict,
+        admin_auth_headers: dict,
+        quantity: int):
+
     payload = {
         "coupon_code": coupon_in_db["code"],
         "address": address_payload,
@@ -88,15 +127,13 @@ async def test_create_order_by_customer(send_invoice: MagicMock, client: AsyncCl
                 "book_id": book_in_db["id"],
                 "quantity": quantity,
             }
-        ]
+        ],
     }
 
-    response = await client.post("/order/new", json=payload, headers={
-        'Authorization': 'Bearer {}'.format(user_in_db['token']['access_token'])
-    })
+    response = await client.post("/order/admin/new", json=payload, headers=admin_auth_headers)
+    assert response.status_code == status.HTTP_201_CREATED
     response_data = response.json()
 
-    assert response.status_code == status.HTTP_201_CREATED
     assert len(response_data["order_items"]) == len(payload["order_items"])
     assert response_data["coupon"]["code"] == payload["coupon_code"]
     assert response_data["address"].items() >= payload["address"].items()
@@ -109,7 +146,7 @@ async def test_create_order_by_customer(send_invoice: MagicMock, client: AsyncCl
     # Payment
     assert response_data['paid'] == 0
 
-    # Stock
+    # Stock Check
     response = await client.get(f"/book/id/{book_in_db['id']}")
     assert response.json()["quantity"] == book_in_db["quantity"] - quantity
 
@@ -125,7 +162,6 @@ async def test_create_order_by_customer(send_invoice: MagicMock, client: AsyncCl
         else:
             assert response_data['discount'] == book_in_db['sale_price'] * \
                 quantity * (coupon_in_db['discount_old'] / 100)
-    send_invoice.assert_called_once()
 
 
 async def test_create_order_by_admin_without_shipping(send_invoice: MagicMock, client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):

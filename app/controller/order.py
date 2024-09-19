@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from typing import Sequence, List, Tuple, Any
 from sqlalchemy.orm import selectinload, aliased
@@ -109,8 +109,9 @@ async def get_my_orders(filter: OrderFilterCustomer, customer_id: UUID, page: in
     return orders, count
 
 
-async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool = True) -> Order:
+async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool = True, order_id: UUID | None = None) -> Order:
     order = Order()
+    order.id = order_id or uuid4()
     order.is_full_paid = payload['is_full_paid']
 
     if payload.get('customer_id'):
@@ -170,7 +171,6 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
     order.paid = 0
     if payload.get('transactions'):
         for transaction in payload['transactions']:
-            transaction['is_manual'] = True  # Manual transaction by admin
             transaction['customer'] = order.customer
             order.transactions.append(
                 await transaction_service.validate_transaction(transaction, db)
@@ -196,10 +196,13 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
     order.gross_profit = order.net_amount - order.cost_of_good_new - \
         order.cost_of_good_old - order.shipping_cost - order.additional_cost
 
+    db.add(order)
     if commit:
-        db.add(order)
         await db.commit()
         logger.info('Order created: {}'.format(order))
+    else:
+        await db.flush()
+        
     return order
 
 
@@ -288,6 +291,12 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
         order.additional_cost = payload['additional_cost']
         order.gross_profit = order.net_amount - order.cost_of_good_new - \
             order.cost_of_good_old - order.additional_cost
+
+    if payload.get('customer_id'):
+        customer = await db.get(User, payload['customer_id'])
+        if not customer:
+            raise NotFoundException('Customer not found')
+        order.customer = customer
 
     await db.commit()
     logger.info('Order updated: {}'.format(order))

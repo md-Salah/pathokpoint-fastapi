@@ -26,6 +26,14 @@ class BadRequestException(HTTPException):
         )
 
 
+class PaymentRequiredException(HTTPException):
+    def __init__(self, message: str, resource_id: str | None = None):
+        super().__init__(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={"resource_id": resource_id, "message": message},
+        )
+
+
 class ForbiddenException(HTTPException):
     def __init__(self, message: str, resource_id: str | None = None):
         super().__init__(
@@ -46,6 +54,14 @@ class ServerErrorException(HTTPException):
     def __init__(self, message: str, resource_id: str | None = None):
         super().__init__(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"resource_id": resource_id, "message": message},
+        )
+
+
+class PaymentGatewayException(HTTPException):
+    def __init__(self, message: str, resource_id: str | None = None):
+        super().__init__(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"resource_id": resource_id, "message": message},
         )
 

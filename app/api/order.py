@@ -1,7 +1,7 @@
-from fastapi import APIRouter, status, Query, Response, BackgroundTasks
+from fastapi import APIRouter, status, Query, Response, Request, BackgroundTasks
 from uuid import UUID
 from fastapi_filter import FilterDepends
-
+import json
 
 from app.filter_schema.order import OrderFilter, OrderFilterCustomer
 from app.controller.exception import BadRequestException
@@ -10,6 +10,9 @@ import app.pydantic_schema.order as schema
 from app.config.database import Session
 import app.controller.order as order_service
 import app.controller.email as email_service
+import app.controller.redis as redis_service
+import app.controller.payment as payment_service
+import app.controller.utility as utility_service
 
 router = APIRouter(prefix='/order')
 
@@ -74,20 +77,39 @@ async def get_all_orders_by_admin(*,
     return orders
 
 
-@router.post('/new', response_model=schema.OrderOut, status_code=status.HTTP_201_CREATED)
-async def create_order(payload: schema.CreateOrder, token: AccessTokenOptional, bg_task: BackgroundTasks, db: Session):
-    data = payload.model_dump()
+@router.post('/new', response_model=schema.PaymentUrlResponse)
+async def create_order(payload: schema.CreateOrder, token: AccessTokenOptional, request: Request, db: Session):
+    req_payload = payload.model_dump()
     if token:
-        data['customer_id'] = token['id']
-    order = await order_service.create_order(data, db)
-    if order.address and order.address.email:
-        bg_task.add_task(email_service.send_invoice_email, order)
-    return order
+        req_payload['customer_id'] = token['id']
+    order = await order_service.create_order(req_payload, db, commit=False)
+
+    # Payment
+    EXPIRE_SEC = 10 * 60
+    MIN_AMOUNT = 100
+    if req_payload['payment_method'] == 'bkash':
+        callback_url = str(request.url_for('pay_with_bkash_callback'))
+        payment = await payment_service.initiate_bkash_payment(
+            order.id,
+            int(order.net_amount if order.is_full_paid else MIN_AMOUNT),
+            order.address.name if order.address else str(order.id),
+            callback_url
+        )
+
+        await redis_service.set_redis(request, payment['payment_id'], json.dumps(
+            utility_service.convert_uuid_to_str(req_payload)
+        ), EXPIRE_SEC)
+        return {"payment_url": payment['payment_url']}
+    else:
+        raise BadRequestException('Invalid payment method')
 
 
 @router.post('/admin/new', response_model=schema.OrderOutAdmin, status_code=status.HTTP_201_CREATED)
 async def create_order_by_admin(payload: schema.CreateOrderAdmin, _: AdminAccessToken, bg_task: BackgroundTasks, db: Session):
-    order = await order_service.create_order(payload.model_dump(), db)
+    req_payload = payload.model_dump()
+    for trx in req_payload['transactions']:
+        trx['is_manual'] = True # Transaction is verified manually by admin   
+    order = await order_service.create_order(req_payload, db)
     if order.address and order.address.email:
         bg_task.add_task(email_service.send_invoice_email, order)
     return order

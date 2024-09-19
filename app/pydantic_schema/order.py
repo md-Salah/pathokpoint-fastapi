@@ -144,6 +144,7 @@ class UpdateOrderAdmin(BaseModel):
     additional_cost: NonNegativeFloat = 0
     order_status: StatusIn = Field(None)
     transaction: CreateTransaction | None = None
+    customer_id: UUID4 | None = None
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_order_update_admin})
@@ -161,3 +162,8 @@ class OrderOutAdmin(OrderOut):
 
     model_config = ConfigDict(
         json_schema_extra={"example": example_order_out_admin})
+
+
+class PaymentUrlResponse(BaseModel):
+    payment_url: str
+    

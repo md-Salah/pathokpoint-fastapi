@@ -29,6 +29,46 @@ def send_invoice() -> Generator:
         yield send_invoice
 
 
+@pytest.fixture(name="set_redis")
+def set_redis() -> Generator:
+    with patch("app.controller.redis.set_redis") as set_redis:
+        yield set_redis
+
+
+@pytest.fixture(name="get_redis")
+def get_redis() -> Generator:
+    with patch("app.controller.redis.get_redis") as get_redis:
+        yield get_redis
+
+
+@pytest.fixture(name="delete_redis")
+def delete_redis() -> Generator:
+    with patch("app.controller.redis.delete_redis") as delete_redis:
+        yield delete_redis
+
+
+@pytest.fixture(name="bkash_grant_token")
+def bkash_grant_token() -> Generator:
+    with patch("app.library.bkash.grant_token") as bkash_grant_token:
+        yield bkash_grant_token
+
+
+@pytest.fixture(name="bkash_init_payment")
+def bkash_init_payment() -> Generator:
+    with patch("app.library.bkash.initiate_payment") as bkash_init_payment:
+        yield bkash_init_payment
+
+
+@pytest.fixture(name="bkash_exec_payment")
+def bkash_exec_payment() -> Generator:
+    with patch("app.library.bkash.execute_payment") as bkash_exec_payment:
+        yield bkash_exec_payment
+
+@pytest.fixture(name="send_email")
+def send_email() -> Generator:
+    with patch("app.controller.email.FastMail.send_message") as send_email:
+        yield send_email
+
 @pytest_asyncio.fixture(name="img_uploader")
 async def img_uploader(client: AsyncClient) -> Callable:
 
@@ -378,6 +418,6 @@ def diff() -> Callable:
                 print('COMPARING:', key)
                 compare(val, big[key])
             elif big[key] != val:
-                print("Mismatch:", key, val, big[key])
+                print("Mismatch: {} | {} | {}".format(key, val, big[key]))
 
     return compare

@@ -42,23 +42,16 @@ async def test_create_book_review(client: AsyncClient, book_in_db: dict, user_in
     assert response.json().items() >= payload.items()
 
 
-async def test_create_order_review(client: AsyncClient, book_in_db: dict, address_in_db: dict[str, Any], courier_in_db: dict):
+async def test_create_order_review(client: AsyncClient, order_in_db: dict, address_in_db: dict[str, Any], admin_auth_headers: dict[str, Any]):
     user_in_db = address_in_db['user']
     headers = {"Authorization": "Bearer {}".format(
         user_in_db['token']['access_token'])}
-    response = await client.post('/order/new', json={
-        "order_items": [
-            {
-                "book_id": book_in_db['id'],
-                "quantity": 1,
-            }
-        ],
-        'address': address_in_db['address'],
-        "payment_method": "bkash",
-        'courier_id': courier_in_db['id'],
-    }, headers=headers)
-    assert response.status_code == status.HTTP_201_CREATED
-    order_in_db = response.json()
+    
+    # Mimic the order belongs to the customer
+    res = await client.patch(f"/order/{order_in_db['id']}", json={
+        "customer_id": user_in_db['user']['id']
+    }, headers=admin_auth_headers)
+    assert res.status_code == status.HTTP_200_OK
 
     payload = {
         **simple_review,
