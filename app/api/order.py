@@ -2,10 +2,11 @@ from fastapi import APIRouter, status, Query, Response, Request, BackgroundTasks
 from uuid import UUID
 from fastapi_filter import FilterDepends
 import json
+import logging
 
 from app.filter_schema.order import OrderFilter, OrderFilterCustomer
 from app.controller.exception import BadRequestException
-from app.controller.auth import AccessToken, AdminAccessToken, AccessTokenOptional
+from app.controller.auth import AccessToken, AdminAccessToken, AccessTokenOptional, CurrentAdmin
 import app.pydantic_schema.order as schema
 from app.config.database import Session
 import app.controller.order as order_service
@@ -15,6 +16,8 @@ import app.controller.payment as payment_service
 import app.controller.utility as utility_service
 
 router = APIRouter(prefix='/order')
+
+logger = logging.getLogger(__name__)
 
 
 @router.get('/id/{id}', response_model=schema.OrderOut)
@@ -108,7 +111,7 @@ async def create_order(payload: schema.CreateOrder, token: AccessTokenOptional, 
 async def create_order_by_admin(payload: schema.CreateOrderAdmin, _: AdminAccessToken, bg_task: BackgroundTasks, db: Session):
     req_payload = payload.model_dump()
     for trx in req_payload['transactions']:
-        trx['is_manual'] = True # Transaction is verified manually by admin   
+        trx['is_manual'] = True  # Transaction is verified manually by admin
     order = await order_service.create_order(req_payload, db)
     if order.address and order.address.email:
         bg_task.add_task(email_service.send_invoice_email, order)
@@ -116,7 +119,8 @@ async def create_order_by_admin(payload: schema.CreateOrderAdmin, _: AdminAccess
 
 
 @router.patch('/{id}', response_model=schema.OrderOutAdmin)
-async def update_order(id: UUID, payload: schema.UpdateOrderAdmin, _: AdminAccessToken, db: Session):
+async def update_order(id: UUID, payload: schema.UpdateOrderAdmin, admin: CurrentAdmin, db: Session):
+    logger.info("{} is updating order {}".format(admin, id))
     return await order_service.update_order(id, payload.model_dump(exclude_unset=True), db)
 
 

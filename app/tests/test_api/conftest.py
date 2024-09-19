@@ -236,7 +236,7 @@ async def create_admin_with_token(client: AsyncClient, admin_in_db: dict, admin_
     response = await client.post('/auth/token', data={"username": admin_in_db['email'], "password": admin_payload['password']})
     assert response.status_code == status.HTTP_200_OK
     access_token = response.json()['access_token']
-    return {**admin_in_db, 'token': access_token}
+    return {**admin_in_db, 'token': access_token, 'auth_headers': {'Authorization': f'Bearer {access_token}'}}
 
 
 @pytest_asyncio.fixture(name="courier_payload")

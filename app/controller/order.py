@@ -312,7 +312,12 @@ async def delete_order(id: UUID, restock: bool, db: AsyncSession) -> None:
         for item in order.order_items:
             book = await item.awaitable_attrs.book
             await restock_item(book, item.quantity)
+            
+    for trx in (await order.awaitable_attrs.transactions):
+        logger.info('Deleting transaction: {}'.format(trx))
+        await db.delete(trx)
 
+    logger.info('Deleting order: {}'.format(order))
     await db.delete(order)
     await db.commit()
 
