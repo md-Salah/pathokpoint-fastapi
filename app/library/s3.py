@@ -112,7 +112,7 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
                         if obj['Key'] == folder + '/':
                             continue
                         key = obj['Key']
-                        logger.info('Key: {}'.format(key))
+                        logger.debug('Key: {}'.format(key))
                         try:
                             filename = key.split('/')[-1]
                             sku = key.split('/')[-1].split('.')[0]
@@ -147,3 +147,4 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
                 page_number += 1
     except Exception:
         logger.error(traceback.format_exc())
+    logger.info('Exit from attach_s3_imgs_with_books')
