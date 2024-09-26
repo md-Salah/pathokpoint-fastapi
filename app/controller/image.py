@@ -79,8 +79,8 @@ async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[i
     image = Image(name=file.filename,
                   src='', public_id='', folder=folder)
     db.add(image)
-    signed_url = await s3.signed_url(file.filename, folder.value)
-    set_committed_value(image, 'src', signed_url)
+    set_committed_value(image, 'src', s3.public_url(
+        file.filename, folder.value))
     return image
 
 
@@ -224,21 +224,11 @@ async def customer_img_uploader(files: list[UploadFile], user_id: UUID, db: Asyn
 
 async def delete_image(id: UUID, db: AsyncSession) -> None:
     image = await get_image_by_id(id, db)
-    success = await s3.delete_file(image.name, image.folder.value)
-    if not success:
-        logger.error('Image file delete failed "{}"'.format(image.name))
     await db.delete(image)
     await db.commit()
 
 
 async def delete_image_bulk(ids: Sequence[UUID], db: AsyncSession) -> None:
-    images = (await db.scalars(select(Image).filter(Image.id.in_(ids)))).all()
-
-    for image in images:
-        success = await s3.delete_file(image.name, image.folder.value)
-        if not success:
-            logger.error('Image file delete failed "{}"'.format(image.name))
-
     await db.execute(delete(Image).where(Image.id.in_(ids)))
     await db.commit()
 

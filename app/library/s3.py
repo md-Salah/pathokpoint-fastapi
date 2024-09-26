@@ -31,7 +31,7 @@ async def upload_file(file: BufferedReader | bytes, filename: str, folder: str) 
                 Key=key,
                 Body=file,
                 ContentType=content_type,
-                # ACL='public-read'  # Set ACL to public-read
+                ACL='public-read'  # Set ACL to public-read
             )
             logger.info(
                 "File '{}' uploaded successfully to '{}'".format(filename, folder))
@@ -58,7 +58,7 @@ async def delete_file(filename: str, folder: str) -> bool:
         return False
 
 
-async def public_url(filename: str, folder: str) -> str:
+def public_url(filename: str, folder: str) -> str:
     key = f"{folder}/{filename}"
     return f"https://{settings.BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
 
@@ -86,6 +86,7 @@ async def signed_url(filename: str, folder: str, expires_in: int = 3600):
 async def attach_s3_imgs_with_books(db: AsyncSession) -> bool:
     from app.models import Book, Image
     folder = 'book'
+    not_found = []
     try:
         session = aioboto3.Session(
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -130,10 +131,13 @@ async def attach_s3_imgs_with_books(db: AsyncSession) -> bool:
                                 count['attached'] += 1
                         else:
                             count['object_deleted'] += 1
-                            await delete_file(filename, folder)
+                            # await delete_file(filename, folder)
+                            not_found.append(filename)
                     except Exception:
                         logger.error(traceback.format_exc())
                 logger.info('Count: {}'.format(count))
+                logger.info(
+                    'Book not found for the images: {}'.format(not_found))
         return True
     except Exception:
         logger.error(traceback.format_exc())
