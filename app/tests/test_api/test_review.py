@@ -46,7 +46,7 @@ async def test_create_order_review(client: AsyncClient, order_in_db: dict, addre
     user_in_db = address_in_db['user']
     headers = {"Authorization": "Bearer {}".format(
         user_in_db['token']['access_token'])}
-    
+
     # Mimic the order belongs to the customer
     res = await client.patch(f"/order/{order_in_db['id']}", json={
         "customer_id": user_in_db['user']['id']

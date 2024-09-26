@@ -106,8 +106,8 @@ async def test_update_book(client: AsyncClient, book_in_db: dict, admin_auth_hea
 
 
 async def test_upload_book_images(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict, 
-                                  img_uploader: Callable, mock_upload_file: MagicMock, mock_delete_file: MagicMock):
-    await img_uploader("/image/admin?book_id={}".format(book_in_db['id']), admin_auth_headers, mock_upload_file)
+                                  img_uploader: Callable, mock_upload_file: MagicMock, mock_delete_file: MagicMock, mock_signed_url: MagicMock):
+    await img_uploader("/image/admin?book_id={}".format(book_in_db['id']), admin_auth_headers, mock_upload_file, mock_signed_url)
     res = await client.get(f"/book/id/{book_in_db['id']}")
     assert res.status_code == status.HTTP_200_OK
     assert len(res.json()['images']) == 1

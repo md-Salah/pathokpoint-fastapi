@@ -13,14 +13,20 @@ from app.constant.role import Role
 
 @pytest.fixture(name="mock_upload_file")
 def mock_upload_file() -> Generator:
-    with patch("app.controller.image.upload_file_to_cloudinary") as mock_upload_file:
+    with patch("app.library.s3.upload_file") as mock_upload_file:
         yield mock_upload_file
 
 
 @pytest.fixture(name="mock_delete_file")
 def mock_delete_file() -> Generator:
-    with patch("app.models.image.delete_file_from_cloudinary_sync") as mock_delete_file:
+    with patch("app.library.s3.delete_file") as mock_delete_file:
         yield mock_delete_file
+        
+        
+@pytest.fixture(name="mock_signed_url")
+def mock_signed_url() -> Generator:
+    with patch("app.library.s3.signed_url") as mock_signed_url:
+        yield mock_signed_url
 
 
 @pytest.fixture(name="send_invoice")
@@ -72,12 +78,9 @@ def send_email() -> Generator:
 @pytest_asyncio.fixture(name="img_uploader")
 async def img_uploader(client: AsyncClient) -> Callable:
 
-    async def _create_image(url: str, headers: dict, mock_upload_file: MagicMock) -> Dict[str, Any]:
-        mock_upload_file.return_value = {
-            'public_id': 'dummy',
-            'secure_url': 'https://res.cloudinary.com/dummy/image/upload/v1631234567/dummy/test.jpg',
-            'filename': 'image.jpg'
-        }
+    async def _create_image(url: str, headers: dict, mock_upload_file: MagicMock, mock_signed_url: MagicMock) -> Dict[str, Any]:
+        mock_upload_file.return_value = 'dummy-key'
+        mock_signed_url.return_value = 'https://signed-url'
         with open("dummy/test.jpg", "rb") as f:
             response = await client.post(url,
                                          files=[
@@ -120,12 +123,9 @@ async def create_book(client: AsyncClient, book_payload: dict, admin_auth_header
 
 
 @pytest_asyncio.fixture(name="image_in_db")
-async def create_image(mock_upload_file: MagicMock, client: AsyncClient, author_in_db: dict, admin_auth_headers: dict):
-    mock_upload_file.return_value = {
-        'public_id': 'dummy',
-        'secure_url': 'https://res.cloudinary.com/dummy/image/upload/v1631234567/dummy/test.jpg',
-        'filename': 'image.jpg'
-    }
+async def create_image(mock_upload_file: MagicMock, mock_signed_url: MagicMock, client: AsyncClient, author_in_db: dict, admin_auth_headers: dict):
+    mock_upload_file.return_value = 'key'
+    mock_signed_url.return_value = 'https://dummy-url.com'
 
     with open("dummy/test.jpg", "rb") as f:
         response = await client.post("/image/admin?author_id={}".format(author_in_db['id']),
@@ -366,7 +366,7 @@ def review_payload() -> dict:
 
 @pytest_asyncio.fixture(name="review_in_db")
 async def create_review(client: AsyncClient, review_payload: dict, book_in_db: dict[str, Any],
-                        user_in_db: dict[str, dict], img_uploader: Callable, mock_upload_file: MagicMock):
+                        user_in_db: dict[str, dict], img_uploader: Callable, mock_upload_file: MagicMock, mock_signed_url: MagicMock):
     headers = {"Authorization": "Bearer {}".format(
         user_in_db["token"]['access_token'])}
 
@@ -377,7 +377,7 @@ async def create_review(client: AsyncClient, review_payload: dict, book_in_db: d
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
 
-    img = await img_uploader("/image/user?review_id={}".format(data["id"]), headers, mock_upload_file)
+    img = await img_uploader("/image/user?review_id={}".format(data["id"]), headers, mock_upload_file, mock_signed_url)
     data["images"] = [img]
     data['headers'] = headers
 
@@ -413,11 +413,11 @@ def diff() -> Callable:
     def compare(big: dict[str, Any], small: dict[str, Any]) -> None:
         for key, val in small.items():
             if key not in big:
-                print(f"Mismatch: {key} not found in greater dict")
+                print(f"Mismatch: {key} not found in left dict")
             elif isinstance(val, dict):
                 print('COMPARING:', key)
                 compare(val, big[key])
             elif big[key] != val:
-                print("Mismatch: {} | {} | {}".format(key, val, big[key]))
+                print("Mismatch: {} -> {} | {}".format(key, big[key], val))
 
     return compare

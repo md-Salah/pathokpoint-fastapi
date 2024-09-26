@@ -1,20 +1,14 @@
 
 import os
 from logging.config import dictConfig
-from datetime import datetime
-from logging import Formatter
-import pytz
 
 from app.config.settings import settings
 
-class BangladeshTimeFormatter(Formatter):
-    def formatTime(self, record, datefmt=None):
-        return datetime.fromtimestamp(record.created, pytz.utc).astimezone(pytz.timezone('Asia/Dhaka'))
 
 def configure_logging() -> None:
     log_path = os.path.join('logs', 'app.log')
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    
+
     dictConfig({
         'version': 1,
         "disable_existing_loggers": False,
@@ -27,12 +21,12 @@ def configure_logging() -> None:
         },
         'formatters': {
             'console': {
-                '()': BangladeshTimeFormatter,
+                'class': 'logging.Formatter',
                 'datefmt': '%Y-%b-%d %I:%M:%S %p',
                 'format': '[%(correlation_id)s] %(name)s:%(lineno)s | %(message)s',
             },
             'file': {
-                '()': BangladeshTimeFormatter,
+                'class': 'logging.Formatter',
                 'datefmt': '%Y-%b-%d %I:%M:%S %p',
                 'format': '%(asctime)s %(levelname)s | [%(correlation_id)s] %(name)s:%(lineno)s | %(message)s',
             }
@@ -57,6 +51,7 @@ def configure_logging() -> None:
         },
         "loggers": {
             "uvicorn": {
+                'level': 'INFO' if settings.PRODUCTION else 'DEBUG',
                 "handlers": ["default", "rotating_file"],
             },
             'app': {
@@ -64,6 +59,7 @@ def configure_logging() -> None:
                 'handlers': ['default', 'rotating_file'],
             },
             "sqlalchemy": {
+                'level': 'WARNING' if settings.PRODUCTION else 'WARNING',
                 "handlers": ["default", "rotating_file"],
             }
         }

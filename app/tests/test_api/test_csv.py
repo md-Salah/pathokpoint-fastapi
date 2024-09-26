@@ -3,7 +3,7 @@ import pytest
 from httpx import AsyncClient
 from starlette import status
 import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 pytestmark = pytest.mark.asyncio
 
@@ -17,15 +17,9 @@ async def test_export_books(client: AsyncClient, book_in_db: dict, admin_auth_he
         b"id,sku,name,regular_price,sale_price,quantity,manage_stock,authors,publisher,categories,images,tags,")
     assert len(response.content.splitlines()) == 2
 
-@patch("app.controller.csv.email_service.send_email")
-@patch("app.controller.csv.delete_file_from_cloudinary")
-@patch("app.controller.csv.upload_file_to_cloudinary")
+
 async def test_import_books_by_csv(mock_upload_file: MagicMock, mock_delete_file: MagicMock, send_email: MagicMock, client: AsyncClient, admin_in_db_with_token: dict):
-    mock_upload_file.return_value = {
-        'filename': 'test_book.jpg',
-        'public_id': 'test_book',
-        'secure_url': 'https://res.cloudinary.com/test_book.jpg',
-    }
+    mock_upload_file.return_value = 'key'
     mock_delete_file.return_value = True
     send_email.return_value = None
     headers = {
@@ -131,4 +125,3 @@ async def test_import_books_by_csv(mock_upload_file: MagicMock, mock_delete_file
     mock_upload_file.assert_called_once
     mock_delete_file.assert_called_once
     send_email.assert_called_once
-    

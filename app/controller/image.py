@@ -8,12 +8,12 @@ import logging
 import tempfile
 import aiofiles
 from typing import Tuple, List
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.models import Image, User, Book, Author, Category, Publisher, Review, PaymentGateway
 from app.controller.exception import NotFoundException, ServerErrorException, BadRequestException
-from app.library.cloudinary import upload_file_to_cloudinary, delete_file_from_cloudinary, update_file
+import app.library.s3 as s3
 from app.constant.image import ImageFolder
-from app.library.img_resize import img_resize
 
 logger = logging.getLogger(__name__)
 
@@ -61,18 +61,26 @@ async def read_file(file: UploadFile, MAX_MB: int = 2) -> str:
 
 
 async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[int, int], max_kb: int, db: AsyncSession, optimizer: bool = True) -> Image:
-    tmp_file = await read_file(file)
-    if optimizer:
-        await img_resize(tmp_file, dimension, max_kb)
+    MAX_KB = 30
 
-    response = await upload_file_to_cloudinary(tmp_file, filename=file.filename, folder=folder.value)
-    os.remove(tmp_file)
-    if not response:
+    if not file.filename:
+        raise BadRequestException('Filename is required')
+    elif file.size is None:
+        raise BadRequestException('File size is unknown')
+    elif file.size > MAX_KB * 1024:
+        raise BadRequestException(
+            'File size should not exceed {}KB'.format(MAX_KB))
+
+    blob = await file.read()
+    key = await s3.upload_file(blob, file.filename, folder.value)
+    if not key:
         raise ServerErrorException('Image upload failed')
 
-    image = Image(name=response['filename'],
-                  src=response['secure_url'], public_id=response['public_id'], folder=folder)
+    image = Image(name=file.filename,
+                  src='', public_id='', folder=folder)
     db.add(image)
+    signed_url = await s3.signed_url(file.filename, folder.value)
+    set_committed_value(image, 'src', signed_url)
     return image
 
 
@@ -214,32 +222,11 @@ async def customer_img_uploader(files: list[UploadFile], user_id: UUID, db: Asyn
         raise BadRequestException('review_id or is_profile_pic is required')
 
 
-# async def update_image(id: UUID, file: UploadFile, filename: str | None, alt: str, db: AsyncSession) -> Image:
-#     image = await db.get(Image, id)
-#     if not image:
-#         raise NotFoundException('Image not found', str(id))
-
-#     tmp_file = await read_file(file)
-#     await img_resize(tmp_file, (260, 372), 20)
-#     filename = filename or file.filename or ""
-
-#     response = await update_file(tmp_file, public_id=image.public_id, filename=filename)
-#     os.remove(tmp_file)
-#     if not response:
-#         raise ServerErrorException('Image upload failed')
-
-#     image.public_id = response['public_id']
-#     image.src = response['secure_url']
-#     image.name = filename
-#     await db.commit()
-#     return image
-
-
 async def delete_image(id: UUID, db: AsyncSession) -> None:
     image = await get_image_by_id(id, db)
-    success = await delete_file_from_cloudinary(image.public_id)
+    success = await s3.delete_file(image.name, image.folder.value)
     if not success:
-        raise ServerErrorException('Image delete failed')
+        logger.error('Image file delete failed "{}"'.format(image.name))
     await db.delete(image)
     await db.commit()
 
@@ -248,9 +235,9 @@ async def delete_image_bulk(ids: Sequence[UUID], db: AsyncSession) -> None:
     images = (await db.scalars(select(Image).filter(Image.id.in_(ids)))).all()
 
     for image in images:
-        success = await delete_file_from_cloudinary(image.public_id)
+        success = await s3.delete_file(image.name, image.folder.value)
         if not success:
-            raise ServerErrorException('Image delete failed')
+            logger.error('Image file delete failed "{}"'.format(image.name))
 
     await db.execute(delete(Image).where(Image.id.in_(ids)))
     await db.commit()

@@ -16,7 +16,7 @@ from app.constant import ImageFolder
 from app.filter_schema.book import BookFilter
 from app.models import Book, Author, Publisher, Category, Tag, Image, User
 from app.controller.book import get_all_books
-from app.library.cloudinary import upload_file_to_cloudinary, delete_file_from_cloudinary
+import app.library.s3 as s3
 from app.controller.exception import NotFoundException, BadRequestException
 from app.controller.utility import unique_slug
 import app.controller.email as email_service
@@ -122,18 +122,18 @@ async def find_or_create_relation(name_str: str | None, slug_str: str | None,
     return items
 
 
-async def upload_images(images: str | None) -> list[Image]:
-    if not images:
-        return []
-    items = []
-    for img in images.split('|'):
-        if img.strip():
-            response = await upload_file_to_cloudinary(img.strip(), None, ImageFolder.book.value)
-            assert response, 'error: image upload failed'
-            image = Image(name=response['filename'],
-                          src=response['secure_url'], public_id=response['public_id'], folder=ImageFolder.book)
-            items.append(image)
-    return items
+# async def upload_images(images: str | None) -> list[Image]:
+#     if not images:
+#         return []
+#     items = []
+#     for img in images.split('|'):
+#         if img.strip():
+#             response = await s3.upload_file()
+#             assert response, 'error: image upload failed'
+#             image = Image(name=response['filename'],
+#                           src=response['secure_url'], public_id=response['public_id'], folder=ImageFolder.book)
+#             items.append(image)
+#     return items
 
 
 async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email: str | None = None):
@@ -153,7 +153,8 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
                                                  payload.get('tags_slug'), CreateTag, Tag, db)
             publisher = await find_or_create_relation(payload.pop('publisher', None),
                                                       payload.get('publisher_slug'), CreatePublisher, Publisher, db)
-            images = await upload_images(payload.pop('images', None))
+            # images = await upload_images(payload.pop('images', None))
+            images = []
 
             _book = await db.scalar(query_joinedload.filter(Book.sku == idx))
             if _book:
@@ -195,9 +196,10 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
 
             try:
                 # Remove images from cloudinary
-                if isinstance(images[0], Image):
-                    for image in images:
-                        await delete_file_from_cloudinary(image.public_id)
+                # if isinstance(images[0], Image):
+                #     for image in images:
+                #         await delete_file_from_cloudinary(image.public_id)
+                pass
             except Exception:
                 pass
 

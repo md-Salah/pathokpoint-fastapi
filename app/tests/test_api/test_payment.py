@@ -11,6 +11,7 @@ pytestmark = pytest.mark.asyncio
 async def test_pay_with_bkash_success_callback(
     delete_redis: MagicMock,
     get_redis: MagicMock,
+    bkash_grant_token: MagicMock,
     bkash_exec_payment: MagicMock,
     send_email: MagicMock,
     client: AsyncClient,
@@ -39,6 +40,9 @@ async def test_pay_with_bkash_success_callback(
     get_redis.return_value = '{}'.format(json.dumps(
         order_payload
     ))
+    bkash_grant_token.return_value = {
+        'id_token': 'fake-token'
+    }
     bkash_exec_payment.return_value = {
         "customerMsisdn": "01770618575",
         "trxID": "6H7801QFYM",
@@ -56,11 +60,12 @@ async def test_pay_with_bkash_success_callback(
     assert res.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     assert '/checkout/success' in res.headers['location']
     send_email.assert_called_once()
-    
-    
+
+
 async def test_pay_with_bkash_failed_callback(
     delete_redis: MagicMock,
     get_redis: MagicMock,
+    bkash_grant_token: MagicMock,
     bkash_exec_payment: MagicMock,
     send_email: MagicMock,
     client: AsyncClient,
@@ -89,6 +94,9 @@ async def test_pay_with_bkash_failed_callback(
     get_redis.return_value = '{}'.format(json.dumps(
         order_payload
     ))
+    bkash_grant_token.return_value = {
+        'id_token': 'fake-token'
+    }
     bkash_exec_payment.return_value = {
         "customerMsisdn": "01770618575",
         "trxID": "6H7801QFYM",
@@ -106,11 +114,12 @@ async def test_pay_with_bkash_failed_callback(
     assert res.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     assert '/checkout/failed' in res.headers['location']
     send_email.assert_called_once()
-    
-    
+
+
 async def test_pay_with_bkash_callback_failed_to_execute_payment(
     delete_redis: MagicMock,
     get_redis: MagicMock,
+    bkash_grant_token: MagicMock,
     bkash_exec_payment: MagicMock,
     send_email: MagicMock,
     client: AsyncClient,
@@ -139,6 +148,9 @@ async def test_pay_with_bkash_callback_failed_to_execute_payment(
     get_redis.return_value = '{}'.format(json.dumps(
         order_payload
     ))
+    bkash_grant_token.return_value = {
+        'id_token': 'fake-token'
+    }
     bkash_exec_payment.return_value = {
         "customerMsisdn": "01770618575",
         "trxID": "6H7801QFYM",
@@ -156,4 +168,3 @@ async def test_pay_with_bkash_callback_failed_to_execute_payment(
     assert res.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     assert '/checkout/failed' in res.headers['location']
     send_email.assert_called_once()
-
