@@ -113,7 +113,7 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
                         if obj['Key'] == folder + '/':
                             continue
                         key = obj['Key']
-                        logger.debug('Key: {}'.format(key))
+                        logger.info('Key: {}'.format(key))
                         try:
                             filename = key.split('/')[-1]
                             sku = key.split('/')[-1].split('.')[0]
