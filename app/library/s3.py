@@ -98,54 +98,52 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
             paginator = s3.get_paginator('list_objects_v2')
             page_number = 0
             async for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=folder):
-                if page_number < target_page:
-                    page_number += 1
-                    continue
+                if page_number == target_page:
+                    objs = page.get('Contents', [])
+                    logger.info(
+                        'Attaching Images. Number of objects: {}'.format(len(objs)-1))
+                    count = {
+                        'attached': 0,
+                        'already_attached': 0,
+                        'object_deleted': 0
+                    }
+
+                    for obj in objs:
+                        if obj['Key'] == folder + '/':
+                            continue
+                        key = obj['Key']
+                        logger.debug('Key: {}'.format(key))
+                        try:
+                            filename = key.split('/')[-1]
+                            sku = key.split('/')[-1].split('.')[0]
+                            book = await db.scalar(select(Book).filter(Book.sku == sku))
+                            logger.debug(book)
+                            if book:
+                                logger.debug(book.images)
+                                for img in book.images:
+                                    if img.name == filename:
+                                        count['already_attached'] += 1
+                                        break
+                                else:
+                                    image = Image(name=filename,
+                                                src='', public_id='', folder=folder)
+                                    db.add(image)
+                                    book.images = [image]
+                                    await db.commit()
+                                    logger.info('Image added {} to book {}'.format(image, book))
+                                    count['attached'] += 1
+                            else:
+                                count['object_deleted'] += 1
+                                # await delete_file(filename, folder)
+                                not_found.append(filename)
+                        except Exception:
+                            logger.error(traceback.format_exc())
+                    logger.info('Count: {}'.format(count))
+                    logger.info(
+                        'Book not found for the images: {}'.format(not_found))
                 elif page_number > target_page:
                     break
-                objs = page.get('Contents', [])
-                logger.info(
-                    'Attaching Images. Number of objects: {}'.format(len(objs)-1))
-                count = {
-                    'attached': 0,
-                    'already_attached': 0,
-                    'object_deleted': 0
-                }
-
-                for obj in objs:
-                    if not db.is_active:
-                        db = get_db() # type: ignore
-                    if obj['Key'] == folder + '/':
-                        continue
-                    key = obj['Key']
-                    logger.debug('Key: {}'.format(key))
-                    try:
-                        filename = key.split('/')[-1]
-                        sku = key.split('/')[-1].split('.')[0]
-                        book = await db.scalar(select(Book).filter(Book.sku == sku))
-                        logger.debug(book)
-                        if book:
-                            logger.debug(book.images)
-                            for img in book.images:
-                                if img.name == filename:
-                                    count['already_attached'] += 1
-                                    break
-                            else:
-                                image = Image(name=filename,
-                                              src='', public_id='', folder=folder)
-                                db.add(image)
-                                book.images = [image]
-                                await db.commit()
-                                logger.info('Image added {} to book {}'.format(image, book))
-                                count['attached'] += 1
-                        else:
-                            count['object_deleted'] += 1
-                            # await delete_file(filename, folder)
-                            not_found.append(filename)
-                    except Exception:
-                        logger.error(traceback.format_exc())
-                logger.info('Count: {}'.format(count))
-                logger.info(
-                    'Book not found for the images: {}'.format(not_found))
+                else:
+                    page_number += 1
     except Exception:
         logger.error(traceback.format_exc())
