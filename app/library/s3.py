@@ -127,7 +127,7 @@ async def attach_s3_imgs_with_books(db: AsyncSession) -> bool:
                                 db.add(image)
                                 book.images = [image]
                                 await db.commit()
-                                logger.debug('Image attached to book')
+                                logger.info('Image added {} to book {}'.format(image, book))
                                 count['attached'] += 1
                         else:
                             count['object_deleted'] += 1
