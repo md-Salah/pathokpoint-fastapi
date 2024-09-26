@@ -25,7 +25,7 @@ class Image(TimestampMixin):
         Enum(ImageFolder), default=ImageFolder.dummy)
 
     def __repr__(self):
-        return f'<Image (filename={self.name}, folder={self.folder.value})>'
+        return f'<Image (filename={self.name}, folder={self.folder})>'
 
 
 @event.listens_for(Image, 'after_delete')
