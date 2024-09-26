@@ -98,8 +98,8 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
             paginator = s3.get_paginator('list_objects_v2')
             page_number = 0
             async for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=folder):
+                logger.info('Page Number: {}, Target Page: {}'.format(page_number, target_page))
                 if page_number == target_page:
-                    print(page_number, target_page)
                     objs = page.get('Contents', [])
                     logger.info(
                         'Attaching Images. Number of objects: {}'.format(len(objs)-1))
