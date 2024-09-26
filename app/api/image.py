@@ -78,8 +78,8 @@ async def delete_image(id: UUID, _: AdminAccessToken, db: Session):
 
 
 @router.get('/attach-books')
-async def attach_s3_images_with_books(_: AdminAccessToken, bg_task: BackgroundTasks, db: Session):
-    bg_task.add_task(s3.attach_s3_imgs_with_books, db)
+async def attach_s3_images_with_books(*, page: int = Query(0, ge=0), _: AdminAccessToken, bg_task: BackgroundTasks, db: Session):
+    bg_task.add_task(s3.attach_s3_imgs_with_books, page, db)
     return {
         'message': 'Images are being attached with books'
     }

@@ -5,6 +5,7 @@ import aioboto3
 import mimetypes
 from botocore.exceptions import ClientError
 
+from app.config.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -83,7 +84,7 @@ async def signed_url(filename: str, folder: str, expires_in: int = 3600):
             traceback.format_exc()))
 
 
-async def attach_s3_imgs_with_books(db: AsyncSession) -> bool:
+async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
     from app.models import Book, Image
     folder = 'book'
     not_found = []
@@ -95,7 +96,13 @@ async def attach_s3_imgs_with_books(db: AsyncSession) -> bool:
         )
         async with session.client('s3') as s3:  # type: ignore
             paginator = s3.get_paginator('list_objects_v2')
+            page_number = 0
             async for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=folder):
+                if page_number < target_page:
+                    page_number += 1
+                    continue
+                elif page_number > target_page:
+                    break
                 objs = page.get('Contents', [])
                 logger.info(
                     'Attaching Images. Number of objects: {}'.format(len(objs)-1))
@@ -106,6 +113,8 @@ async def attach_s3_imgs_with_books(db: AsyncSession) -> bool:
                 }
 
                 for obj in objs:
+                    if not db.is_active:
+                        db = get_db() # type: ignore
                     if obj['Key'] == folder + '/':
                         continue
                     key = obj['Key']
@@ -138,7 +147,5 @@ async def attach_s3_imgs_with_books(db: AsyncSession) -> bool:
                 logger.info('Count: {}'.format(count))
                 logger.info(
                     'Book not found for the images: {}'.format(not_found))
-        return True
     except Exception:
         logger.error(traceback.format_exc())
-        return False
