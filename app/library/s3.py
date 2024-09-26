@@ -99,6 +99,7 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
             page_number = 0
             async for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=folder):
                 if page_number == target_page:
+                    print(page_number, target_page)
                     objs = page.get('Contents', [])
                     logger.info(
                         'Attaching Images. Number of objects: {}'.format(len(objs)-1))
@@ -143,7 +144,7 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
                         'Book not found for the images: {}'.format(not_found))
                 elif page_number > target_page:
                     break
-                else:
-                    page_number += 1
+                
+                page_number += 1
     except Exception:
         logger.error(traceback.format_exc())
