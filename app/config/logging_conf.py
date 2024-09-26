@@ -51,7 +51,7 @@ def configure_logging() -> None:
         },
         "loggers": {
             "uvicorn": {
-                'level': 'INFO' if settings.PRODUCTION else 'DEBUG',
+                'level': 'WARNING' if settings.PRODUCTION else 'DEBUG',
                 "handlers": ["default", "rotating_file"],
             },
             'app': {
