@@ -5,10 +5,9 @@ import aioboto3
 import mimetypes
 from botocore.exceptions import ClientError
 
-from app.config.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
+import os
 
 from app.config.settings import settings
 
@@ -60,7 +59,7 @@ async def delete_file(filename: str, folder: str) -> bool:
 
 
 def public_url(filename: str, folder: str) -> str:
-    key = f"{folder}/{filename}"
+    key = os.path.join(folder, filename)
     return f"https://{settings.BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
 
 
