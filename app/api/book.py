@@ -1,14 +1,23 @@
-from fastapi import APIRouter, status, Query, Response, File, UploadFile, BackgroundTasks
 from uuid import UUID
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi_filter import FilterDepends
 
-from app.filter_schema.book import BookFilter, BookFilterMinimal
-import app.pydantic_schema.book as schema
-from app.config.database import Session
 import app.controller.book as book_service
 import app.controller.csv as csv_service
+import app.pydantic_schema.book as schema
+from app.config.database import Session
 from app.controller.auth import AdminAccessToken, CurrentAdmin
 from app.controller.exception import BadRequestException
+from app.filter_schema.book import BookFilter
 
 router = APIRouter(prefix='/book')
 
@@ -26,24 +35,6 @@ async def get_book_by_public_id(public_id: int, db: Session):
 @router.get('/admin/public_id/{public_id}', response_model=schema.BookOutAdmin)
 async def get_book_by_admin_with_public_id(public_id: int, _: AdminAccessToken, db: Session):
     return await book_service.get_book_by_public_id(public_id, db)
-
-
-# @router.get('/all-minimal', response_model=list[schema.BookOutMinimal])
-# async def get_all_books_minimal(*,
-#                                 page: int = Query(1, ge=1),
-#                                 per_page: int = Query(10, ge=1, le=100),
-#                                 filter: BookFilterMinimal = FilterDepends(
-#                                     BookFilterMinimal),
-#                                 db: Session,
-#                                 response: Response):
-#     books, count = await book_service.get_all_books_minimal(filter, page, per_page, db)
-
-#     response.headers['X-Total-Count'] = str(count)
-#     response.headers['X-Total-Pages'] = str(-(-count // per_page))
-#     response.headers['X-Current-Page'] = str(page)
-#     response.headers['X-Per-Page'] = str(per_page)
-
-#     return books
 
 
 @router.get('/all', response_model=list[schema.BookOut])

@@ -1,50 +1,104 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
-from sqlalchemy.orm import joinedload
-from typing import Sequence
-from uuid import UUID
 import logging
+import traceback
+from typing import Sequence, Union
+from uuid import UUID
 
-from app.filter_schema.category import CategoryFilter
-from app.models import Category
-from app.controller.exception import NotFoundException, ConflictException
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Query, joinedload, selectinload
+from sqlalchemy.sql.selectable import Select
+
+from app.controller.exception import (
+    ConflictException,
+    NotFoundException,
+    UnhandledException,
+)
 from app.controller.image import validate_img
+from app.filter_schema.category import CategoryFilter
+from app.models import Author, Book, Category, Publisher
 
 logger = logging.getLogger(__name__)
 
-query = select(Category).options(joinedload(Category.parent),
-                                 joinedload(Category.children),  # type: ignore
-                                 joinedload(Category.image),
-                                 joinedload(Category.banner))
+query_selectinload = select(Category).options(
+    selectinload(Category.parent),
+    selectinload(Category.image),
+    selectinload(Category.banner)
+)
+
+query_joinedload = select(Category).options(
+    joinedload(Category.parent),
+    joinedload(Category.image),
+    joinedload(Category.banner)
+)
 
 
 async def get_category_by_id(id: UUID, db: AsyncSession) -> Category:
-    category = await db.scalar(query.filter(Category.id == id))
+    category = await db.scalar(query_selectinload.filter(Category.id == id))
     if not category:
         raise NotFoundException('Category not found', str(id))
     return category
 
 
 async def get_category_by_slug(slug: str, db: AsyncSession) -> Category:
-    category = await db.scalar(query.filter(Category.slug == slug))
+    category = await db.scalar(query_selectinload.filter(Category.slug == slug))
     if not category:
         raise NotFoundException('Category not found')
     return category
 
 
+def apply_filter(fltr: CategoryFilter, query: Union[Query, Select]) -> Union[Query, Select]:
+    filter = fltr.model_copy()
+    author__name__in = filter.pop('author__name__in')
+    publisher__name__in = filter.pop('publisher__name__in')
+
+    if author__name__in or publisher__name__in:
+        query = query.join(Category.books)
+
+    if author__name__in:
+        query = query.filter(
+            Book.authors.any(Author.name.in_(author__name__in))
+        )
+    if publisher__name__in:
+        query = query.filter(
+            Book.publisher.has(Publisher.name.in_(publisher__name__in))
+        )
+    if q := filter.pop('q'):
+        query = query.filter(or_(
+            Category.name.ilike(f'%{q}%'),
+            Category.slug.ilike(f'%{q.replace(' ', '-')}%'),
+            func.similarity(Category.name, q) > 0.5,
+            func.similarity(Category.slug, q) > 0.5
+        ))
+
+    query = filter.filter(query)
+    query = query.distinct()
+    return query
+
+
 async def get_all_categories(filter: CategoryFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Category]:
     offset = (page - 1) * per_page
 
-    stmt = filter.filter(query)
-    stmt = stmt.offset(offset).limit(per_page)
-    result = await db.execute(stmt)
+    query = apply_filter(filter, query_selectinload)
+
+    try:
+        result = await db.execute(query.offset(offset).limit(per_page))
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
+
     return result.scalars().unique().all()
 
 
 async def count_category(filter: CategoryFilter, db: AsyncSession) -> int:
-    stmt = select(func.count(Category.id))
-    stmt = filter.filter(stmt)
-    result = await db.execute(stmt)
+    query = apply_filter(filter, select(Category))
+    count_query = select(func.count()).select_from(query.subquery())
+
+    try:
+        result = await db.execute(count_query)
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
+
     return result.scalar_one()
 
 

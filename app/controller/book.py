@@ -1,19 +1,23 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
-from uuid import UUID
-from typing import Sequence, Tuple
-from sqlalchemy.orm import selectinload, joinedload
 import logging
-from slugify import slugify
-import traceback
-import pandas as pd
 import time
+import traceback
+from typing import Sequence, Tuple
+from uuid import UUID
 
+import pandas as pd
+from slugify import slugify
+from sqlalchemy import delete, func, select, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
-from app.filter_schema.book import BookFilter, BookFilterMinimal
-from app.models import Book, Author, Category, Image, Publisher, Tag
-from app.controller.exception import NotFoundException, ConflictException, UnhandledException
+from app.controller.exception import (
+    ConflictException,
+    NotFoundException,
+    UnhandledException,
+)
 from app.controller.image import validate_imgs
+from app.filter_schema.book import BookFilter
+from app.models import Author, Book, Category, Image, Publisher, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -51,28 +55,6 @@ async def get_book_by_public_id(public_id: int, db: AsyncSession) -> Book:
     return book
 
 
-async def get_all_books_minimal(filter: BookFilterMinimal, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
-    offset = (page - 1) * per_page
-    query = select(Book).distinct().options(
-        selectinload(Book.authors),
-        selectinload(Book.images),
-    )
-    if any([filter.author.id__in, filter.author.name__in, filter.author.slug__in]):
-        query = query.outerjoin(Book.authors)
-    query = filter.filter(query)
-    query = filter.sort(query)
-    st = time.time()
-    result = await db.execute(query.offset(offset).limit(per_page))
-    logger.debug(f'Time taken to fetch books: {time.time() - st}')
-
-    st = time.time()
-    count_stmt = select(func.count()).select_from(query.subquery())
-    count = await db.scalar(count_stmt) or 0
-    logger.debug(f'Time taken to fetch count: {time.time() - st}')
-
-    return result.unique().scalars().all(), count
-
-
 async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncSession) -> Tuple[Sequence[Book], int]:
     offset = (page - 1) * per_page
 
@@ -82,6 +64,15 @@ async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncS
                    Publisher.id, Publisher.name, Publisher.slug,
                    Tag.id, Tag.name, Tag.slug
                    ).outerjoin(Book.authors).outerjoin(Book.categories).outerjoin(Book.publisher).outerjoin(Book.tags)
+
+    if q := filter.pop('q'):
+        query = query.filter(or_(
+            Book.name.ilike(f'%{q}%'),
+            Book.slug.ilike(f'%{q.replace(' ', '-')}%'),
+            func.similarity(Book.name, q) > 0.5,
+            func.similarity(Book.slug, q) > 0.5
+        ))
+
     query = filter.filter(query)
     query = query.distinct(Book.id)
     subquery = query.subquery()

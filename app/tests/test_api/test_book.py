@@ -1,8 +1,9 @@
+from typing import Any, Callable
+from unittest.mock import MagicMock
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import MagicMock
 from starlette import status
-from typing import Any, Callable
 
 pytestmark = pytest.mark.asyncio
 
@@ -53,13 +54,6 @@ async def test_get_all_books(client: AsyncClient, book_in_db: dict[str, Any], qu
     assert response.headers.get("x-total-count") == str(expected_length)
 
 
-# async def test_get_all_books_minimal(client: AsyncClient, book_in_db: dict):
-#     response = await client.get("/book/all-minimal")
-#     assert len(response.json()) == 1
-#     assert response.json()[0].items() <= book_in_db.items()
-#     assert response.headers.get("x-total-count") == '1'
-
-
 async def test_create_book(client: AsyncClient, author_in_db: dict, category_in_db: dict, publisher_in_db: dict, admin_auth_headers: dict):
     payload = {
         **simple_book,
@@ -105,7 +99,7 @@ async def test_update_book(client: AsyncClient, book_in_db: dict, admin_auth_hea
     assert payload.items() <= response.json().items()
 
 
-async def test_upload_book_images(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict, 
+async def test_upload_book_images(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict,
                                   img_uploader: Callable, mock_upload_file: MagicMock, mock_delete_file: MagicMock, mock_signed_url: MagicMock):
     await img_uploader("/image/admin?book_id={}".format(book_in_db['id']), admin_auth_headers, mock_upload_file, mock_signed_url)
     res = await client.get(f"/book/id/{book_in_db['id']}")

@@ -1,13 +1,16 @@
 from fastapi import Query
-from pydantic import Field, UUID4
 from fastapi_filter.contrib.sqlalchemy import Filter
+from pydantic import UUID4, Field
 
-from app.models.author import Author
 from app.constant.country import Country
+from app.filter_schema.base import BaseFilter
+from app.models.author import Author
 
-class AuthorFilter(Filter):
+
+class AuthorFilter(BaseFilter, Filter):
     id__in: list[UUID4] | None = None
-    q: str | None = Field(Query(None, description='Search by author name or slug'))
+    q: str | None = Field(
+        Query(None, description='Search by author name or slug'))
     name: str | None = None
     slug__in: list[str] | None = None
     country: Country | None = None
@@ -15,9 +18,8 @@ class AuthorFilter(Filter):
     followers_count__lte: int | None = None
     followers_count__gte: int | None = None
 
+    category__name__in: list[str] | None = None
+    publisher__name__in: list[str] | None = None
+
     class Constants(Filter.Constants):
         model = Author
-        search_field_name = 'q'
-        search_model_fields = ['name', 'slug']
-        
-        

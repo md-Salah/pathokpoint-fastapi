@@ -1,14 +1,21 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
-from sqlalchemy.orm import selectinload, joinedload
-from typing import Sequence
-from uuid import UUID
 import logging
+import traceback
+from typing import Sequence, Union
+from uuid import UUID
 
-from app.models import Publisher
-from app.filter_schema.publisher import PublisherFilter
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Query, joinedload, selectinload
+from sqlalchemy.sql.selectable import Select
+
+from app.controller.exception import (
+    ConflictException,
+    NotFoundException,
+    UnhandledException,
+)
 from app.controller.image import validate_img
-from app.controller.exception import NotFoundException, ConflictException
+from app.filter_schema.publisher import PublisherFilter
+from app.models import Author, Book, Category, Publisher
 
 logger = logging.getLogger(__name__)
 
@@ -33,19 +40,59 @@ async def get_publisher_by_slug(slug: str, db: AsyncSession) -> Publisher:
     return publisher
 
 
+def apply_filter(fltr: PublisherFilter, query: Union[Query, Select]) -> Union[Query, Select]:
+    filter = fltr.model_copy()
+    author__name__in = filter.pop('author__name__in')
+    category__name__in = filter.pop('category__name__in')
+
+    if author__name__in or category__name__in:
+        query = query.join(Publisher.books)
+
+    if author__name__in:
+        query = query.filter(
+            Book.authors.any(Author.name.in_(author__name__in))
+        )
+    if category__name__in:
+        query = query.filter(
+            Book.categories.any(Category.name.in_(category__name__in))
+        )
+    if q := filter.pop('q'):
+        query = query.filter(or_(
+            Publisher.name.ilike(f'%{q}%'),
+            Publisher.slug.ilike(f'%{q.replace(' ', '-')}%'),
+            func.similarity(Publisher.name, q) > 0.5,
+            func.similarity(Publisher.slug, q) > 0.5
+        ))
+
+    query = filter.filter(query)
+    query = query.distinct()
+    return query
+
+
 async def get_all_publishers(filter: PublisherFilter, page: int, per_page: int, db: AsyncSession) -> Sequence[Publisher]:
     offset = (page - 1) * per_page
 
-    query = filter.filter(query_selectinload)
-    query = query.offset(offset).limit(per_page)
-    result = await db.execute(query)
-    return result.scalars().all()
+    query = apply_filter(filter, query_selectinload)
+
+    try:
+        result = await db.execute(query.offset(offset).limit(per_page))
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
+
+    return result.scalars().unique().all()
 
 
 async def count_publisher(filter: PublisherFilter, db: AsyncSession) -> int:
-    query = select(func.count(Publisher.id))
-    query = filter.filter(query)
-    result = await db.execute(query)
+    query = apply_filter(filter, select(Publisher))
+    count_query = select(func.count()).select_from(query.subquery())
+
+    try:
+        result = await db.execute(count_query)
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
+
     return result.scalar_one()
 
 
