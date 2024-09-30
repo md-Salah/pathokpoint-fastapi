@@ -21,8 +21,9 @@ class CategoryFilter(BaseFilter, Filter):
     is_big_sale: bool | None = None
     is_in_menu: bool | None = None
 
-    author__name__in: list[str] | None = None
-    publisher__name__in: list[str] | None = None
+    author__slug__in: list[str] | None = None
+    publisher__slug__in: list[str] | None = None
+    tag__slug__in: list[str] | None = None
 
     class Constants(Filter.Constants):
         model = Category

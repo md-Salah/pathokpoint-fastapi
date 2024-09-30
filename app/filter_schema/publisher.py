@@ -18,8 +18,9 @@ class PublisherFilter(BaseFilter, Filter):
     is_popular: bool | None = None
     is_in_menu: bool | None = None
     
-    author__name__in: list[str] | None = None
-    category__name__in: list[str] | None = None
+    author__slug__in: list[str] | None = None
+    category__slug__in: list[str] | None = None
+    tag__slug__in: list[str] | None = None
 
     class Constants(Filter.Constants):
         model = Publisher

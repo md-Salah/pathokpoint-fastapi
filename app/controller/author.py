@@ -15,7 +15,7 @@ from app.controller.exception import (
 )
 from app.controller.image import validate_img
 from app.filter_schema.author import AuthorFilter
-from app.models import Author, Book, Category, Publisher, User
+from app.models import Author, Book, Category, Publisher, User, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -41,19 +41,24 @@ async def get_author_by_slug(slug: str, db: AsyncSession) -> Author:
 
 def apply_filter(fltr: AuthorFilter, query: Union[Query, Select]) -> Union[Query, Select]:
     filter = fltr.model_copy()
-    category__name__in = filter.pop('category__name__in')
-    publisher__name__in = filter.pop('publisher__name__in')
+    category__slug__in = filter.pop('category__slug__in')
+    publisher__slug__in = filter.pop('publisher__slug__in')
+    tag__slug__in = filter.pop('tag__slug__in')
 
-    if publisher__name__in or category__name__in:
+    if publisher__slug__in or category__slug__in or tag__slug__in:
         query = query.join(Author.books)
 
-    if publisher__name__in:
+    if publisher__slug__in:
         query = query.filter(
-            Book.publisher.has(Publisher.name.in_(publisher__name__in))
+            Book.publisher.has(Publisher.slug.in_(publisher__slug__in))
         )
-    if category__name__in:
+    if category__slug__in:
         query = query.filter(
-            Book.categories.any(Category.name.in_(category__name__in))
+            Book.categories.any(Category.slug.in_(category__slug__in))
+        )
+    if tag__slug__in:
+        query = query.filter(
+            Book.tags.any(Tag.slug.in_(tag__slug__in))
         )
     if q := filter.pop('q'):
         query = query.filter(or_(

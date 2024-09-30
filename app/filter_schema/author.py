@@ -19,8 +19,9 @@ class AuthorFilter(BaseFilter, Filter):
     followers_count__lte: int | None = None
     followers_count__gte: int | None = None
 
-    category__name__in: list[str] | None = None
-    publisher__name__in: list[str] | None = None
+    category__slug__in: list[str] | None = None
+    publisher__slug__in: list[str] | None = None
+    tag__slug__in: list[str] | None = None
 
     class Constants(Filter.Constants):
         model = Author
