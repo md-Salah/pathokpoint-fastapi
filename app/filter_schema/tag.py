@@ -10,6 +10,7 @@ class TagFilter(Filter):
     name: str | None = None
     slug__in: list[str] | None = None
     private: bool | None = None
+    is_in_menu: bool | None = None
 
     class Constants(Filter.Constants):
         model = Tag

@@ -19,6 +19,7 @@ class CategoryFilter(BaseFilter, Filter):
     is_comics: bool | None = None
     is_popular: bool | None = None
     is_big_sale: bool | None = None
+    is_in_menu: bool | None = None
 
     author__name__in: list[str] | None = None
     publisher__name__in: list[str] | None = None

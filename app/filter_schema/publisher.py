@@ -16,6 +16,7 @@ class PublisherFilter(BaseFilter, Filter):
     is_islamic: bool | None = None
     is_english: bool | None = None
     is_popular: bool | None = None
+    is_in_menu: bool | None = None
     
     author__name__in: list[str] | None = None
     category__name__in: list[str] | None = None

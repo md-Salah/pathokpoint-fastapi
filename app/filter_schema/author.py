@@ -15,6 +15,7 @@ class AuthorFilter(BaseFilter, Filter):
     slug__in: list[str] | None = None
     country: Country | None = None
     is_popular: bool | None = None
+    is_in_menu: bool | None = None
     followers_count__lte: int | None = None
     followers_count__gte: int | None = None
 

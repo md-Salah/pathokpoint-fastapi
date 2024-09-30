@@ -196,12 +196,10 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
     order.gross_profit = order.net_amount - order.cost_of_good_new - \
         order.cost_of_good_old - order.shipping_cost - order.additional_cost
 
-    db.add(order)
     if commit:
+        db.add(order)
         await db.commit()
         logger.info('Order created: {}'.format(order))
-    else:
-        await db.flush()
         
     return order
 
