@@ -70,7 +70,7 @@ def apply_filter(fltr: CategoryFilter, query: Union[Query, Select]) -> Union[Que
     if q := filter.pop('q'):
         query = query.filter(or_(
             Category.name.ilike(f'%{q}%'),
-            Category.slug.ilike(f'%{q.replace(' ', '-')}%'),
+            Category.slug.ilike('%{}%'.format(q.replace(' ', '-'))),
             func.similarity(Category.name, q) > 0.5,
             func.similarity(Category.slug, q) > 0.5
         ))

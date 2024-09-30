@@ -68,7 +68,7 @@ async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncS
     if q := filter.pop('q'):
         query = query.filter(or_(
             Book.name.ilike(f'%{q}%'),
-            Book.slug.ilike(f'%{q.replace(' ', '-')}%'),
+            Book.slug.ilike('%{}%'.format(q.replace(' ', '-'))),
             func.similarity(Book.name, q) > 0.5,
             func.similarity(Book.slug, q) > 0.5
         ))

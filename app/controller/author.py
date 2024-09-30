@@ -63,7 +63,7 @@ def apply_filter(fltr: AuthorFilter, query: Union[Query, Select]) -> Union[Query
     if q := filter.pop('q'):
         query = query.filter(or_(
             Author.name.ilike(f'%{q}%'),
-            Author.slug.ilike(f'%{q.replace(' ', '-')}%'),
+            Author.slug.ilike('%{}%'.format(q.replace(' ', '-'))),
             func.similarity(Author.name, q) > 0.5,
             func.similarity(Author.slug, q) > 0.5
         ))

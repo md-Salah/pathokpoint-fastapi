@@ -64,7 +64,7 @@ def apply_filter(fltr: PublisherFilter, query: Union[Query, Select]) -> Union[Qu
     if q := filter.pop('q'):
         query = query.filter(or_(
             Publisher.name.ilike(f'%{q}%'),
-            Publisher.slug.ilike(f'%{q.replace(' ', '-')}%'),
+            Publisher.slug.ilike('%{}%'.format(q.replace(' ', '-'))),
             func.similarity(Publisher.name, q) > 0.5,
             func.similarity(Publisher.slug, q) > 0.5
         ))
