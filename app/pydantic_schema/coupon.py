@@ -1,7 +1,7 @@
 from pydantic import ConfigDict, Field, UUID4, field_validator, ValidationInfo, NonNegativeFloat, PositiveInt
 from datetime import datetime, timedelta
 
-from app.pydantic_schema.mixins import IdTimestampMixin
+from app.pydantic_schema.mixins import IdTimestampMixin, IdNameSlugMixin
 from app.pydantic_schema.base import BaseModel
 from app.pydantic_schema.common import BookOut, AuthorOut, PublisherOut, CategoryOut, TagOut, UserOut, CourierOut
 
@@ -117,15 +117,14 @@ class UpdateCoupon(CreateCoupon):
     code: str = Field(None, min_length=3, max_length=20)
     discount_type: DiscountType = Field(None)
 
-
 class CouponOut(CreateCoupon, IdTimestampMixin):
-    include_books: list[BookOut] = []
+    include_books: list[IdNameSlugMixin] = []
     include_authors: list[AuthorOut] = []
     include_categories: list[CategoryOut] = []
     include_publishers: list[PublisherOut] = []
     include_tags: list[TagOut] = []
 
-    exclude_books: list[BookOut] = []
+    exclude_books: list[IdNameSlugMixin] = []
     exclude_authors: list[AuthorOut] = []
     exclude_categories: list[CategoryOut] = []
     exclude_publishers: list[PublisherOut] = []
