@@ -134,7 +134,7 @@ class BookBase(NameSlugMixin):
     def validate_in_stock(cls, v: bool, info: ValidationInfo):
         if v is True and info.data['quantity'] == 0:
             raise ValueError(
-                'Quantity must be greater than 0 when in_stock is True')
+                'Quantity must be greater than 0 when in_stock is True, Slug: {}'.format(info.data['slug']))
         return v
 
 
