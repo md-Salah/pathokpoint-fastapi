@@ -472,7 +472,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
             discount_new = coupon.discount_new
 
     if old_book_total >= coupon.min_spend_old or new_book_total >= coupon.min_spend_new:
-        if coupon.max_shipping_charge:
+        if coupon.max_shipping_charge is not None:
             shipping_charge = min(shipping_charge, coupon.max_shipping_charge)
     elif coupon.discount_old and coupon.discount_new:
         raise BadRequestException('Please buy more {}৳ old or {}৳ new book to use this coupon'.format(
