@@ -110,6 +110,7 @@ async def test_place_order_by_customer(
 @pytest.mark.parametrize('quantity', [1, 2])
 async def test_create_order_by_admin(
         client: AsyncClient,
+        send_email: MagicMock,
         book_in_db: dict,
         coupon_in_db: dict,
         address_payload: dict[str, Any],
@@ -117,6 +118,7 @@ async def test_create_order_by_admin(
         admin_auth_headers: dict,
         quantity: int):
 
+    send_email.return_value = None
     payload = {
         "coupon_code": coupon_in_db["code"],
         "address": address_payload,
@@ -133,6 +135,7 @@ async def test_create_order_by_admin(
     response = await client.post("/order/admin/new", json=payload, headers=admin_auth_headers)
     assert response.status_code == status.HTTP_201_CREATED
     response_data = response.json()
+    send_email.assert_called_once()
 
     assert len(response_data["order_items"]) == len(payload["order_items"])
     assert response_data["coupon"]["code"] == payload["coupon_code"]

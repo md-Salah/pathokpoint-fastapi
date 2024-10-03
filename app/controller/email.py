@@ -1,12 +1,13 @@
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from fastapi_mail import FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Order
-from app.config.email import conf, templates, logo_url
-from app.controller.utility import bangladesh_time
+from app.config.email import conf, logo_url, templates
 from app.controller.order import get_order_by_invoice
+from app.controller.utility import bangladesh_time
+from app.models import Order
 
 logger = logging.getLogger(__name__)
 

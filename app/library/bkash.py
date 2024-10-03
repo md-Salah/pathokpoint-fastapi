@@ -21,7 +21,7 @@ async def grant_token() -> str | None:
     }
     try:
         async with AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers)
+            response = await client.post(url, json=payload, headers=headers, timeout=10)
             if response.status_code != 200:
                 logger.error(
                     'Failed to init bkash grant token, response: %s', response.text)

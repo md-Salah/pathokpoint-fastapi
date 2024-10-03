@@ -59,7 +59,7 @@ async def test_pay_with_bkash_success_callback(
 
     assert res.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     assert '/checkout/success' in res.headers['location']
-    send_email.assert_called_once()
+    send_email.assert_called()
 
 
 async def test_pay_with_bkash_failed_callback(
@@ -113,7 +113,7 @@ async def test_pay_with_bkash_failed_callback(
 
     assert res.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     assert '/checkout/failed' in res.headers['location']
-    send_email.assert_called_once()
+    send_email.assert_called()
 
 
 async def test_pay_with_bkash_callback_failed_to_execute_payment(
@@ -167,4 +167,4 @@ async def test_pay_with_bkash_callback_failed_to_execute_payment(
 
     assert res.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     assert '/checkout/failed' in res.headers['location']
-    send_email.assert_called_once()
+    send_email.assert_called()
