@@ -19,8 +19,10 @@ from app.controller.exception import NotFoundException, BadRequestException, Ser
 logger = logging.getLogger(__name__)
 
 order_query = select(Order).options(
-    selectinload(Order.order_items).selectinload(OrderItem.book).selectinload(Book.authors),
-    selectinload(Order.order_items).selectinload(OrderItem.book).selectinload(Book.images),
+    selectinload(Order.order_items).selectinload(
+        OrderItem.book).selectinload(Book.authors),
+    selectinload(Order.order_items).selectinload(
+        OrderItem.book).selectinload(Book.images),
     selectinload(Order.order_status).selectinload(OrderStatus.updated_by),
     selectinload(Order.transactions).selectinload(Transaction.gateway),
     selectinload(Order.transactions).selectinload(Transaction.refunded_by),
@@ -157,14 +159,28 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
 
     # Coupon & Discount
     order.discount = 0
-    if payload.get('coupon_code'):
-        coupon = await coupon_service.get_coupon_by_code(
-            payload['coupon_code'], db)
-        order.coupon, order.discount, order.shipping_charge = await apply_coupon(
-            coupon, order.order_items, order.shipping_charge, db, payload.get('customer_id'), payload.get('courier_id'))
-    elif payload.get('coupon_id'):
-        order.coupon, order.discount, order.shipping_charge = await apply_coupon(
-            payload['coupon_id'], order.order_items, order.shipping_charge, db, payload.get('customer_id'), payload.get('courier_id'))
+    if payload.get('coupon_code') or payload.get('coupon_id'):
+        if payload.get('coupon_code'):
+            coupon = await coupon_service.get_coupon_by_code(
+                payload['coupon_code'], db)
+        else:
+            coupon = await coupon_service.get_coupon_by_id(
+                payload['coupon_id'], db
+            )
+        (
+            order.coupon,
+            order.discount,
+            order.shipping_charge,
+            order.weight_charge
+        ) = await apply_coupon(
+            coupon,
+            order.order_items,
+            order.shipping_charge,
+            order.weight_charge,
+            db,
+            payload.get('customer_id'),
+            payload.get('courier_id')
+        )
 
     # Paid
     order.transactions = []
@@ -200,7 +216,7 @@ async def create_order(payload: dict[str, Any], db: AsyncSession, commit: bool =
         db.add(order)
         await db.commit()
         logger.info('Order created: {}'.format(order))
-        
+
     return order
 
 
@@ -224,11 +240,13 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
             (
                 order.coupon,
                 order.discount,
-                order.shipping_charge
+                order.shipping_charge,
+                order.weight_charge
             ) = await apply_coupon(
-                order.coupon.id,
+                order.coupon,
                 order.order_items,
                 order.shipping_charge,
+                order.weight_charge,
                 db,
                 order.customer_id,
                 order.courier_id,
@@ -310,7 +328,7 @@ async def delete_order(id: UUID, restock: bool, db: AsyncSession) -> None:
         for item in order.order_items:
             book = await item.awaitable_attrs.book
             await restock_item(book, item.quantity)
-            
+
     for trx in (await order.awaitable_attrs.transactions):
         logger.info('Deleting transaction: {}'.format(trx))
         await db.delete(trx)
@@ -322,7 +340,8 @@ async def delete_order(id: UUID, restock: bool, db: AsyncSession) -> None:
 
 async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUID | None = None) -> Tuple[list[OrderItem], float, float, float, float]:
     book_ids = [item['book_id'] for item in items_in]
-    query = select(Book).options(selectinload(Book.authors), selectinload(Book.images))
+    query = select(Book).options(selectinload(
+        Book.authors), selectinload(Book.images))
     books = {book.id: book for book in (await db.scalars(query.filter(Book.id.in_(book_ids))))}
 
     existing_items = {item.book_id: item for item in
@@ -370,19 +389,20 @@ async def manage_inventory(items_in: list[dict], db: AsyncSession, order_id: UUI
             new_book_total += item.sold_price * item.quantity
             cog_new += item.book.cost * item.quantity
 
-    logger.debug("Order items: {}, Old: {}, New: {}".format(items, old_book_total, new_book_total))
+    logger.debug("Order items: {}, Old: {}, New: {}".format(
+        items, old_book_total, new_book_total))
     return items, old_book_total, new_book_total, cog_old, cog_new
 
 
-async def apply_coupon(coupon_id: UUID | Coupon,
+async def apply_coupon(coupon: Coupon,
                        order_items: List[OrderItem],
                        shipping_charge: float,
+                       weight_charge: float,
                        db: AsyncSession,
                        customer_id: UUID | None = None,
                        courier_id: UUID | None = None,
-                       new_order: bool = True) -> Tuple[Coupon, float, float]:
+                       new_order: bool = True) -> Tuple[Coupon, float, float, float]:
     items = order_items.copy()
-    coupon = coupon_id if isinstance(coupon_id, Coupon) else await coupon_service.get_coupon_by_id(coupon_id, db)
 
     if new_order:
         if not coupon.is_active:
@@ -390,7 +410,8 @@ async def apply_coupon(coupon_id: UUID | Coupon,
                 "Coupon '{}' is disabled".format(coupon.code))
 
         if coupon.expiry_date and coupon.expiry_date < datetime.now(timezone.utc):
-            raise BadRequestException("Coupon '{}' has expired".format(coupon.code))
+            raise BadRequestException(
+                "Coupon '{}' has expired".format(coupon.code))
 
         if coupon.use_limit:
             use_count = await db.scalar(select(func.count(Order.id)).where(Order.coupon_id == coupon.id))
@@ -474,6 +495,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
     if old_book_total >= coupon.min_spend_old or new_book_total >= coupon.min_spend_new:
         if coupon.max_shipping_charge is not None:
             shipping_charge = min(shipping_charge, coupon.max_shipping_charge)
+            weight_charge = 0
     elif coupon.discount_old and coupon.discount_new:
         raise BadRequestException('Please buy more {}৳ old or {}৳ new book to use this coupon'.format(
             coupon.min_spend_old - old_book_total, coupon.min_spend_new - new_book_total))
@@ -488,7 +510,7 @@ async def apply_coupon(coupon_id: UUID | Coupon,
             coupon.min_spend_old - old_book_total, coupon.min_spend_new - new_book_total))
 
     discount = round(discount_old + discount_new)
-    return coupon, discount, shipping_charge
+    return coupon, discount, shipping_charge, weight_charge
 
 
 async def handle_shipping(address_id: UUID | Address, courier_id: UUID, weight_kg: float, is_full_paid: bool, db: AsyncSession) -> Tuple[float, float, Address, Courier]:
@@ -502,9 +524,10 @@ async def handle_shipping(address_id: UUID | Address, courier_id: UUID, weight_k
     courier = await db.get(Courier, courier_id)
     if not courier:
         raise NotFoundException('Courier not found')
-    
+
     if not is_full_paid and not courier.allow_cash_on_delivery:
-        raise BadRequestException("'{}' does not allow cash on delivery".format(courier.method_name))
+        raise BadRequestException(
+            "'{}' does not allow cash on delivery".format(courier.method_name))
 
     if courier.include_country and (address.country not in courier.include_country):
         raise BadRequestException("'{}' does not deliver to {}".format(
@@ -554,4 +577,3 @@ async def additional_weight_charge(items: List[OrderItem], weight_charge_per_kg)
     sub_total = sum(
         [item.sold_price * item.quantity for item in items if item.book.weight_in_gm == 0])
     return (sub_total//1000) * weight_charge_per_kg
-

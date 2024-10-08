@@ -27,10 +27,11 @@ async def apply_coupon(payload: dict[str, Any], db: AsyncSession):
             sold_price=book.sale_price,
             quantity=item['quantity'],
         ))
-    _, discount, shipping_charge = await order_service.apply_coupon(
-        coupon_id=coupon,
+    _, discount, shipping_charge, _ = await order_service.apply_coupon(
+        coupon,
         order_items=items,
         shipping_charge=float('inf'),
+        weight_charge=0,
         db=db,
         customer_id=payload.get('customer_id')
     )
