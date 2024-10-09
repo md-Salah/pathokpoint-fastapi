@@ -3,10 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from typing import Sequence
 from uuid import UUID
-import os
 import logging
-import tempfile
-import aiofiles
 from typing import Tuple, List
 from sqlalchemy.orm.attributes import set_committed_value
 
@@ -34,30 +31,6 @@ async def get_all_images(page: int, per_page: int, db: AsyncSession) -> Sequence
 async def count_image(db: AsyncSession) -> int:
     result = await db.execute(select(func.count()).select_from(Image))
     return result.scalar_one()
-
-
-async def read_file(file: UploadFile, MAX_MB: int = 2) -> str:
-    CHUNK_SIZE = 1 * 1024 * 1024
-
-    if file.size is None:
-        raise BadRequestException('File size is unknown')
-    elif file.size > MAX_MB * CHUNK_SIZE:
-        raise BadRequestException(
-            'File size should not exceed {}MB'.format(MAX_MB))
-
-    try:
-        tmp_dir = 'dummy/tmp'
-        if not os.path.exists(tmp_dir):
-            os.makedirs(tmp_dir)
-        with tempfile.NamedTemporaryFile(dir=tmp_dir, delete=False) as temp_file:
-            tmp_file = temp_file.name
-            async with aiofiles.open(tmp_file, 'wb') as f:
-                while chunk := await file.read(CHUNK_SIZE):
-                    await f.write(chunk)
-            return tmp_file
-    except Exception as err:
-        logger.error(f'Error while uploading image: {err}')
-        raise ServerErrorException('Error while uploading image')
 
 
 async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[int, int], max_kb: int, db: AsyncSession, optimizer: bool = True) -> Image:

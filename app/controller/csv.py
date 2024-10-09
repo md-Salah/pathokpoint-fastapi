@@ -1,33 +1,33 @@
-import io
 import csv
-import pandas as pd
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload, joinedload
-from fastapi import UploadFile, BackgroundTasks
+import io
 import logging
-from typing import Any
-import traceback
-import time
 import os
+import time
+import traceback
+from typing import Any
 
-from app.constant import ImageFolder
-from app.filter_schema.book import BookFilter
-from app.models import Book, Author, Publisher, Category, Tag, Image, User
-from app.controller.book import get_all_books
-import app.library.s3 as s3
-from app.controller.exception import NotFoundException, BadRequestException
-from app.controller.utility import unique_slug
+import httpx
+import pandas as pd
+from fastapi import BackgroundTasks, UploadFile
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, HttpUrl
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
+
 import app.controller.email as email_service
-from app.controller.image import read_file
-
-from app.pydantic_schema.book import CreateBook, UpdateBook
+import app.library.s3 as s3
+from app.constant import ImageFolder
+from app.controller.book import get_all_books
+from app.controller.exception import BadRequestException, NotFoundException
+from app.controller.utility import unique_slug
+from app.filter_schema.book import BookFilter
+from app.models import Author, Book, Category, Image, Publisher, Tag, User
 from app.pydantic_schema.author import CreateAuthor
-from app.pydantic_schema.publisher import CreatePublisher
+from app.pydantic_schema.book import CreateBook, UpdateBook
 from app.pydantic_schema.category import CreateCategory
+from app.pydantic_schema.publisher import CreatePublisher
 from app.pydantic_schema.tag import CreateTag
-
 
 logger = logging.getLogger(__name__)
 
@@ -122,18 +122,38 @@ async def find_or_create_relation(name_str: str | None, slug_str: str | None,
     return items
 
 
-# async def upload_images(images: str | None) -> list[Image]:
-#     if not images:
-#         return []
-#     items = []
-#     for img in images.split('|'):
-#         if img.strip():
-#             response = await s3.upload_file()
-#             assert response, 'error: image upload failed'
-#             image = Image(name=response['filename'],
-#                           src=response['secure_url'], public_id=response['public_id'], folder=ImageFolder.book)
-#             items.append(image)
-#     return items
+class URLModel(BaseModel):
+    url: HttpUrl
+
+
+async def get_blob(url: str) -> bytes | None:
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.get(url)
+            return res.content
+        except Exception:
+            return None
+
+
+async def upload_images(images: str | None) -> list[Image]:
+    if not images:
+        return []
+    items = []
+    for url in images.split('|'):
+        if url.strip():
+            # Raise ValidationError if invalid URL
+            URLModel(url=url)  # type: ignore
+            blob = await get_blob(url)
+            assert blob, 'error: image download failed'
+
+            filename = url.split('/')[-1]
+            folder = ImageFolder.new_book  # For internet images
+            key = await s3.upload_file(blob, filename, folder)
+            assert key, 'error: image upload failed'
+            image = Image(name=filename,
+                          src='', public_id='', folder=folder)
+            items.append(image)
+    return items
 
 
 async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email: str | None = None):
@@ -153,8 +173,7 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
                                                  payload.get('tags_slug'), CreateTag, Tag, db)
             publisher = await find_or_create_relation(payload.pop('publisher', None),
                                                       payload.get('publisher_slug'), CreatePublisher, Publisher, db)
-            # images = await upload_images(payload.pop('images', None))
-            images = []
+            images = await upload_images(payload.pop('images', None))
 
             _book = await db.scalar(query_joinedload.filter(Book.sku == idx))
             if _book:
@@ -188,25 +207,25 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
 
                 db.add(book)
                 await db.commit()
-                df.at[idx, 'status'] = 'successfully inserted'  # type: ignore
+                df.at[idx, 'status'] = 'successfully inserted'
         except Exception as e:
-            # logger.error(f'{traceback.format_exc()}')
+            logger.debug(f'{traceback.format_exc()}')
             df.at[idx, 'status'] = 'error: {}: {}'.format(  # type: ignore
                 e.__class__, str(e))
 
+            # Remove uploaded images
             try:
-                # Remove images from cloudinary
-                # if isinstance(images[0], Image):
-                #     for image in images:
-                #         await delete_file_from_cloudinary(image.public_id)
-                pass
+                if isinstance(images[0], Image):
+                    for image in images:
+                        await s3.delete_file(image.name, image.folder)
             except Exception:
                 pass
 
     et = time.strftime("%H:%M:%S", time.gmtime(time.time() - st))
     count = df['status'].value_counts().to_dict()
-    error_count = len(df) - count.get('successfully inserted', 0) - count.get('successfully updated', 0)
-    
+    error_count = len(df) - count.get('successfully inserted',
+                                      0) - count.get('successfully updated', 0)
+
     logger.info('Total: {}, Successfully inserted: {}, Successfully updated: {}, Error: {}, Execution time: {}'.format(
         len(df),
         count.get('successfully inserted', 0),
@@ -244,12 +263,16 @@ async def import_books_from_csv(file: UploadFile, user: User,  bg_task: Backgrou
     elif not file.filename.endswith('.csv'):
         raise BadRequestException(
             'Invalid file format. Only CSV files are allowed.')
-        
-    filename = await read_file(file, 5)
+
     try:
-        df = pd.read_csv(filename, dtype={
-                         'edition': str, 'isbn': str, 'translators': str, 'categories': str, 'tags': str, 'authors': str})
-        os.remove(filename)
+        df = pd.read_csv(io.StringIO((await file.read()).decode('utf-8')), dtype={
+            'edition': str,
+            'isbn': str,
+            'translators': str,
+            'categories': str,
+            'tags': str,
+            'authors': str
+        })
     except Exception as e:
         raise BadRequestException(f'Error reading CSV file: {str(e)}')
 

@@ -2,6 +2,7 @@ from enum import Enum
 
 class ImageFolder(str, Enum):
     book = 'book'
+    new_book = 'new_book'
     author = 'author'
     category = 'category'
     publisher = 'publisher'
