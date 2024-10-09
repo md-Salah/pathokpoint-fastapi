@@ -74,6 +74,7 @@ async def get_all_orders(filter: OrderFilter, page: int, per_page: int, db: Asyn
     if any([filter.courier.id__in, filter.courier.method_name__in, filter.courier.company_name, filter.courier.allow_cash_on_delivery]):
         query = query.outerjoin(Order.courier)
 
+    query = query.distinct()
     query = filter.filter(query)
     stmt = filter.sort(query)
     stmt = stmt.offset(offset).limit(per_page)
