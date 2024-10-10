@@ -73,5 +73,13 @@ async def is_following(id: UUID, token: AccessToken, db: Session) -> bool:
 @router.get('/following', response_model=list[author_schema.AuthorOut])
 async def get_following_authors(*, token: AccessToken,
                                 page: int = Query(1, ge=1), per_page: int = Query(10, ge=1, le=100),
-                                db: Session):
-    return await author_service.get_following_authors(token['id'], page, per_page, db)
+                                db: Session, response: Response):
+    authors = await author_service.get_following_authors(token['id'], page, per_page, db)
+    count = await author_service.count_following_authors(token['id'], db)
+
+    response.headers['X-Total-Count'] = str(count)
+    response.headers['X-Total-Pages'] = str(-(-count // per_page))
+    response.headers['X-Current-Page'] = str(page)
+    response.headers['X-Per-Page'] = str(per_page)
+
+    return authors

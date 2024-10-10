@@ -213,4 +213,17 @@ async def get_following_authors(user_id: UUID, page: int, per_page: int,  db: As
     except Exception:
         logger.error(traceback.format_exc())
         raise UnhandledException()
+    
     return result.scalars().unique().all()
+
+
+async def count_following_authors(user_id: UUID, db: AsyncSession) -> int:
+    count_query = select(func.count()).select_from(Author).join(Author.followers).filter(User.id == user_id)
+
+    try:
+        result = await db.execute(count_query)
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
+
+    return result.scalar_one()
