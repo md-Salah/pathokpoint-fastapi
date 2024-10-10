@@ -15,7 +15,7 @@ from app.controller.exception import (
 )
 from app.controller.image import validate_img
 from app.filter_schema.author import AuthorFilter
-from app.models import Author, Book, Category, Publisher, User, Tag
+from app.models import Author, Book, Category, Publisher, Tag, User
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,15 @@ async def update_author(id: UUID, payload: dict, db: AsyncSession) -> Author:
     return author
 
 
-async def follow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> Author:
+async def delete_author(id: UUID, db: AsyncSession) -> None:
+    author = await get_author_by_id(id, db)
+    await db.delete(author)
+    await db.commit()
+
+    logger.info(f'Author deleted: {author}')
+
+
+async def follow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> dict:
     author = await get_author_by_id(author_id, db)
     user = await db.scalar(select(User).filter(User.id == user_id))
     if not user:
@@ -163,10 +171,10 @@ async def follow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> Aut
         raise ConflictException(
             'You are already following the author', str(author_id))
 
-    return author
+    return {'message': 'Author followed successfully'}
 
 
-async def unfollow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> Author:
+async def unfollow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> dict:
     author = await get_author_by_id(author_id, db)
     user = await db.scalar(select(User).filter(User.id == user_id))
     if not user:
@@ -181,12 +189,28 @@ async def unfollow_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> A
         await db.commit()
         logger.info(f'User {user} unfollowed author {author}')
 
-    return author
+    return {'message': 'Author unfollowed successfully'}
 
 
-async def delete_author(id: UUID, db: AsyncSession) -> None:
-    author = await get_author_by_id(id, db)
-    await db.delete(author)
-    await db.commit()
+async def is_following_author(author_id: UUID, user_id: UUID, db: AsyncSession) -> bool:
+    author = await get_author_by_id(author_id, db)
+    user = await db.scalar(select(User).filter(User.id == user_id))
+    if not user:
+        raise NotFoundException('User not found', str(user_id))
 
-    logger.info(f'Author deleted: {author}')
+    return user in await author.awaitable_attrs.followers
+
+
+async def get_following_authors(user_id: UUID, page: int, per_page: int,  db: AsyncSession) -> Sequence[Author]:
+    offset = (page - 1) * per_page
+
+    user = await db.scalar(select(User).filter(User.id == user_id))
+    assert user, NotFoundException('User not found', str(user_id))
+
+    query = select(Author).join(Author.followers).filter(User.id == user_id)
+    try:
+        result = await db.execute(query.offset(offset).limit(per_page))
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
+    return result.scalars().unique().all()

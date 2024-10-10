@@ -1,26 +1,27 @@
 from fastapi import APIRouter
 
-from app.api.root import router as root_route
-from app.api.auth import router as auth_route
-from app.api.user import router as user_route
-from app.api.book import router as book_route
-from app.api.image import router as image_route
-from app.api.tag import router as tag_route
-from app.api.author import router as author_route
-from app.api.publisher import router as publisher_route
-from app.api.category import router as category_route
-from app.api.order import router as order_route
-from app.api.review import router as review_route
-from app.api.courier import router as courier_route
 from app.api.address import router as address_route
-from app.api.coupon import router as coupon_route
-from app.api.payment_gateway import router as payment_gateway_route
-from app.api.transaction import router as transaction_route
-from app.api.payment import router as payment_route
+from app.api.auth import router as auth_route
+from app.api.author import router as author_route
+from app.api.book import router as book_route
 from app.api.cart import router as cart_route
+from app.api.category import router as category_route
 from app.api.checkout import router as checkout_route
-from app.api.email import router as email_route
+from app.api.coupon import router as coupon_route
+from app.api.courier import router as courier_route
 from app.api.dashboard import router as dashboard_route
+from app.api.email import router as email_route
+from app.api.image import router as image_route
+from app.api.misc import router as misc_route
+from app.api.order import router as order_route
+from app.api.payment import router as payment_route
+from app.api.payment_gateway import router as payment_gateway_route
+from app.api.publisher import router as publisher_route
+from app.api.review import router as review_route
+from app.api.root import router as root_route
+from app.api.tag import router as tag_route
+from app.api.transaction import router as transaction_route
+from app.api.user import router as user_route
 
 router = APIRouter()
 
@@ -45,3 +46,4 @@ router.include_router(payment_route, tags=['Payment'])
 router.include_router(transaction_route, tags=['Transaction'])
 router.include_router(email_route, tags=['Email'])
 router.include_router(dashboard_route, tags=['Dashboard'])
+router.include_router(misc_route, tags=['Miscellaneous'])
