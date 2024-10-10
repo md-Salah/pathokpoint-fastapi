@@ -1,17 +1,18 @@
-from sqlalchemy import String, Boolean, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 
+from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models import Image, Transaction
 from app.models.mixins import TimestampMixin
-from app.models import Transaction, Image
 
 
 class PaymentGateway(TimestampMixin):
     __tablename__ = 'payment_gateways'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(
-        as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
+        as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(20), unique=True)
     title: Mapped[str] = mapped_column(String(20))
     is_disabled: Mapped[bool] = mapped_column(Boolean, default=False)

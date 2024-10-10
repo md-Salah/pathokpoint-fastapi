@@ -147,11 +147,10 @@ async def upload_images(images: str | None) -> list[Image]:
             assert blob, 'error: image download failed'
 
             filename = url.split('/')[-1]
-            folder = ImageFolder.new_book  # For internet images
+            folder = ImageFolder.new_book.value  # For internet images
             key = await s3.upload_file(blob, filename, folder)
             assert key, 'error: image upload failed'
-            image = Image(name=filename,
-                          src='', public_id='', folder=folder)
+            image = Image(name=filename, folder=folder)
             items.append(image)
     return items
 

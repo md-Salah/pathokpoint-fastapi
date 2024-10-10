@@ -92,8 +92,6 @@ async def img_uploader(client: AsyncClient) -> Callable:
         mock_upload_file.assert_called_once()
 
         img = response.json()[0]
-        img.pop('public_id')
-        img.pop('folder')
         return img
 
     return _create_image
@@ -137,8 +135,6 @@ async def create_image(mock_upload_file: MagicMock, mock_signed_url: MagicMock, 
     assert response.status_code == status.HTTP_201_CREATED
     mock_upload_file.assert_called_once()
     img = response.json()[0]
-    img.pop('public_id')
-    img.pop('folder')
     return img
 
 

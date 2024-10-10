@@ -49,8 +49,7 @@ async def create_image(file: UploadFile, folder: ImageFolder, dimension: Tuple[i
     if not key:
         raise ServerErrorException('Image upload failed')
 
-    image = Image(name=file.filename,
-                  src='', public_id='', folder=folder)
+    image = Image(name=file.filename, folder=folder)
     db.add(image)
     set_committed_value(image, 'src', s3.public_url(
         file.filename, folder.value))

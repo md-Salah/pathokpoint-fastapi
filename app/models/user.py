@@ -1,23 +1,24 @@
-from sqlalchemy import String, Enum, ForeignKey
-from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from app.constant.role import Role
+from sqlalchemy import Enum, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.constant.gender import Gender
+from app.constant.role import Role
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models import Order, Address, Review, Author, Image
+    from app.models import Address, Author, Image, Order, Review
 
 
 class User(TimestampMixin):
     __tablename__ = 'users'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(
-        as_uuid=True), primary_key=True, unique=True, nullable=False, default=uuid.uuid4)
+        as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     first_name: Mapped[str | None] = mapped_column(String(20))
     last_name: Mapped[str | None] = mapped_column(String(20))
@@ -28,9 +29,10 @@ class User(TimestampMixin):
     date_of_birth: Mapped[date | None]
     gender: Mapped[Gender | None]
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.customer)
-    
+
     image_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('images.id'))
-    image: Mapped['Image'] = relationship(foreign_keys=[image_id], cascade='all, delete-orphan', lazy='selectin', single_parent=True)
+    image: Mapped['Image'] = relationship(foreign_keys=[
+                                          image_id], cascade='all, delete-orphan', lazy='selectin', single_parent=True)
 
     orders: Mapped[list["Order"]] = relationship(back_populates='customer')
     addresses: Mapped[list["Address"]] = relationship(

@@ -1,22 +1,24 @@
-from sqlalchemy import String, Column, Table, ForeignKey, Boolean, Integer
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 from datetime import date
 from typing import List
 
-from app.models.mixins import TimestampMixin
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.constant import Country
 from app.models.base import Base
 from app.models.book import Book
 from app.models.image import Image
-from app.constant import Country
+from app.models.mixins import TimestampMixin
 from app.models.user import User
+
 
 class Author(TimestampMixin):
     __tablename__ = 'authors'
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String, index=True, unique=True)
     slug: Mapped[str] = mapped_column(String(100), index=True, unique=True)
 
@@ -32,7 +34,6 @@ class Author(TimestampMixin):
     is_in_menu: Mapped[bool] = mapped_column(Boolean, default=False)
     is_in_hero: Mapped[bool] = mapped_column(Boolean, default=False)
 
-
     # Relationship
     books: Mapped[List['Book']] = relationship(
         secondary='book_author_link', back_populates='authors')
@@ -40,11 +41,13 @@ class Author(TimestampMixin):
         secondary='book_translator_link', back_populates='translators')
 
     image_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('images.id'))
-    image: Mapped['Image'] = relationship(foreign_keys=[image_id], cascade='all, delete-orphan', single_parent=True)
+    image: Mapped['Image'] = relationship(
+        foreign_keys=[image_id], cascade='all, delete-orphan', single_parent=True)
 
     banner_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey('images.id'))
-    banner: Mapped['Image'] = relationship(foreign_keys=[banner_id], cascade='all, delete-orphan', single_parent=True)
+    banner: Mapped['Image'] = relationship(
+        foreign_keys=[banner_id], cascade='all, delete-orphan', single_parent=True)
 
     followers_count: Mapped[int] = mapped_column(Integer, default=0)
     followers: Mapped[List['User']] = relationship(

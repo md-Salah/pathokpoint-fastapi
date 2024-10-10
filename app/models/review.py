@@ -1,14 +1,16 @@
-from sqlalchemy import Boolean, ForeignKey, Table, Column
+import uuid
+from typing import TYPE_CHECKING, List
+
+from sqlalchemy import Boolean, Column, ForeignKey, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-import uuid
-from typing import List, TYPE_CHECKING
 
 from app.models.base import Base
+from app.models.book import Book
 from app.models.mixins import TimestampMixin
 from app.models.order import Order
 from app.models.user import User
-from app.models.book import Book
+
 if TYPE_CHECKING:
     from app.models.image import Image
 
@@ -17,7 +19,7 @@ class Review(TimestampMixin):
     __tablename__ = 'reviews'
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     product_rating: Mapped[int]
     time_rating: Mapped[int]
@@ -34,7 +36,8 @@ class Review(TimestampMixin):
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('users.id'))
-    user: Mapped['User'] = relationship(back_populates='reviews', lazy='selectin')
+    user: Mapped['User'] = relationship(
+        back_populates='reviews', lazy='selectin')
 
     order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey('orders.id'))

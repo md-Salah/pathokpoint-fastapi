@@ -1,4 +1,4 @@
-from pydantic import ConfigDict, AnyUrl
+from pydantic import ConfigDict, HttpUrl
 
 from app.pydantic_schema.mixins import IdTimestampMixin
 
@@ -13,8 +13,7 @@ example_image_out = {
 
 class ImageOut(IdTimestampMixin):
     name: str
-    src: AnyUrl
-    public_id: str
+    src: HttpUrl
     folder: str
     model_config = ConfigDict(
         json_schema_extra={"example": example_image_out})  # type: ignore

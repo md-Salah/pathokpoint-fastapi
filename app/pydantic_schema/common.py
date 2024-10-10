@@ -1,4 +1,4 @@
-from pydantic import AnyUrl, UUID4
+from pydantic import HttpUrl, UUID4
 from typing import ClassVar
 
 from app.pydantic_schema.mixins import IdNameSlugMixin, IdTimestampMixin
@@ -54,7 +54,8 @@ class UserOut(BaseModel):
 
 class ImageOut(IdTimestampMixin):
     name: str
-    src: AnyUrl
+    src: HttpUrl
+    folder: str
 
     _example: ClassVar = {
         'name': 'cover photo.jpg',

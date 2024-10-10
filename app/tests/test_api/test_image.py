@@ -31,5 +31,4 @@ async def test_create_image(mock_upload_file: MagicMock, client: AsyncClient, au
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()[0].items() >= {'name': 'image.jpg'}.items()
     assert response.json()[0]['src'] is not None
-    assert response.json()[0]['public_id'] is not None
     mock_upload_file.assert_called_once()

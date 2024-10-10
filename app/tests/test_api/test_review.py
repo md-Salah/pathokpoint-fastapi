@@ -15,7 +15,7 @@ simple_review = {
 }
 
 
-async def test_get_review_by_id(client: AsyncClient, review_in_db: dict):
+async def test_get_review_by_id(client: AsyncClient, review_in_db: dict, diff):
     response = await client.get(f"/review/id/{review_in_db['id']}")
     assert response.status_code == status.HTTP_200_OK
     review_in_db.pop('headers')

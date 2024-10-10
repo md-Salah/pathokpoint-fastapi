@@ -1,28 +1,41 @@
-from sqlalchemy import String, ARRAY, Column, Table, ForeignKey, Boolean, Enum, Float, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 from datetime import datetime
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
-from app.models.mixins import TimestampMixin
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    String,
+    Table,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models import Author, Book, Category, Order, Publisher
 from app.models.base import Base
-from app.models import Order, Author, Book, Publisher, Category
-if TYPE_CHECKING:
-    from app.models import Tag, User, Courier
+from app.models.mixins import TimestampMixin
 
-from app.constant.discount_type import DiscountType
+if TYPE_CHECKING:
+    from app.models import Courier, Tag, User
+
 from app.constant.condition import Condition
+from app.constant.discount_type import DiscountType
 
 
 class Coupon(TimestampMixin):
     __tablename__ = 'coupons'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(
-        as_uuid=True), primary_key=True, unique=True, default=uuid.uuid4)
+        as_uuid=True), primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(20), index=True, unique=True)
     short_description: Mapped[str | None] = mapped_column(String(100))
-    expiry_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expiry_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True))
 
     discount_type: Mapped[DiscountType] = mapped_column(Enum(DiscountType))
     discount_old: Mapped[float | None]
@@ -65,7 +78,7 @@ class Coupon(TimestampMixin):
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id'))
     user: Mapped['User'] = relationship(foreign_keys=[user_id])
-        
+
     exclude_couriers: Mapped[List['Courier']] = relationship(
         secondary='coupon_courier_exclude_link')
 
