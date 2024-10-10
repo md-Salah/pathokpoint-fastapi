@@ -1,7 +1,8 @@
+from typing import Any, Callable
+
 import pytest
 from httpx import AsyncClient
 from starlette import status
-from typing import Any, Callable
 
 pytestmark = pytest.mark.asyncio
 
@@ -88,7 +89,6 @@ async def test_follow_author(client: AsyncClient, author_in_db: dict, user_in_db
         user_in_db["token"]["access_token"])}
     response = await client.post('/author/follow/{}'.format(author_in_db['id']), headers=headers)
     assert response.status_code == 200
-    assert response.json()['followers_count'] == 1
 
 
 async def test_unfollow_author(client: AsyncClient, author_in_db: dict, user_in_db: dict[str, Any]):
@@ -98,9 +98,27 @@ async def test_unfollow_author(client: AsyncClient, author_in_db: dict, user_in_
     # Follow
     response = await client.post('/author/follow/{}'.format(author_in_db['id']), headers=headers)
     assert response.status_code == 200
-    assert response.json()['followers_count'] == 1
 
     # Unfollow
     response = await client.post('/author/unfollow/{}'.format(author_in_db['id']), headers=headers)
     assert response.status_code == 200
-    assert response.json()['followers_count'] == 0
+
+
+async def test_is_following(client: AsyncClient, author_in_db: dict, user_in_db: dict[str, Any]):
+    headers = {'Authorization': 'Bearer {}'.format(
+        user_in_db["token"]["access_token"])}
+    response = await client.get('/author/is-following/{}'.format(author_in_db['id']), headers=headers)
+    assert response.status_code == 200
+    assert response.json() is False
+
+
+async def test_following_authors_list(client: AsyncClient, author_in_db: dict, user_in_db: dict[str, Any]):
+    headers = {'Authorization': 'Bearer {}'.
+               format(user_in_db["token"]["access_token"])}
+
+    response = await client.post('/author/follow/{}'.format(author_in_db['id']), headers=headers)
+    assert response.status_code == 200
+
+    response = await client.get('/author/following', headers=headers)
+    assert response.status_code == 200
+    assert len(response.json()) == 1

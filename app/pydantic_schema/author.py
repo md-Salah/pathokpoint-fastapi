@@ -3,6 +3,7 @@ from pydantic import ConfigDict, NonNegativeInt, Field, UUID4, PastDate
 from app.pydantic_schema.mixins import NameSlugMixin, NameSlugMixinOptional, IdTimestampMixin
 from app.pydantic_schema.common import ImageOut
 from app.constant import Country
+from app.pydantic_schema.base import BaseModel
 
 example_author = {
     'name': 'হুমায়ূন আহমেদ',
@@ -63,3 +64,9 @@ class AuthorOut(CreateAuthor, IdTimestampMixin):
 
     model_config = ConfigDict(json_schema_extra={"example":
                                                  example_author_out})
+
+
+class MsgSchema(BaseModel):
+    message: str
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"message": "success"}})
