@@ -1,20 +1,36 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from uuid import UUID, uuid4
-from datetime import datetime, timezone
-from typing import Sequence, List, Tuple, Any
-from sqlalchemy.orm import selectinload, aliased
 import logging
+import traceback
+from datetime import datetime, timezone
+from typing import Any, List, Sequence, Tuple
+from uuid import UUID, uuid4
 
-from app.filter_schema.order import OrderFilter, OrderFilterCustomer
-from app.models import Order, Book, OrderItem, OrderStatus, Transaction, User, Courier, Coupon
-from app.constant.discount_type import DiscountType
-from app.constant.orderstatus import Status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased, selectinload
+
 import app.controller.coupon as coupon_service
 import app.controller.transaction as transaction_service
+from app.constant.discount_type import DiscountType
+from app.constant.orderstatus import Status
 from app.controller.courier import get_courier_by_id
-from app.models import Address
-from app.controller.exception import NotFoundException, BadRequestException, ServerErrorException
+from app.controller.exception import (
+    BadRequestException,
+    NotFoundException,
+    ServerErrorException,
+    UnhandledException,
+)
+from app.filter_schema.order import OrderFilter, OrderFilterCustomer
+from app.models import (
+    Address,
+    Book,
+    Coupon,
+    Courier,
+    Order,
+    OrderItem,
+    OrderStatus,
+    Transaction,
+    User,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,12 +94,18 @@ async def get_all_orders(filter: OrderFilter, page: int, per_page: int, db: Asyn
     query = filter.filter(query)
     stmt = filter.sort(query)
     stmt = stmt.offset(offset).limit(per_page)
-    result = await db.execute(stmt)
-    orders = result.unique().scalars().all()
 
-    # Count
-    stmt = select(func.count()).select_from(query.subquery())
-    count = (await db.scalar(stmt)) or 0
+    try:
+        result = await db.execute(stmt)
+        orders = result.unique().scalars().all()
+
+        # Count
+        stmt = select(func.count()).select_from(query.subquery())
+        count = (await db.scalar(stmt)) or 0
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
+
     return orders, count
 
 

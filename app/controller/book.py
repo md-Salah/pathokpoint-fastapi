@@ -81,15 +81,19 @@ async def get_all_books(filter: BookFilter, page: int, per_page: int, db: AsyncS
     stmt = filter.sort(stmt)
     stmt = stmt.offset(offset).limit(per_page)
 
-    st = time.time()
-    result = await db.execute(stmt)
-    books = result.unique().scalars().all()
-    logger.debug(f'Time taken to fetch books: {time.time() - st}')
+    try:
+        st = time.time()
+        result = await db.execute(stmt)
+        books = result.unique().scalars().all()
+        logger.debug(f'Time taken to fetch books: {time.time() - st}')
 
-    st = time.time()
-    count_stmt = select(func.count()).select_from(subquery)
-    count = await db.scalar(count_stmt) or 0
-    logger.debug(f'Time taken to fetch count: {time.time() - st}')
+        st = time.time()
+        count_stmt = select(func.count()).select_from(subquery)
+        count = await db.scalar(count_stmt) or 0
+        logger.debug(f'Time taken to fetch count: {time.time() - st}')
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise UnhandledException()
 
     return books, count
 
