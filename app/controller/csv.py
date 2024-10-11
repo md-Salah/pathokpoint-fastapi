@@ -135,7 +135,7 @@ async def get_blob(url: str) -> bytes | None:
             return None
 
 
-async def upload_images(images: str | None) -> list[Image]:
+async def upload_images(images: str | None, db: AsyncSession) -> list[Image]:
     if not images:
         return []
     items = []
@@ -148,14 +148,18 @@ async def upload_images(images: str | None) -> list[Image]:
 
             filename = url.split('/')[-1]
             folder = ImageFolder.new_book.value  # For internet images
-            key = await s3.upload_file(blob, filename, folder)
-            assert key, 'error: image upload failed'
-            image = Image(name=filename, folder=folder)
-            items.append(image)
+            image = await db.scalar(select(Image).filter(Image.name == filename, Image.folder == folder))
+            if image:
+                pass
+            else:
+                key = await s3.upload_file(blob, filename, folder)
+                assert key, 'error: image upload failed'
+                image = Image(name=filename, folder=folder)
+                items.append(image)
     return items
 
 
-async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email: str | None = None):
+async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | None = None):
     st = time.time()
     df = df.drop_duplicates(subset=['sku'])
     df.set_index('sku', inplace=True, drop=False)
@@ -172,7 +176,7 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
                                                  payload.get('tags_slug'), CreateTag, Tag, db)
             publisher = await find_or_create_relation(payload.pop('publisher', None),
                                                       payload.get('publisher_slug'), CreatePublisher, Publisher, db)
-            images = await upload_images(payload.pop('images', None))
+            images = await upload_images(payload.pop('images', None), db)
 
             _book = await db.scalar(query_joinedload.filter(Book.sku == idx))
             if _book:
@@ -233,10 +237,10 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
         et
     ))
 
-    filename = 'dummy/books_import_status.csv'
-    df.to_csv(filename, index=False)
-
     if email:
+        filename = 'dummy/books_import_status.csv'
+        df.to_csv(filename, index=False)
+
         body = '''
         Hello,
         Your bulk book import has been completed.
@@ -253,10 +257,32 @@ async def process_books_in_background(df: pd.DataFrame, db: AsyncSession, email:
             subtype=email_service.MessageType.plain,
             attachments=[filename]
         ))
-    os.remove(filename)
+
+        os.remove(filename)
+    return df
 
 
-async def import_books_from_csv(file: UploadFile, user: User,  bg_task: BackgroundTasks, db: AsyncSession):
+async def import_books_in_background(file: UploadFile, user: User,  bg_task: BackgroundTasks, db: AsyncSession):
+    df = await read_csv(file)
+    bg_task.add_task(process_dataframe, df, db, user.email)
+    return {'message': 'Processing CSV file in background, we will email you once it is completed.'}
+
+
+async def import_books_from_csv(file: UploadFile, db: AsyncSession):
+    df = await read_csv(file)
+    
+    logger.info('Starting bulk book import')
+    df = await process_dataframe(df, db)
+    
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    buffer.seek(0)
+    response = StreamingResponse(iter([buffer.getvalue()]), media_type='text/csv')
+    response.headers['Content-Disposition'] = 'attachment; filename="books.csv"'
+    return response
+
+
+async def read_csv(file: UploadFile):
     if not file.filename:
         raise BadRequestException('Filename not found.')
     elif not file.filename.endswith('.csv'):
@@ -272,11 +298,9 @@ async def import_books_from_csv(file: UploadFile, user: User,  bg_task: Backgrou
             'tags': str,
             'authors': str
         })
+        return df
     except Exception as e:
         raise BadRequestException(f'Error reading CSV file: {str(e)}')
-
-    bg_task.add_task(process_books_in_background, df, db, user.email)
-    return {'message': 'Processing CSV file in background, we will email you once it is completed.'}
 
 
 async def template_for_import_csv(reqd_cols_only: bool = False):

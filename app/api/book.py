@@ -123,7 +123,12 @@ async def export_books_to_csv(*,
 
 @router.post('/import/csv')
 async def import_books_from_csv(*, file: UploadFile = File(...), user: CurrentAdmin, bg_task: BackgroundTasks, db: Session):
-    return await csv_service.import_books_from_csv(file, user, bg_task, db)
+    return await csv_service.import_books_in_background(file, user, bg_task, db)
+
+
+@router.post('/bot-import/csv')
+async def import_books_from_csv_by_bot(*, file: UploadFile = File(...), _: AdminAccessToken, db: Session):
+    return await csv_service.import_books_from_csv(file, db)
 
 
 @router.post('/template-for-import-csv')
