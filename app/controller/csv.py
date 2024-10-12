@@ -20,7 +20,7 @@ import app.library.s3 as s3
 from app.constant import ImageFolder
 from app.controller.book import get_all_books
 from app.controller.exception import BadRequestException, NotFoundException
-from app.controller.utility import unique_slug, is_filename
+from app.controller.utility import is_filename, unique_slug
 from app.filter_schema.book import BookFilter
 from app.models import Author, Book, Category, Image, Publisher, Tag, User
 from app.pydantic_schema.author import CreateAuthor
@@ -28,7 +28,6 @@ from app.pydantic_schema.book import CreateBook, UpdateBook
 from app.pydantic_schema.category import CreateCategory
 from app.pydantic_schema.publisher import CreatePublisher
 from app.pydantic_schema.tag import CreateTag
-
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +165,18 @@ async def upload_images(images: str | None, db: AsyncSession) -> list[Image]:
     return items
 
 
-async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | None = None):
+async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | None = None, insert_outofstock: bool = True):
+    """_summary_
+        Inserts or updates the books in the database.
+
+    Args:
+        df (pd.DataFrame): Dataframe
+        db (AsyncSession): Session Object
+        email (str | None, optional): Email. Defaults to None.
+
+    Returns:
+        df (pd.DataFrame): Dataframe with status column
+    """
     st = time.time()
     df = df.drop_duplicates(subset=['sku'])
     df.set_index('sku', inplace=True, drop=False)
@@ -175,6 +185,13 @@ async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | Non
     for idx, row in df.iterrows():
         try:
             payload = row.dropna().to_dict()
+            _book = await db.scalar(query_joinedload.filter(Book.sku == idx))
+
+            # Check if the book is out of stock and creating out of stock is disabled
+            if (not _book) and insert_outofstock is False and payload['in_stock'] is False:
+                df.at[idx, 'status'] = 'ignored inserting out of stock product'
+                continue
+
             authors = await find_or_create_relation(payload.pop('authors', None),
                                                     payload.get('authors_slug'), CreateAuthor, Author, db)
             categories = await find_or_create_relation(payload.pop('categories', None),
@@ -185,7 +202,6 @@ async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | Non
                                                       payload.get('publisher_slug'), CreatePublisher, Publisher, db)
             images = await upload_images(payload.pop('images', None), db)
 
-            _book = await db.scalar(query_joinedload.filter(Book.sku == idx))
             if _book:
                 # Update
                 pydantic_book = UpdateBook(**payload)
@@ -275,11 +291,11 @@ async def import_books_in_background(file: UploadFile, user: User,  bg_task: Bac
     return {'message': 'Processing CSV file in background, we will email you once it is completed.'}
 
 
-async def import_books_from_csv(file: UploadFile, db: AsyncSession):
+async def import_books_from_csv(file: UploadFile, insert_outofstock: bool, db: AsyncSession):
     df = await read_csv(file)
 
     logger.info('Starting bulk book import')
-    df = await process_dataframe(df, db)
+    df = await process_dataframe(df, db, insert_outofstock=insert_outofstock)
 
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)

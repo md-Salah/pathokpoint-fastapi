@@ -127,8 +127,8 @@ async def import_books_from_csv(*, file: UploadFile = File(...), user: CurrentAd
 
 
 @router.post('/bot-import/csv')
-async def import_books_from_csv_by_bot(*, file: UploadFile = File(...), _: AdminAccessToken, db: Session):
-    return await csv_service.import_books_from_csv(file, db)
+async def import_books_from_csv_by_bot(*, file: UploadFile = File(...), insert_outofstock: bool = False, _: AdminAccessToken, db: Session):
+    return await csv_service.import_books_from_csv(file, insert_outofstock, db)
 
 
 @router.post('/template-for-import-csv')
