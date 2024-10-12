@@ -1,13 +1,13 @@
 import logging
-from io import BufferedReader
-import traceback
-import aioboto3
 import mimetypes
-from botocore.exceptions import ClientError
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 import os
+import traceback
+from io import BufferedReader
+
+import aioboto3
+from botocore.exceptions import ClientError
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 
@@ -97,7 +97,8 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
             paginator = s3.get_paginator('list_objects_v2')
             page_number = 0
             async for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=folder):
-                logger.info('Page Number: {}, Target Page: {}'.format(page_number, target_page))
+                logger.info('Page Number: {}, Target Page: {}'.format(
+                    page_number, target_page))
                 if page_number == target_page:
                     objs = page.get('Contents', [])
                     logger.info(
@@ -126,11 +127,12 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
                                         break
                                 else:
                                     image = Image(name=filename,
-                                                src='', public_id='', folder=folder)
+                                                  src='', public_id='', folder=folder)
                                     db.add(image)
                                     book.images = [image]
                                     await db.commit()
-                                    logger.info('Image added {} to book {}'.format(image, book))
+                                    logger.info(
+                                        'Image added {} to book {}'.format(image, book))
                                     count['attached'] += 1
                             else:
                                 count['object_deleted'] += 1
@@ -143,8 +145,29 @@ async def attach_s3_imgs_with_books(target_page: int, db: AsyncSession):
                         'Book not found for the images: {}'.format(not_found))
                 elif page_number > target_page:
                     break
-                
+
                 page_number += 1
     except Exception:
         logger.error(traceback.format_exc())
     logger.info('Exit from attach_s3_imgs_with_books')
+
+
+async def is_file_exists(filename: str, folder: str) -> bool:
+    session = aioboto3.Session(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_REGION
+    )
+
+    key = f"{folder}/{filename}"
+
+    try:
+        async with session.client('s3') as s3:  # type: ignore
+            await s3.head_object(Bucket=settings.BUCKET_NAME, Key=key)
+            return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            return False
+        else:
+            logger.error(traceback.format_exc())
+    return False

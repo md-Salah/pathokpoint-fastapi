@@ -1,5 +1,6 @@
 import slugify as slg
 from uuid import UUID
+import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -63,3 +64,11 @@ def convert_str_to_uuid(data):
             return data
     else:
         return data
+
+
+def is_filename(val: str) -> bool:
+    filename_pattern = r'^[\w,\s-]+\.[A-Za-z]{3,4}$'
+    if not val.startswith(('http://', 'https://', 'ftp://')):
+        return bool(re.match(filename_pattern, val))
+
+    return False

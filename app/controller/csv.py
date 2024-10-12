@@ -20,7 +20,7 @@ import app.library.s3 as s3
 from app.constant import ImageFolder
 from app.controller.book import get_all_books
 from app.controller.exception import BadRequestException, NotFoundException
-from app.controller.utility import unique_slug
+from app.controller.utility import unique_slug, is_filename
 from app.filter_schema.book import BookFilter
 from app.models import Author, Book, Category, Image, Publisher, Tag, User
 from app.pydantic_schema.author import CreateAuthor
@@ -28,6 +28,7 @@ from app.pydantic_schema.book import CreateBook, UpdateBook
 from app.pydantic_schema.category import CreateCategory
 from app.pydantic_schema.publisher import CreatePublisher
 from app.pydantic_schema.tag import CreateTag
+
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ class URLModel(BaseModel):
     url: HttpUrl
 
 
-async def get_blob(url: str) -> bytes | None:
+async def download(url: str) -> bytes | None:
     async with httpx.AsyncClient() as client:
         try:
             res = await client.get(url)
@@ -138,24 +139,30 @@ async def get_blob(url: str) -> bytes | None:
 async def upload_images(images: str | None, db: AsyncSession) -> list[Image]:
     if not images:
         return []
+    folder = ImageFolder.new_book.value  # 'new_book' For internet images
     items = []
-    for url in images.split('|'):
-        if url.strip():
-            # Raise ValidationError if invalid URL
-            URLModel(url=url)  # type: ignore
-            blob = await get_blob(url)
-            assert blob, 'error: image download failed'
+    for val in images.split('|'):
+        if not val.strip():
+            continue
 
-            filename = url.split('/')[-1]
-            folder = ImageFolder.new_book.value  # For internet images
-            image = await db.scalar(select(Image).filter(Image.name == filename, Image.folder == folder))
-            if image:
-                pass
-            else:
+        if is_filename(val):
+            is_exists = await s3.is_file_exists(filename=val, folder=folder)
+            assert is_exists, 'error: {} not found in s3'.format(val)
+
+            img = await db.scalar(select(Image).filter(Image.name == val, Image.folder == folder))
+            if not img:
+                items.append(Image(name=val, folder=folder))
+        else:
+            URLModel(url=val)  # type: ignore # Validate URL
+            filename = val.split('/')[-1]
+
+            img = await db.scalar(select(Image).filter(Image.name == filename, Image.folder == folder))
+            if not img:
+                blob = await download(val)
+                assert blob, 'error: {} download failed'.format(val)
                 key = await s3.upload_file(blob, filename, folder)
                 assert key, 'error: image upload failed'
-                image = Image(name=filename, folder=folder)
-                items.append(image)
+                items.append(Image(name=filename, folder=folder))
     return items
 
 
@@ -270,14 +277,15 @@ async def import_books_in_background(file: UploadFile, user: User,  bg_task: Bac
 
 async def import_books_from_csv(file: UploadFile, db: AsyncSession):
     df = await read_csv(file)
-    
+
     logger.info('Starting bulk book import')
     df = await process_dataframe(df, db)
-    
+
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
     buffer.seek(0)
-    response = StreamingResponse(iter([buffer.getvalue()]), media_type='text/csv')
+    response = StreamingResponse(
+        iter([buffer.getvalue()]), media_type='text/csv')
     response.headers['Content-Disposition'] = 'attachment; filename="books.csv"'
     return response
 
