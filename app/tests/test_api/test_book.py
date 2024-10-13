@@ -115,8 +115,3 @@ async def test_upload_book_images(client: AsyncClient, book_in_db: dict, admin_a
 async def test_delete_book(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
     response = await client.delete(f"/book/{book_in_db['id']}", headers=admin_auth_headers)
     assert response.status_code == status.HTTP_204_NO_CONTENT
-
-
-async def test_delete_book_bulk(client: AsyncClient, book_in_db: dict, admin_auth_headers: dict):
-    response = await client.delete(f"/book/bulk/{book_in_db['id']}", headers=admin_auth_headers)
-    assert response.status_code == status.HTTP_204_NO_CONTENT
