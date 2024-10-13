@@ -21,14 +21,13 @@ def slugify(text):
 
 async def unique_slug(base_slug: str, cls: Any, db: AsyncSession) -> str:
     slug = slugify(base_slug)
-    counter = 1
+    counter = 0
     while True:
         result = await db.execute(select(cls).filter_by(slug=slug))
         if not result.scalars().first():
-            break
-        slug = f"{base_slug}-{counter}"
+            return slug
         counter += 1
-    return slug
+        slug = f"{base_slug}-{counter}"
 
 
 def bangladesh_time(utc_time: datetime) -> str:

@@ -14,6 +14,7 @@ from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
+import unicodedata
 
 import app.controller.email as email_service
 import app.library.s3 as s3
@@ -109,13 +110,12 @@ async def find_or_create_relation(name_str: str | None, slug_str: str | None,
         name_str.split('|'), slug_str.split('|'))} if slug_str else {}
     items = []
     for name in name_str.split('|'):
-        name = name.strip()
+        name = unicodedata.normalize('NFC', name).strip()
         if name:
             entity = await db.scalar(select(cls).filter(cls.name == name))
             if entity:
                 items.append(entity)
             else:
-
                 pydantic_item = schema(name=name, slug=(await unique_slug(slug.get(name) or name, cls, db)))
                 new_item = cls(**pydantic_item.model_dump())
                 items.append(new_item)
@@ -194,6 +194,8 @@ async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | Non
 
             authors = await find_or_create_relation(payload.pop('authors', None),
                                                     payload.get('authors_slug'), CreateAuthor, Author, db)
+            translators = await find_or_create_relation(payload.pop('translators', None),
+                                                        payload.get('translators_slug'), CreateAuthor, Author, db)
             categories = await find_or_create_relation(payload.pop('categories', None),
                                                        payload.get('categories_slug'), CreateCategory, Category, db)
             tags = await find_or_create_relation(payload.pop('tags', None),
@@ -209,6 +211,8 @@ async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | Non
                     setattr(_book, key, val)
                 if authors:
                     _book.authors = authors
+                if translators:
+                    _book.translators = translators
                 if categories:
                     _book.categories = categories
                 if tags:
@@ -225,6 +229,7 @@ async def process_dataframe(df: pd.DataFrame, db: AsyncSession, email: str | Non
                 pydantic_book = CreateBook(**payload)
                 book = Book(**pydantic_book.model_dump())
                 book.authors = authors
+                book.translators = translators
                 book.categories = categories
                 book.tags = tags
                 if publisher:
