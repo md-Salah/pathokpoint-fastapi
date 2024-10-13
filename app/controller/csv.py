@@ -11,7 +11,7 @@ import pandas as pd
 from fastapi import BackgroundTasks, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -324,6 +324,7 @@ async def read_csv(file: UploadFile):
         })
         return df
     except Exception as e:
+        logger.error(traceback.format_exc())
         raise BadRequestException(f'Error reading CSV file: {str(e)}')
 
 
@@ -340,3 +341,31 @@ async def template_for_import_csv(reqd_cols_only: bool = False):
         iter([buffer.getvalue()]), media_type='text/csv')
     response.headers['Content-Disposition'] = 'attachment; filename="template.csv"'
     return response
+
+
+async def delete_books_by_sku(file: UploadFile, db: AsyncSession):
+    if not file.filename:
+        raise BadRequestException('Filename not found.')
+    elif not file.filename.endswith('.csv'):
+        raise BadRequestException(
+            'Invalid file format. Only CSV files are allowed.')
+
+    try:
+        df = pd.read_csv(io.StringIO((await file.read()).decode('utf-8')), dtype={
+            'sku': str,
+        })
+    except Exception:
+        logger.error(traceback.format_exc())
+        raise BadRequestException('Error reading CSV file')
+
+    count = 0
+    for sku in df['sku']:
+        book = await db.scalar(select(Book).filter(Book.sku == sku))
+        if book:
+            await db.delete(book)
+            count += 1
+
+    await db.commit()
+    logger.info('Deleted {}/{} books successfully, Not found: {}'.format(count,
+                len(df), len(df) - count))
+    return {'message': 'Books deleted successfully'}

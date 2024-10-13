@@ -93,13 +93,13 @@ async def delete_book(id: UUID, _: AdminAccessToken, db: Session):
     await book_service.delete_book(id, db)
 
 
-@router.delete('/bulk/{ids}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_book_bulk(ids: str, _: AdminAccessToken, db: Session):
-    try:
-        valid_ids = [UUID(id.strip()) for id in ids.split(',')]
-    except Exception:
-        raise BadRequestException('Invalid UUIDs')
-    await book_service.delete_book_bulk(valid_ids, db)
+# @router.delete('/bulk/{ids}', status_code=status.HTTP_204_NO_CONTENT)
+# async def delete_book_bulk(ids: str, _: AdminAccessToken, db: Session):
+#     try:
+#         valid_ids = [UUID(id.strip()) for id in ids.split(',')]
+#     except Exception:
+#         raise BadRequestException('Invalid UUIDs')
+#     await book_service.delete_book_bulk(valid_ids, db)
 
 
 @router.get('/export/csv')
@@ -131,6 +131,11 @@ async def import_books_from_csv_by_bot(*, file: UploadFile = File(...), insert_o
     return await csv_service.import_books_from_csv(file, insert_outofstock, db)
 
 
-@router.post('/template-for-import-csv')
+@router.delete('/bulk/csv', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_books_by_sku(*, file: UploadFile = File(...), _: AdminAccessToken, db: Session):
+    return await csv_service.delete_books_by_sku(file, db)
+
+
+@router.get('/template-for-import-csv')
 async def template_for_import_csv(_: AdminAccessToken, reqd_cols_only: bool = Query(False)):
     return await csv_service.template_for_import_csv(reqd_cols_only)
