@@ -23,10 +23,6 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = 'HS256'
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # in mins
 
-    CLOUDINARY_CLOUD_NAME: str
-    CLOUDINARY_API_KEY: str
-    CLOUDINARY_API_SECRET: str
-
     SMTP_SERVER: str
     SMTP_PORT: int
     SMTP_USERNAME: str

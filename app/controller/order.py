@@ -260,13 +260,16 @@ async def update_order(id: UUID, payload: dict[str, Any], db: AsyncSession) -> O
         ) = await manage_inventory(payload['order_items'], db, order_id=order.id)
 
         if order.coupon_id:
+            coupon = await coupon_service.get_coupon_by_id(
+                order.coupon_id, db
+            )
             (
-                order.coupon,
+                _,
                 order.discount,
                 order.shipping_charge,
                 order.weight_charge
             ) = await apply_coupon(
-                order.coupon,
+                coupon,
                 order.order_items,
                 order.shipping_charge,
                 order.weight_charge,

@@ -121,7 +121,7 @@ async def create_order_by_admin(payload: schema.CreateOrderAdmin, _: AdminAccess
 @router.patch('/{id}', response_model=schema.OrderOutAdmin)
 async def update_order(id: UUID, payload: schema.UpdateOrderAdmin, admin: CurrentAdmin, db: Session):
     logger.info("{} is updating order {}".format(admin, id))
-    logger.info("Payload: {}".format(payload))
+    # logger.info("Payload: {}".format(payload))
     return await order_service.update_order(id, payload.model_dump(exclude_unset=True), db)
 
 
